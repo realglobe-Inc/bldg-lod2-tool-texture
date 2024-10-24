@@ -32,13 +32,12 @@ class TextureMain():
     # オプション出力のOBJフォルダパス
     self.optional_output_objdir = ''
 
-  def texture_main(self, buildings: list[CityGmlManager.BuildInfo], file_name: str, pbar: tqdm = None) -> None:
+  def texture_main(self, buildings: list[CityGmlManager.BuildInfo], file_name: str) -> None:
     """テクスチャ張付け開始
 
     Args:
       buildings (list[CityGmlManager.BuildInfo]): 建物外形情報リスト
       file_name (str): 入力CityGMLファイル名(拡張子付き)
-      pbar      (tqdm): 進捗バー
 
     Raises:
       FileNotFoundError: OBJファイル入力先フォルダなし
@@ -164,6 +163,7 @@ class TextureMain():
         )
         restype = ResultType.WARN
       else:
+        pbar = tqdm(total=len(building_list), desc="Processing", unit="item", leave=False)
         for build in building_list:
           # 建造物分テクスチャ貼付け処理
           try:
@@ -210,8 +210,9 @@ class TextureMain():
 
           finally:
             if pbar is not None:
-              partial_progress = 100 / len(building_list)
-              pbar.update(partial_progress)
+              pbar.update(1)
+
+        pbar.close()
 
       return restype
 

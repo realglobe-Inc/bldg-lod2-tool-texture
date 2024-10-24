@@ -177,6 +177,14 @@ class RoofLayerInfo:
 
     return self._xy_ij[(x, y)]
 
+  def ij_to_z(self, i: float, j: float):
+    return float(self._dsm_grid_xyzs[int(round(i)), int(round(j)), 2])
+
+  def find_nearest_z(self, x: float, y: float):
+    nearest_xy = self.find_nearest_xy(x, y)
+    nearest_i, nearest_j = self.xy_to_ij(*nearest_xy)
+    return float(self._dsm_grid_xyzs[nearest_i, nearest_j, 2])
+
   def _get_wall_point_positions(self, dsm_grid_xyzs: npt.NDArray[np.float_]):
     """壁の点を設定する"""
 
@@ -260,8 +268,6 @@ class RoofLayerInfo:
     for i, j in self._wall_point_positions:
       if self._layer_class[i, j] == RoofLayerInfo.NO_POINT:
         self._bfs_layer_fill(i, j)
-        if self._layer_class_length > 47:
-          continue
         self._layer_class_length += 1  # 次のレイヤー番号に進む
 
   def _detect_and_mark_noise(self):

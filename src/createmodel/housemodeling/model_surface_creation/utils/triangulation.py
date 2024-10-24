@@ -1,9 +1,13 @@
+import enum
 from dataclasses import dataclass
+
 import numpy as np
 import numpy.typing as npt
-from shapely.geometry import LineString, Polygon
-import enum
+from shapely import delaunay_triangles
+from shapely.geometry import LineString, Polygon, MultiPoint
+from shapely.ops import unary_union
 
+from .....thirdparty.plateaupy.thirdparty.earcutpython.earcut.earcut import earcut
 from ...custom_itertools import pairwise
 from .geometry import Point, is_ccw_order
 
@@ -79,7 +83,9 @@ def triangulation(
   N = len(polygon)
   points_xy = np.vstack([points[polygon][:, 0:2], points[polygon][:, 0:2]])
 
-  assert Polygon(points[polygon][:, 0:2]).is_valid, "invalid polygon"
+  poly = Polygon(points[polygon][:, 0:2])
+  assert poly.is_valid, "invalid polygon"
+  assert poly.area >= 0.0001, "too small polygon"
 
   # 全三角形の法線を計算
   normals_list = []
@@ -222,8 +228,10 @@ def triangulation(
       triangles.append((i, k, j))
 
     a, b = dp_back[i][j][k]
-    stack.append((i, k, a))
-    stack.append((k, j, b))
+    if a != -1 and b != -1:
+      stack.append((i, k, a))
+      stack.append((k, j, b))
+    print(a, b)
 
   return [
       Triangle([
@@ -239,129 +247,83 @@ def triangulation_2d(
     points: npt.NDArray[np.float_],
     score_type: ScoreType = ScoreType.MINIMIZE_SUM
 ) -> list[Triangle]:
-  """多角形の三角形分割を行う
+  """Delaunay で2D多角形の2D三角形に分割する
 
   Args:
-      polygon(list[int]): 多角形の頂点番号のリスト(反時計回り)
-      points(NDArray[np.float_]): 頂点の2次元座標 (num of points, 2)
-      score_type(ScoreType): 分割時の最適化種類
+    polygon(list[int]): 多角形の頂点番号のリスト(反時計回り)
+    points(NDArray[np.float_]): 頂点の2次元座標 (num of points, 2)
+    score_type(ScoreType): 分割時の最適化種類
 
   Returns:
-      list[tuple[tuple[int,int],tuple[int,int],tuple[int,int]]]: 分割後の三角形のリスト、点は頂点番号とpolygon内のインデックスのタプル
-
-  Note:
-      環状の区間動的計画法を用いて求める。
-      最後に作成した三角形を保持することで、区間の結合で作成した新しい三角形によって増加するコストが計算できる。
+    list[Triangle]: 分割後の三角形のリスト
   """
 
   assert points.ndim == 2 and points.shape[1] == 2, "shape of points must be (*, 2)"
 
   assert score_type == ScoreType.MINIMIZE_SUM, "MINIMIZE_SUMのみ実行可能です"
 
-  # 環状の処理は複雑なため、頂点を繰り返して配列を2倍にして扱う
+  poly = Polygon(points[polygon][:, 0:2])
+  assert poly.is_valid, "invalid polygon"
+  assert poly.area >= 0.0001, "too small polygon"
 
-  N = len(polygon)
-  points_xy = np.vstack([points[polygon][:, 0:2], points[polygon][:, 0:2]])
+  # 分割しようとする多角形がすでに三角形の場合
+  polygon_xys: list[tuple[float, float]] = list(poly.exterior.coords[:-1])
+  if len(polygon_xys) == 3:
+    triangle = Triangle(
+        [TriangleVertex(point_id, order_id) for order_id, point_id in enumerate(polygon)]
+    )
+    return [triangle]
 
-  assert Polygon(points[polygon][:, 0:2]).is_valid, "invalid polygon"
-
-  # 全頂点間の線分の距離を計算する
-  # 線分が多角形外部を通る場合はnp.infとする
-  # 内部の条件: 端点以外で他の多角形と交差しない & 端点から内側方向に線分がある
-  distance = np.full((N, N), np.inf)
-  for i in range(N):
-    for j in range(i, N):
-      if polygon[i] == polygon[j]:
-        # 頂点位置が同じ場合は、polygon内のindexも同じ場合のみ内部とする
-        is_inner = i == j
-      elif i + 1 == j or j + 1 == i + N:
-        # 隣接する頂点を結ぶ線は内部とする
-        is_inner = True
-      else:
-        # 点i,jから線分が内側に伸びていることをチェック
-        is_inner = is_ccw_order(
-            Point(*points_xy[i + 1]),
-            Point(*points_xy[j]),
-            Point(*points_xy[i - 1]),
-            center=Point(*points_xy[i])
-        )
-        is_inner = is_inner and is_ccw_order(
-            Point(*points_xy[j + 1]),
-            Point(*points_xy[i]),
-            Point(*points_xy[j - 1]),
-            center=Point(*points_xy[j])
-        )
-
-        # 外形線と交差しないかチェック
-        for edge in pairwise(range(N), loop=True):
-          # 端点が同じ場合は除く
-          if len({polygon[i], polygon[j]} & {polygon[edge[0]], polygon[edge[1]]}):
-            continue
-
-          segment1 = LineString(points_xy[[i, j]])
-          segment2 = LineString(points_xy[list(edge)])
-
-          is_inner = is_inner and not segment1.intersects(segment2)
-
-      # 内部の場合、距離を保存
-      if is_inner:
-        distance[i][j] = distance[j][i] = np.linalg.norm(
-            points_xy[i] - points_xy[j])
-
-  # distance を (2N, 2N) にする
-  distance = np.tile(distance, (2, 2))
-
-  # 初期化
-  # dp[i:左端][j:右端] = 分割コストの総和
-  dp = np.full((N * 2, N * 2), np.inf)
-  np.fill_diagonal(dp[:, 1:], 0)  # dp[i, i+1] = 0
-
-  # 復元用データ
-  # [i][j] = a ... dp[i,j]はdp[i][a]とdp[a][j]から求められたことを示す
-  dp_back = np.full((N * 2, N * 2), -1, dtype=np.int_)
-
-  # 時間計算量: O(N^3)
-  for delta in range(2, N):
-    # R-L=deltaとしたときの各Lについて、
-    # dp[L,R] = min_i(dp[L,i] + dp[i,R] + distance[L,R]) をまとめて計算する
-
-    # costs[L, i] = dp[L,i] + dp[i,R] + distance[L,R] を計算
-    costs = (dp[:-delta, :] + dp[:, delta:].T) + \
-        np.diag(distance, delta)[:, np.newaxis]
-    # min_costs[L] = min_i(costs[L, i])と各Lでのiを求める
-    min_costs = costs.min(axis=1)
-    min_costs_index = np.argmin(costs, axis=1)
-    # dp[L,L+delta] = min_costs[L] とする
-    np.fill_diagonal(dp[:, delta:], min_costs)
-    # dp_back[L,L+delta] = min_costs_index[L] とする
-    np.fill_diagonal(dp_back[:, delta:], min_costs_index)
-
-  # dp[i,i+N-1]が最小となるiを求める
-  min_cost_index = int(np.argmin(np.diag(dp, N - 1)))
-  min_cost: float = dp[min_cost_index, min_cost_index + N - 1]
-
-  # assert min_cost != np.inf
-
-  # 分割方法を復元する
-  stack: list[tuple[int, int]] = [(min_cost_index, min_cost_index + N - 1)]
-  triangles: list[tuple[int, int, int]] = []
-
-  while len(stack):
-    i, j = stack.pop()
-
-    if abs(i - j) == 1:
-      continue
-
-    a = dp_back[i, j]
-    triangles.append((i, a, j))
-
-    stack.append((i, a))
-    stack.append((a, j))
-
-  return [
-      Triangle([
-          TriangleVertex(polygon[a % N], a % N),
-          TriangleVertex(polygon[b % N], b % N),
-          TriangleVertex(polygon[c % N], c % N),
-      ]) for a, b, c in triangles
+  # 時間複雑度(n log n)
+  tmp_poly_triangles: list[Polygon] = [
+      geom for geom in delaunay_triangles(MultiPoint(polygon_xys)).geoms
   ]
+
+  # 元のポリゴン
+  poly = Polygon(polygon_xys)
+
+  # 元のポリゴン内部に入っている三角形のみ(ポリゴン外部の三角形は一旦消す)
+  inner_poly_triangles = [geom for geom in tmp_poly_triangles if poly.covers(geom)]
+
+  # まだ処理されていない領域 = 元のポリゴン - 内部に入っている三角形の領域
+  outer_area = poly.difference(unary_union(inner_poly_triangles))
+
+  # まだ処理されていない領域でさらに三角形分割を行う
+  other_polys: list[Polygon] = []
+  if not outer_area.is_empty:
+    if isinstance(outer_area, Polygon):
+      other_polys = [outer_area]
+    else:
+      other_polys = [geom for geom in outer_area.geoms if geom.area > 0]
+
+  other_poly_triangles: list[Polygon] = []
+  for other_poly in other_polys:
+    other_poly_xys = list(other_poly.exterior.coords[:-1])
+    if len(other_poly_xys) == 3:
+      other_poly_triangles.append(other_poly)
+    else:
+      # 残りのポリゴンは earcut で分割して確実に三角形に分割
+      earcut_res = earcut(np.array(other_poly_xys, dtype=np.int).flatten(), dim=2)
+      other_poly_earcut_triangles: list[list[int]] = np.array(earcut_res).reshape((-1, 3)).tolist()
+      for other_poly_earcut_triangle in other_poly_earcut_triangles:
+        splited_triangle = Polygon(
+            [other_poly_xys[cutted_order_id] for cutted_order_id in other_poly_earcut_triangle]
+        )
+        other_poly_triangles.append(splited_triangle)
+
+  # ポリゴンの頂点順序
+  triangle_order_ids_list: list[list[int]] = []
+  for filtered_poly_triangle in [*inner_poly_triangles, *other_poly_triangles]:
+    triangle_xys = list(filtered_poly_triangle.exterior.coords[:-1])
+    assert len(triangle_xys) == 3, "三角形に分割されてないです"
+    triangle_order_ids = [polygon_xys.index(triangle_xy) for triangle_xy in triangle_xys]
+    triangle_order_ids_list.append(triangle_order_ids)
+
+  triangles: list[Triangle] = []
+  for triangle_order_ids in triangle_order_ids_list:
+    triangle = Triangle(
+        [TriangleVertex(polygon[order_id], order_id) for order_id in triangle_order_ids]
+    )
+    triangles.append(triangle)
+
+  return triangles

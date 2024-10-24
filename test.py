@@ -1,28 +1,22 @@
-
-
-import copy
-import cv2
 import numpy as np
-from shapely.geometry import Polygon, MultiPolygon
-from shapely.ops import unary_union
-from collections import deque
+# 座標データ（各線分の始点と終点のペア）
+coords = np.array([(18.18104616508499, 43.31979353958923), (20.603830159544604, 45.73585107712659), (33.935408883144106, 59.03041688905302), (34.007580182452514, 59.10238781674889), (18.18104616508499, 43.31979353958923)])
 
-last_merged_polygons = [[(2.0, 5.0), (9.0, 5.0), (10.0, 6.0), (12.0, 6.0), (15.0, 4.0), (16.0, 4.0), (19.0, 4.0), (19.0, 3.0), (17.0, 3.0), (16.0, 2.0), (16.0, 0.0), (1.0, 0.0), (1.0, 7.0)], [(16.0, 36.0), (15.0, 35.0), (1.0, 35.0), (0.0, 34.0), (0.0, 36.0)]]
-current_merged_polygons = [[(9.0, 5.0), (10.0, 6.0), (12.0, 6.0), (15.0, 4.0), (16.0, 4.0), (19.0, 4.0), (19.0, 3.0), (17.0, 3.0), (16.0, 2.0), (16.0, 0.0), (1.0, 0.0), (1.0, 7.0), (2.0, 5.0)], [(16.0, 36.0), (15.0, 35.0), (1.0, 35.0), (0.0, 34.0), (0.0, 36.0)]]
+# 傾きと切片でグループ化
+line_groups = {}
+for index, segment in enumerate(coords[:-1]):
+  (x1, y1) = coords[index]
+  (x2, y2) = coords[index + 1]
+  if x2 != x1:  # 垂直線を除外
+    a = (y2 - y1) / (x2 - x1)  # 傾き
+    b = y1 - a * x1            # 切片
+    key = (round(a, 6), round(b, 6))  # 丸めて誤差を調整
+  else:
+    key = ("vertical", x1)  # 垂直線の場合、x座標でグループ化
 
-last_merged_polygons_union = unary_union([Polygon(p) for p in last_merged_polygons])
-current_merged_polygons_union = unary_union([Polygon(p) for p in current_merged_polygons])
-difference = current_merged_polygons_union.difference(last_merged_polygons_union)
-current_polygons = []
-if isinstance(difference, MultiPolygon):
-  for poly in difference:
-    polygon = [coord for coord in poly.exterior.coords[:-1]]
-    current_polygons.append(polygon)
-elif isinstance(difference, Polygon):
-  polygon = [coord for coord in difference.exterior.coords[:-1]]
-  current_polygons.append(polygon)
+  # グループ化
+  line_groups.setdefault(key, []).append(segment)
 
-print('start')
-print(last_merged_polygons)
-print(current_merged_polygons)
-print(current_polygons)
+# 結果を表示
+for key, group in line_groups.items():
+  print(f"Line (a, b): {key}, Segments: {group}")

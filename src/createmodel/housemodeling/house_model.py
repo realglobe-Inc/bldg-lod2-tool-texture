@@ -1,18 +1,22 @@
-import sys
 from dataclasses import dataclass
 import itertools
+import os
+from pathlib import Path
 from typing import Union
 import numpy as np
 import numpy.typing as npt
+from shapely.ops import unary_union
 from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
 
+from .model_surface_creation.utils.triangulation import triangulation_2d
 from .custom_itertools import pairwise
 
 from ...util.objinfo import BldElementType, ObjInfo
 from .model_surface_creation.utils.geometry_3d import get_angle_degree_3d
 from .model_surface_creation.utils.disjoint_set_union import DisjointSetUnion
 from .model_surface_creation.estimate_roof_height import estimate_roof_heights
+from .roof_layer_info import RoofLayerInfo
 
 
 @dataclass(frozen=True)
@@ -241,7 +245,7 @@ class HouseModel:
   def create_model_surface(
       self,
       point_cloud: npt.NDArray[np.float_],
-      points_xy: npt.NDArray[np.float_],
+      roof_polygon_vertex_xys: npt.NDArray[np.float_],
       inner_polygons: list[list[int]],
       outer_polygon: list[int],
       ground_height: float,
@@ -251,7 +255,7 @@ class HouseModel:
 
     Args:
       point_cloud(NDarray[np.float_]): DSM点群 (num of points, 3)
-      points_xy(NDarray[np.float_]): 屋根面頂点の2次元座標 (num of points, 2)
+      roof_polygon_vertex_xys(NDarray[np.float_]): 屋根面頂点の2次元座標 (num of points, 2)
       inner_polygons(list[list[int]]): 区切られた各屋根面ポリゴン
       outer_polygon(list[int]): 屋根面の外形ポリゴン
       ground_height(float): 地面の高さ
@@ -261,20 +265,20 @@ class HouseModel:
 
     # 高さを計算
     heights, roof_triangles = estimate_roof_heights(
-        points_xy,
+        roof_polygon_vertex_xys,
         outer_polygon,
         inner_polygons,
         point_cloud,
         ground_height,
     )
     balcony_height: float = max(ground_height + 0.1, min(heights))
-    points_xyz = np.concatenate([points_xy, np.array(heights)[:, np.newaxis]], axis=1)
+    roof_polygon_vertex_xyzs = np.concatenate([roof_polygon_vertex_xys, np.array(heights)[:, np.newaxis]], axis=1)
 
     # roof
     for triangle, polygon_idx in roof_triangles:
       face_points = []
       for vertex in triangle:
-        xyz = points_xyz[vertex.point_id].copy()
+        xyz = roof_polygon_vertex_xyzs[vertex.point_id].copy()
         if balcony_flags[polygon_idx]:
           xyz[2] = balcony_height
 
@@ -291,8 +295,8 @@ class HouseModel:
         ModelPoint(
             position_id_2d=position_id_2d,
             position_id_3d=self._add_point((
-                points_xyz[position_id_2d][0],
-                points_xyz[position_id_2d][1],
+                roof_polygon_vertex_xyzs[position_id_2d][0],
+                roof_polygon_vertex_xyzs[position_id_2d][1],
                 ground_height
             )),
             order_id=i
@@ -303,6 +307,112 @@ class HouseModel:
 
     # wall
     self._generate_wall(-2)
+
+  def new_create_model_surface(
+      self,
+      point_cloud: npt.NDArray[np.float_],
+      roof_polygon_vertex_xys: npt.NDArray[np.float_],
+      inner_polygons: list[list[int]],
+      outer_polygon: list[int],
+      ground_height: float,
+      balcony_flags: list[bool],
+      roof_layer_info: RoofLayerInfo,
+      debug_mode: bool,
+  ) -> None:
+    """モデル面の作成
+
+    Args:
+      point_cloud(NDarray[np.float_]): DSM点群 (num of points, 3)
+      roof_polygon_vertex_xys(NDarray[np.float_]): 屋根面頂点の2次元座標 (num of points, 2)
+      inner_polygons(list[list[int]]): 区切られた各屋根面ポリゴン
+      outer_polygon(list[int]): 屋根面の外形ポリゴン
+      ground_height(float): 地面の高さ
+      balcony_height(float): バルコニーの高さ
+      balcony_flags(list[float]): inner_polygonsの各屋根面がバルコニーであるかのフラグ
+      roof_layer_info (RoofLayerInfo): DSM点群から屋根の階層分離をするための情報
+      debug_mode (bool): デバッグモード
+    """
+
+    heights = [
+        roof_layer_info.find_nearest_z(*vertex_xy)
+        for vertex_xy in roof_polygon_vertex_xys
+    ]
+
+    if debug_mode:
+      triangulation_before_polygons_2d = ObjInfo()
+      triangulation_before_triangles_3d = ObjInfo()
+      triangulation_before_triangles_2d = ObjInfo()
+      polys = []
+      for polygon_idx, polygon in enumerate(inner_polygons):
+        polygon_xys = []
+        for point_id in polygon:
+          x, y = roof_polygon_vertex_xys[point_id].copy()
+          polygon_xys.append((x, y, 0.5 * polygon_idx))
+        polys.append(Polygon(np.array(polygon_xys)[:, :2]))
+
+        triangulation_before_polygons_2d.append_faces(BldElementType.ROOF, [polygon_xys])
+
+        triangles = triangulation_2d(polygon, roof_polygon_vertex_xys)
+        for triangle in triangles:
+          triangle_xys = []
+          triangle_xyzs = []
+          for vertex in triangle:
+            x, y = roof_polygon_vertex_xys[vertex.point_id].copy()
+            z = heights[vertex.point_id]
+            triangle_xys.append((x, y, 0))
+            triangle_xyzs.append((x, y, z))
+
+          triangulation_before_triangles_2d.append_faces(BldElementType.ROOF, [triangle_xys])
+          triangulation_before_triangles_3d.append_faces(BldElementType.ROOF, [triangle_xyzs])
+
+      polys_area = unary_union(polys)
+
+      debug_dir = os.path.join('debug', self._id)
+      Path(debug_dir).mkdir(parents=True, exist_ok=True)
+      triangulation_before_polygons_2d_obj_path = os.path.join(debug_dir, 'triangulation_before_polygons_2d.obj')
+      triangulation_before_triangles_2d_obj_path = os.path.join(debug_dir, 'triangulation_before_triangles_2d.obj')
+      triangulation_before_triangles_3d_obj_path = os.path.join(debug_dir, 'triangulation_before_triangles_3d.obj')
+      triangulation_before_polygons_2d.write_file(file_path=triangulation_before_polygons_2d_obj_path)
+      triangulation_before_triangles_2d.write_file(file_path=triangulation_before_triangles_2d_obj_path)
+      triangulation_before_triangles_3d.write_file(file_path=triangulation_before_triangles_3d_obj_path)
+
+    breakpoint()
+
+    balcony_height: float = max(ground_height + 0.1, min(heights))
+
+    # roof
+    # for triangle, polygon_idx in roof_triangles:
+    #   face_points = []
+    #   for vertex in triangle:
+    #     xyz = roof_polygon_vertex_xyzs[vertex.point_id].copy()
+    #     if balcony_flags[polygon_idx]:
+    #       xyz[2] = balcony_height
+
+    #     face_points.append(ModelPoint(
+    #         position_id_2d=vertex.point_id,
+    #         position_id_3d=self._add_point(xyz),
+    #         order_id=vertex.order_id,
+    #     ))
+
+    #   self._add_roof(face_points, polygon_idx)
+
+    # # floor
+    # ground_points = [
+    #     ModelPoint(
+    #         position_id_2d=position_id_2d,
+    #         position_id_3d=self._add_point((
+    #             roof_polygon_vertex_xyzs[position_id_2d][0],
+    #             roof_polygon_vertex_xyzs[position_id_2d][1],
+    #             ground_height
+    #         )),
+    #         order_id=i
+    #     ) for i, position_id_2d in enumerate(outer_polygon[::-1])
+    # ]
+
+    # self._add_ground(ground_points, -1)
+
+    # wall
+    # self._generate_wall(-2)
 
   def simplify(self, threshold: float):
     """屋根面の単純化
@@ -540,19 +650,13 @@ class HouseModel:
     if len(self._faces) == 0:
       return
 
-    roofs = list(
-        filter(lambda face: face.type == BldElementType.ROOF, self._faces))
-    walls = list(
-        filter(lambda face: face.type == BldElementType.WALL, self._faces))
-    grounds = list(
-        filter(lambda face: face.type == BldElementType.GROUND, self._faces))
+    roofs = list(filter(lambda face: face.type == BldElementType.ROOF, self._faces))
+    walls = list(filter(lambda face: face.type == BldElementType.WALL, self._faces))
+    grounds = list(filter(lambda face: face.type == BldElementType.GROUND, self._faces))
 
     info = ObjInfo()
-    info.append_faces(BldElementType.ROOF, [
-                      self._points[roof.position_ids_3d] for roof in roofs])
-    info.append_faces(BldElementType.WALL, [
-                      self._points[wall.position_ids_3d] for wall in walls])
-    info.append_faces(BldElementType.GROUND, [
-                      self._points[ground.position_ids_3d] for ground in grounds])
+    info.append_faces(BldElementType.ROOF, [self._points[roof.position_ids_3d] for roof in roofs])
+    info.append_faces(BldElementType.WALL, [self._points[wall.position_ids_3d] for wall in walls])
+    info.append_faces(BldElementType.GROUND, [self._points[ground.position_ids_3d] for ground in grounds])
 
     info.write_file(file_path=path)

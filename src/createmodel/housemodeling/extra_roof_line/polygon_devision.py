@@ -1,8 +1,9 @@
 import os
 from typing import Union
+from collections import defaultdict
 
 import numpy as np
-from shapely.geometry import Polygon, MultiPolygon, LineString
+from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry import Point as GeoPoint
 from shapely.ops import unary_union
 import cv2
@@ -20,8 +21,7 @@ class PolygonDevision:
 
   def __init__(
       self,
-      vertices: list[Point],
-      polygon: Polygon,
+      polygon_ijs_before: list[tuple[float, float]],
       roof_layer_info: RoofLayerInfo,
       debug_mode: bool = False,
   ):
@@ -29,8 +29,7 @@ class PolygonDevision:
     頂点IDを(i, j)座標に変換する。
 
     Args:
-      vertices (list[Point]): 全てのポリゴンの頂点リスト
-      polygon (list[int]): 分割する対象ポリゴンの頂点番号リスト
+      polygon_ijs_before (list[tuple[float,float]]): 分割する対象ポリゴンの頂点(i,j)リスト
       roof_layer_info (RoofLayerInfo): DSM点群から屋根の階層分離をするための情報
       debug_mode (bool): デバッグモード
 
@@ -40,7 +39,7 @@ class PolygonDevision:
 
     self._roof_layer_info = roof_layer_info
     self._debug_mode = debug_mode
-    self._origin_polygon_ijs = [PolygonDevision.point_id_to_ij(vertices, point_id) for point_id in polygon]
+    self._origin_polygon_ijs = polygon_ijs_before
     self._layer_number_grid_ijs_pair = PolygonDevision.get_layer_number_grid_ijs_pair(
         self._roof_layer_info,
         self._origin_polygon_ijs,
@@ -94,7 +93,7 @@ class PolygonDevision:
 
     return has_angle_over_200
 
-  def get_splited_polygon_ijs(self, debug_image_file_name: str):
+  def get_splited_polygon_ijs_list(self, debug_image_file_name: str):
     """
     ポリゴンを分割
 
@@ -136,15 +135,16 @@ class PolygonDevision:
 
     # 分割されたポリゴンリスト = 共通部ポリゴンリスト + DSMノイズ領域のポリゴンリスト
     splited_polygon_ijs_list_tmp = [*intersection_polygon_ijs_list, *noise_area_polygon_ijs_list]
-    fixed_polygon_ijs_list_tmp = self._fix_polygon_vertices(splited_polygon_ijs_list_tmp)
 
     # 小さいポリゴンを大きいポリゴンと合併
-    splited_polygon_ijs_list = self._merge_small_polygon_into_large_polygon(fixed_polygon_ijs_list_tmp)
+    splited_polygon_ijs_list = PolygonDevision.merge_small_polygon_into_large_polygon(
+        splited_polygon_ijs_list_tmp, 40
+    )
 
     if self._debug_mode:
       self._save_splited_polygons_image(splited_polygon_ijs_list, debug_image_file_name)
 
-    # self._validate_splited_poylgon_ijs(self._origin_polygon_ijs, splited_polygon_ijs_list)
+    self._validate_splited_poylgon_ijs(self._origin_polygon_ijs, splited_polygon_ijs_list)
 
     return splited_polygon_ijs_list
 
@@ -240,44 +240,6 @@ class PolygonDevision:
 
     return intersection_polygon_ijs
 
-  def _fix_polygon_vertices(self, splited_polygon_ijs_list: list[list[tuple[float, float]]]):
-    """
-    分割されたポリゴンの頂点を元のポリゴンの頂点に合わせる(1px 範囲)
-
-    Args:
-      splited_polygon_ijs_list (list[list[tuple[float, float]]]): 分割されたポリゴン達の頂点番号リスト
-
-    Returns:
-      list[list[tuple[float, float]]]: ポリゴンの頂点に合わせて頂点を変更した分割されたポリゴン達の頂点番号リスト
-    """
-
-    fixed_polygon_ijs_list: list[list[tuple[float, float]]] = []
-    for splited_polygon_ijs in splited_polygon_ijs_list:
-      fixed_polygon_ijs: list[tuple[float, float]] = []
-      for from_ij in splited_polygon_ijs:
-        from_i, from_j = from_ij
-        merged_ij: tuple[int, int] = (from_i, from_j)
-        for to_i, to_j in splited_polygon_ijs:
-          if (
-              to_i - 1 <= from_i <= to_i + 1
-              and to_j - 1 <= from_j <= to_j + 1
-              and (to_i, to_j) != (from_i, from_j)
-          ):
-            merged_ij = (to_i, to_j)
-            break
-
-        fixed_polygon_ijs.append(merged_ij)
-
-      fixed_polygon_ijs = self._remove_same_vertices_on_polygon(fixed_polygon_ijs)
-      if len(fixed_polygon_ijs) >= 3:
-        if Polygon(fixed_polygon_ijs).is_valid:
-          fixed_polygon_ijs_list.append(fixed_polygon_ijs)
-        else:
-          # 座標移動によって不正ポリゴンになる可能性がある場合は、移動した座標をもとに戻す
-          fixed_polygon_ijs_list.append(splited_polygon_ijs)
-
-    return fixed_polygon_ijs_list
-
   def _is_inside_origin_polygon(self, splited_polygon_ijs: list[tuple[float, float]]):
     """
     ポリゴンのに他のポリゴン達が含まれているか確認する
@@ -332,63 +294,6 @@ class PolygonDevision:
     )
     cv2.imwrite(image_layer_splited_polygons_path, image_layer_splited_polygons_image)
 
-  def _merge_small_polygon_into_large_polygon(self, polygon_ijs_list: list[list[tuple[float, float]]]):
-    """
-    ポリゴンのに他のポリゴン達が含まれているか確認する
-
-    Args:
-      polygon_ijs_list (list[tuple[float, float]]): ポリゴンの頂点座標(i,j)リスト
-
-    Returns:
-      bool: 各頂点の(i, j)座標のリスト
-    """
-
-    poly_to_index_poly_from_indexes_pair: dict[int, list[int]] = {}
-    poly_indexes_for_merging: set[int] = set()
-    polys = [Polygon(polygon_ijs) for polygon_ijs in polygon_ijs_list]
-    for poly_from_index, poly in enumerate(polys):
-      can_be_merged = poly.area <= 20
-      if can_be_merged:
-        max_intersection_length = 0
-        poly_to_index = RoofLayerInfo.NO_POINT
-        for poly_to_index_tmp, other_poly in enumerate(polys):
-          intersection = poly.intersection(other_poly)
-          if (
-              not intersection.is_empty
-              and isinstance(intersection, LineString)
-              and poly_to_index_tmp != poly_from_index
-          ):
-            if intersection.length > max_intersection_length:
-              max_intersection_length = intersection.length
-              poly_to_index = poly_to_index_tmp
-
-        if poly_to_index != RoofLayerInfo.NO_POINT:
-          poly_indexes_for_merging.add(poly_from_index)
-          poly_indexes_for_merging.add(poly_to_index)
-          poly_to_index_poly_from_indexes_pair[poly_to_index] = poly_to_index_poly_from_indexes_pair.get(poly_to_index) or []
-          poly_to_index_poly_from_indexes_pair[poly_to_index].append(poly_from_index)
-
-    merged_polygon_ijs_list: list[list[tuple[int, int]]] = []
-    # 変化のないポリゴン
-    for poly_from_index, poly in enumerate(polys):
-      if poly_from_index not in poly_indexes_for_merging:
-        poly_from = polys[poly_from_index]
-        polygon_from_ijs = [coord for coord in poly_from.exterior.coords[:-1]]
-        merged_polygon_ijs_list.append(polygon_from_ijs)
-
-    # 合成されたポリゴン
-    for poly_from_index, poly_to_indexes in poly_to_index_poly_from_indexes_pair.items():
-      poly_from = polys[poly_from_index]
-      polygon_tos = [polys[poly_to_index] for poly_to_index in poly_to_indexes]
-      merged_poly = poly_from
-      for poly_to in polygon_tos:
-        merged_poly = merged_poly.union(poly_to)
-
-      merged_polygon_ijs = [coord for coord in merged_poly.exterior.coords[:-1]]
-      merged_polygon_ijs_list.append(merged_polygon_ijs)
-
-    return merged_polygon_ijs_list
-
   def _validate_splited_poylgon_ijs(
       self,
       origin_polygon_ijs: list[tuple[float, float]],
@@ -405,18 +310,13 @@ class PolygonDevision:
       CreateModelException: 屋根ポリゴン分割で失敗
     """
 
-    # 結果の整合性チェック1 : 分割前のポリゴンの中に入っているか
-    merged_area = unary_union([Polygon(polygon_ijs) for polygon_ijs in splited_polygon_ijs_list])
-    origin_poly = Polygon(origin_polygon_ijs)
-    diff_area = merged_area.difference(origin_poly)
-    if diff_area.area > 1:
-      breakpoint()
-      raise CreateModelException(CreateModelMessage.ERR_POLYGON_DIVISION_FAIL)
-
-    # 結果の整合性チェック2 : 分割前のポリゴンの中に入っているか
-    for splited_polygon_ijs in splited_polygon_ijs_list:
-      if not self._is_inside_origin_polygon(splited_polygon_ijs):
-        breakpoint()
+    polys = [Polygon(polygon_ijs) for polygon_ijs in splited_polygon_ijs_list]
+    for poly in polys:
+      # 不正ポリゴン
+      if not poly.is_valid:
+        raise CreateModelException(CreateModelMessage.ERR_POLYGON_DIVISION_FAIL)
+      # 小さいポリゴン
+      if not poly.area >= 0.0001:
         raise CreateModelException(CreateModelMessage.ERR_POLYGON_DIVISION_FAIL)
 
   def _calculate_slope(self, point1_ij: tuple[float, float], point2_ij: tuple[float, float]) -> float:
@@ -456,7 +356,7 @@ class PolygonDevision:
 
     return majority_layer_number
 
-  @staticmethod
+  @ staticmethod
   def point_id_to_ij(vertices: list[Point], point_id: list[int]) -> tuple[float, float]:
     """
     頂点IDを(i, j)座標に変換する。
@@ -470,7 +370,7 @@ class PolygonDevision:
     """
     return (int(vertices[point_id].x), int(vertices[point_id].y))
 
-  @staticmethod
+  @ staticmethod
   def get_layer_number_grid_ijs_pair(
       roof_layer_info: RoofLayerInfo,
       origin_polygon_ijs: list[tuple[float, float]],
@@ -501,7 +401,7 @@ class PolygonDevision:
           layer_number_grid_ijs_pair[layer_number].append((i, j))
     return layer_number_grid_ijs_pair
 
-  @staticmethod
+  @ staticmethod
   def _ensure_counterclockwise(polygon_ijs: list[tuple[float, float]]):
     """
     ポリゴンの頂点が反時計回りになるようにする
@@ -553,3 +453,102 @@ class PolygonDevision:
         j0 += sy
 
     return pixels
+
+  @staticmethod
+  def merge_small_polygon_into_large_polygon(
+      polygon_ijs_list: list[list[tuple[float, float]]],
+      area_threashold: int,
+  ):
+    """
+    小さなポリゴンを周辺の大きなポリゴンに合成する
+
+    Args:
+      polygon_ijs_list (list[list[tuple[float, float]]]): ポリゴンの頂点座標(i,j)リスト
+
+    Returns:
+      list[list[tuple[float, float]]]: 合成後のポリゴンの頂点座標リスト
+    """
+    poly_to_index_poly_from_indexes_pair: dict[int, list[int]] = defaultdict(list)
+    poly_indexes_for_merging: set[int] = set()
+    polys = [Polygon(polygon_ijs) for polygon_ijs in polygon_ijs_list]
+
+    # ポリゴンの合成対象を見つける
+    for poly_from_index, poly in enumerate(polys):
+      can_be_merged = poly.area <= area_threashold
+      if can_be_merged:
+        max_intersection_length = 0
+        poly_to_index = -1
+        for poly_to_index_tmp, other_poly in enumerate(polys):
+          if poly_from_index == poly_to_index_tmp:
+            continue
+
+          intersection = poly.intersection(other_poly)
+          if intersection.length > max_intersection_length:
+            max_intersection_length = intersection.length
+            poly_to_index = poly_to_index_tmp
+
+        if poly_to_index != -1:
+          poly_indexes_for_merging.add(poly_from_index)
+          poly_indexes_for_merging.add(poly_to_index)
+          poly_to_index_poly_from_indexes_pair[poly_to_index].append(poly_from_index)
+
+    merged_polys: list[Polygon] = []
+    merged_polygon_ijs_list: list[list[tuple[float, float]]] = []
+    merged_indexes: set[int] = set()
+
+    # 変化のないポリゴンを追加
+    for poly_from_index, poly in enumerate(polys):
+      if poly_from_index not in poly_indexes_for_merging:
+        polygon_from_ijs = [coord for coord in poly.exterior.coords[:-1]]
+        merged_polygon_ijs_list.append(polygon_from_ijs)
+        merged_polys.append(Polygon(polygon_from_ijs))
+
+    # 合成されたポリゴンを処理
+    for poly_to_index in poly_to_index_poly_from_indexes_pair.keys():
+      if poly_to_index in merged_indexes:
+        continue
+
+      # 親子関係を解決し、すべてのポリゴンを集める
+      poly_from_indexes = PolygonDevision.gather_polygon_indices(
+          poly_to_index_poly_from_indexes_pair,
+          poly_to_index,
+          [],
+      )
+      merged_indexes.update(poly_from_indexes)
+
+      # ポリゴンの合成
+      poly_to = polys[poly_to_index]
+      poly_froms = [polys[poly_from_index] for poly_from_index in poly_from_indexes]
+      merged_poly = unary_union([poly_to, *poly_froms])
+      merged_polys.append(merged_poly)
+
+      merged_polygon_ijs = [coord for coord in merged_poly.exterior.coords[:-1]]
+      merged_polygon_ijs_list.append(merged_polygon_ijs)
+
+    return merged_polygon_ijs_list
+
+  @staticmethod
+  def gather_polygon_indices(
+      poly_to_index_poly_from_indexes_pair: dict,
+      poly_to_index: int,
+      result_poly_from_indexes: list[int],
+  ):
+    # すでに処理済みか確認
+    if poly_to_index in result_poly_from_indexes:
+      return result_poly_from_indexes
+
+    # 現在のインデックスを追加
+    result_poly_from_indexes.append(poly_to_index)
+
+    # 子ポリゴンのインデックスを取得
+    child_poly_from_indexes = poly_to_index_poly_from_indexes_pair.get(poly_to_index, [])
+
+    # 再帰的に子ポリゴンのインデックスを取得
+    for child_poly_from_index in child_poly_from_indexes:
+      PolygonDevision.gather_polygon_indices(
+          poly_to_index_poly_from_indexes_pair,
+          child_poly_from_index,
+          result_poly_from_indexes,
+      )
+
+    return result_poly_from_indexes

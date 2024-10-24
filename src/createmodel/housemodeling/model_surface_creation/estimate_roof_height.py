@@ -11,7 +11,7 @@ MIN_BUILDING_HEIGHT: Final[float] = 2  # meters
 
 
 def estimate_roof_heights(
-    points_xy: npt.NDArray[np.float_],
+    roof_polygon_vertex_xys: npt.NDArray[np.float_],
     outer_polygon: list[int],
     inner_polygons: list[list[int]],
     point_cloud: npt.NDArray[np.float_],
@@ -20,7 +20,7 @@ def estimate_roof_heights(
   """屋根面の各頂点の高さを推測する
 
   Args:
-      points_xy(npt.NDArray[np.float_]): 屋根面の頂点の2次元座標
+      roof_polygon_vertex_xys(npt.NDArray[np.float_]): 屋根面の頂点の2次元座標
       outer_polygon(list[int]): 屋根面の外形ポリゴン
       inner_polygons(list[list[int]]): 区切られた各屋根面ポリゴン
       point_cloud(NDArray[np.float_]): 点群 (num of points, 3)
@@ -45,10 +45,12 @@ def estimate_roof_heights(
   # 各屋根面を三角形に分割する
   triangles: list[tuple[Triangle, int]] = []
 
-  points_xyz = np.concatenate([points_xy, np.zeros((len(points_xy), 1))], axis=1)
+  roof_polygon_vertex_xyzs = np.concatenate(
+      [roof_polygon_vertex_xys, np.zeros((len(roof_polygon_vertex_xys), 1))], axis=1
+  )
 
   # 線分上の頂点を取り除いた多角形を作成
-  simplified_outer_polygon = simplify_polygon(outer_polygon, points_xyz)
+  simplified_outer_polygon = simplify_polygon(outer_polygon, roof_polygon_vertex_xyzs)
 
   for i in range(2):
     triangles.clear()
@@ -58,14 +60,14 @@ def estimate_roof_heights(
         # 初回のみ2次元での三角形分割を行う
         triangulation_results = triangulation_2d(
             polygon,
-            points_xyz[:, :2],
+            roof_polygon_vertex_xyzs[:, :2],
             score_type=ScoreType.MINIMIZE_SUM
         )
       else:
         # 2回目以降はz座標も考慮した三角形分割を行う
         triangulation_results = triangulation(
             polygon,
-            points_xyz,
+            roof_polygon_vertex_xyzs,
             score_type=ScoreType.MINIMIZE_SUM
         )
 
@@ -73,8 +75,8 @@ def estimate_roof_heights(
           (triangle, polygon_idx) for triangle in triangulation_results
       ])
 
-    points_xyz[:, 2] = solve_linear_programming(
-        points_xyz[:, :2],
+    roof_polygon_vertex_xyzs[:, 2] = solve_linear_programming(
+        roof_polygon_vertex_xyzs[:, :2],
         triangles,
         simplified_outer_polygon,
         floor_height,
@@ -82,7 +84,7 @@ def estimate_roof_heights(
         roof_top_height
     )
 
-  return list(points_xyz[:, 2]), triangles
+  return list(roof_polygon_vertex_xyzs[:, 2]), triangles
 
 
 def simplify_polygon(polygon: list[int], points: npt.NDArray[np.float_]):

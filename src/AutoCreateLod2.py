@@ -5,7 +5,6 @@ import glob
 import re
 
 from pathlib import Path
-from tqdm import tqdm
 
 from .texturemapping.texturemain import TextureMain
 from .createmodel.modelcreator import ModelCreator
@@ -102,15 +101,11 @@ def main():
         # モデル要素生成
         log.module_start_log(ModuleType.MODEL_ELEMENT_GENERATION, file_name)
 
-        # 進捗バーの初期化
-        pbar = tqdm(total=100, desc="Processing", unit="item", leave=False)
         create_model = ModelCreator(param_manager)
         ret_model_element_generation = create_model.create(
             buildings,
-            pbar=pbar,
             debug_mode=param_manager.debug_mode
         )
-        pbar.close()
 
         log.module_result_log(ModuleType.MODEL_ELEMENT_GENERATION, ret_model_element_generation)
 
@@ -128,10 +123,8 @@ def main():
         # 位相一貫性補正
         log.module_start_log(ModuleType.CHECK_PHASE_CONSISTENSY, file_name)
 
-        pbar = tqdm(total=100, desc="Processing", unit="item", leave=False)
         main_manager = MainManager(param_manager)
-        ret_check_phaseconsistensy = main_manager.check_and_correction(buildings, pbar=pbar)
-        pbar.close()
+        ret_check_phaseconsistensy = main_manager.check_and_correction(buildings)
 
         log.module_result_log(ModuleType.CHECK_PHASE_CONSISTENSY, ret_check_phaseconsistensy)
 
@@ -150,12 +143,8 @@ def main():
         if param_manager.output_texture:
           log.module_start_log(ModuleType.PASTE_TEXTURE, file_name)
 
-          pbar = tqdm(total=100, desc="Processing", unit="item", leave=False)
           texture_main = TextureMain(param_manager)
-          ret_paste_texture = texture_main.texture_main(
-              buildings=buildings, file_name=file_name, pbar=pbar
-          )
-          pbar.close()
+          ret_paste_texture = texture_main.texture_main(buildings, file_name)
 
           log.module_result_log(ModuleType.PASTE_TEXTURE, ret_paste_texture)
 

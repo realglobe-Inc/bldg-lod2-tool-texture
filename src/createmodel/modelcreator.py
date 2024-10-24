@@ -4,7 +4,6 @@ import sys
 import glob
 import shutil
 import traceback
-from typing import Union
 
 from tqdm import tqdm
 
@@ -96,14 +95,12 @@ class ModelCreator:
   def create(
       self,
       gmls: list[CityGmlManager.BuildInfo],
-      pbar: Union[tqdm, None] = None,
       debug_mode: bool = False
   ) -> ResultType:
     """モデル生成
 
     Args:
         gmls (list[CityGmlManager.BuildInfo]): 建物外形情報リスト
-        pbar (tqdm): 進捗バー
         debug_mode (bool, optional): デバッグモード (Default: False)
 
     Returns:
@@ -121,6 +118,8 @@ class ModelCreator:
       return ResultType.ERROR
 
     warn_flag = False
+    # 進捗バーの初期化
+    pbar = tqdm(total=len(gmls), desc="Processing", unit="item", leave=False)
     for gml in gmls:
       try:
         if pbar is not None:
@@ -175,8 +174,9 @@ class ModelCreator:
 
       finally:
         if pbar is not None:
-          partial_progress = 100 / len(gmls)
-          pbar.update(partial_progress)
+          pbar.update(1)
+
+    pbar.close()
 
     if warn_flag:
       # 未作成のモデルがある場合
