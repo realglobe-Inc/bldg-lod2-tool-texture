@@ -9,7 +9,7 @@ from shapely.ops import unary_union
 from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
 
-from .model_surface_creation.utils.triangulation import triangulation_2d
+from .model_surface_creation.utils.triangulation import new_triangulation_2d
 from .custom_itertools import pairwise
 
 from ...util.objinfo import BldElementType, ObjInfo
@@ -343,6 +343,7 @@ class HouseModel:
       triangulation_before_triangles_3d = ObjInfo()
       triangulation_before_triangles_2d = ObjInfo()
       polys = []
+      triangle_polys = []
       for polygon_idx, polygon in enumerate(inner_polygons):
         polygon_xys = []
         for point_id in polygon:
@@ -352,7 +353,7 @@ class HouseModel:
 
         triangulation_before_polygons_2d.append_faces(BldElementType.ROOF, [polygon_xys])
 
-        triangles = triangulation_2d(polygon, roof_polygon_vertex_xys)
+        triangles = new_triangulation_2d(polygon, roof_polygon_vertex_xys)
         for triangle in triangles:
           triangle_xys = []
           triangle_xyzs = []
@@ -361,11 +362,13 @@ class HouseModel:
             z = heights[vertex.point_id]
             triangle_xys.append((x, y, 0))
             triangle_xyzs.append((x, y, z))
+          triangle_polys.append(Polygon(np.array(triangle_xys)[:, :2]))
 
           triangulation_before_triangles_2d.append_faces(BldElementType.ROOF, [triangle_xys])
           triangulation_before_triangles_3d.append_faces(BldElementType.ROOF, [triangle_xyzs])
 
       polys_area = unary_union(polys)
+      triangle_polys_area = unary_union(triangle_polys)
 
       debug_dir = os.path.join('debug', self._id)
       Path(debug_dir).mkdir(parents=True, exist_ok=True)

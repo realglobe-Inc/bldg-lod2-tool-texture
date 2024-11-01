@@ -142,3 +142,7 @@ flake8==7.1.1
 torch==1.12.1+cu113
 torchvision==0.13.1+cu113
 -f https://download.pytorch.org/whl/torch_stable.html
+
+# MultiScaleDeformableAttention(ビルド時は wheel インストール必要)
+# python3 ./src/createmodel/housemodeling/roof_edge_detection_model/thirdparty/heat/models/ops/setup.py bdist_wheel
+https://github.com/realglobe-Inc/heat/releases/download/MultiScaleDeformableAttention-1.0/MultiScaleDeformableAttention-1.0-cp39-cp39-linux_x86_64.whl

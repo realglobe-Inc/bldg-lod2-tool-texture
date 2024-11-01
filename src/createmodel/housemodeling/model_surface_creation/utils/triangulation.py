@@ -231,7 +231,6 @@ def triangulation(
     if a != -1 and b != -1:
       stack.append((i, k, a))
       stack.append((k, j, b))
-    print(a, b)
 
   return [
       Triangle([
@@ -243,6 +242,139 @@ def triangulation(
 
 
 def triangulation_2d(
+    polygon: list[int],
+    points: npt.NDArray[np.float_],
+    score_type: ScoreType = ScoreType.MINIMIZE_SUM
+) -> list[Triangle]:
+  """多角形の三角形分割を行う
+
+  Args:
+      polygon(list[int]): 多角形の頂点番号のリスト(反時計回り)
+      points(NDArray[np.float_]): 頂点の2次元座標 (num of points, 2)
+      score_type(ScoreType): 分割時の最適化種類
+
+  Returns:
+      list[tuple[tuple[int,int],tuple[int,int],tuple[int,int]]]: 分割後の三角形のリスト、点は頂点番号とpolygon内のインデックスのタプル
+
+  Note:
+      環状の区間動的計画法を用いて求める。
+      最後に作成した三角形を保持することで、区間の結合で作成した新しい三角形によって増加するコストが計算できる。
+  """
+
+  assert points.ndim == 2 and points.shape[1] == 2, "shape of points must be (*, 2)"
+
+  assert score_type == ScoreType.MINIMIZE_SUM, "MINIMIZE_SUMのみ実行可能です"
+
+  # 環状の処理は複雑なため、頂点を繰り返して配列を2倍にして扱う
+
+  N = len(polygon)
+  points_xy = np.vstack([points[polygon][:, 0:2], points[polygon][:, 0:2]])
+
+  assert Polygon(points[polygon][:, 0:2]).is_valid, "invalid polygon"
+
+  # 全頂点間の線分の距離を計算する
+  # 線分が多角形外部を通る場合はnp.infとする
+  # 内部の条件: 端点以外で他の多角形と交差しない & 端点から内側方向に線分がある
+  distance = np.full((N, N), np.inf)
+  for i in range(N):
+    for j in range(i, N):
+      if polygon[i] == polygon[j]:
+        # 頂点位置が同じ場合は、polygon内のindexも同じ場合のみ内部とする
+        is_inner = i == j
+      elif i + 1 == j or j + 1 == i + N:
+        # 隣接する頂点を結ぶ線は内部とする
+        is_inner = True
+      else:
+        # 点i,jから線分が内側に伸びていることをチェック
+        is_inner = is_ccw_order(
+            Point(*points_xy[i + 1]),
+            Point(*points_xy[j]),
+            Point(*points_xy[i - 1]),
+            center=Point(*points_xy[i])
+        )
+        is_inner = is_inner and is_ccw_order(
+            Point(*points_xy[j + 1]),
+            Point(*points_xy[i]),
+            Point(*points_xy[j - 1]),
+            center=Point(*points_xy[j])
+        )
+
+        # 外形線と交差しないかチェック
+        for edge in pairwise(range(N), loop=True):
+          # 端点が同じ場合は除く
+          if len({polygon[i], polygon[j]} & {polygon[edge[0]], polygon[edge[1]]}):
+            continue
+
+          segment1 = LineString(points_xy[[i, j]])
+          segment2 = LineString(points_xy[list(edge)])
+
+          is_inner = is_inner and not segment1.intersects(segment2)
+
+      # 内部の場合、距離を保存
+      if is_inner:
+        distance[i][j] = distance[j][i] = np.linalg.norm(
+            points_xy[i] - points_xy[j])
+
+  # distance を (2N, 2N) にする
+  distance = np.tile(distance, (2, 2))
+
+  # 初期化
+  # dp[i:左端][j:右端] = 分割コストの総和
+  dp = np.full((N * 2, N * 2), np.inf)
+  np.fill_diagonal(dp[:, 1:], 0)  # dp[i, i+1] = 0
+
+  # 復元用データ
+  # [i][j] = a ... dp[i,j]はdp[i][a]とdp[a][j]から求められたことを示す
+  dp_back = np.full((N * 2, N * 2), -1, dtype=np.int_)
+
+  # 時間計算量: O(N^3)
+  for delta in range(2, N):
+    # R-L=deltaとしたときの各Lについて、
+    # dp[L,R] = min_i(dp[L,i] + dp[i,R] + distance[L,R]) をまとめて計算する
+
+    # costs[L, i] = dp[L,i] + dp[i,R] + distance[L,R] を計算
+    costs = (dp[:-delta, :] + dp[:, delta:].T) + \
+        np.diag(distance, delta)[:, np.newaxis]
+    # min_costs[L] = min_i(costs[L, i])と各Lでのiを求める
+    min_costs = costs.min(axis=1)
+    min_costs_index = np.argmin(costs, axis=1)
+    # dp[L,L+delta] = min_costs[L] とする
+    np.fill_diagonal(dp[:, delta:], min_costs)
+    # dp_back[L,L+delta] = min_costs_index[L] とする
+    np.fill_diagonal(dp_back[:, delta:], min_costs_index)
+
+  # dp[i,i+N-1]が最小となるiを求める
+  min_cost_index = int(np.argmin(np.diag(dp, N - 1)))
+  min_cost: float = dp[min_cost_index, min_cost_index + N - 1]
+
+  # assert min_cost != np.inf
+
+  # 分割方法を復元する
+  stack: list[tuple[int, int]] = [(min_cost_index, min_cost_index + N - 1)]
+  triangles: list[tuple[int, int, int]] = []
+
+  while len(stack):
+    i, j = stack.pop()
+
+    if abs(i - j) == 1:
+      continue
+
+    a = dp_back[i, j]
+    triangles.append((i, a, j))
+
+    stack.append((i, a))
+    stack.append((a, j))
+
+  return [
+      Triangle([
+          TriangleVertex(polygon[a % N], a % N),
+          TriangleVertex(polygon[b % N], b % N),
+          TriangleVertex(polygon[c % N], c % N),
+      ]) for a, b, c in triangles
+  ]
+
+
+def new_triangulation_2d(
     polygon: list[int],
     points: npt.NDArray[np.float_],
     score_type: ScoreType = ScoreType.MINIMIZE_SUM

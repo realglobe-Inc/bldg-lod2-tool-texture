@@ -87,9 +87,13 @@ class CreateHouseModel:
         tmp_roof_polygon_vertex_xy_points, result_edges,
     )
 
-    roof_polygon_vertex_xy_points, outer_polygon, inner_polygons = self._get_roof_polygon_xy(
-        tmp_roof_polygon_vertex_xy_points, tmp_outer_polygon, tmp_inner_polygons,
-    )
+    roof_polygon_vertex_xy_points = tmp_roof_polygon_vertex_xy_points
+    outer_polygon = tmp_outer_polygon
+    inner_polygons = tmp_inner_polygons
+
+    # roof_polygon_vertex_xy_points, outer_polygon, inner_polygons = self._get_roof_polygon_xy(
+    #     tmp_roof_polygon_vertex_xy_points, tmp_outer_polygon, tmp_inner_polygons,
+    # )
 
     self._balcony_flags = self._get_balcony_flags(roof_polygon_vertex_xy_points, inner_polygons)
 
@@ -152,25 +156,25 @@ class CreateHouseModel:
   ):
     # 3Dモデルの生成
     model = HouseModel(id=self._building_id, shape=self._shape)
-    model.new_create_model_surface(
-        point_cloud=self._cloud.get_points().copy(),
-        roof_polygon_vertex_xys=np.array([(point.x, point.y) for point in roof_polygon_vertex_xy_points]),
-        inner_polygons=inner_polygons,
-        outer_polygon=outer_polygon,
-        ground_height=self._min_ground_height,
-        balcony_flags=balcony_flags,
-        roof_layer_info=self._roof_layer_info,
-        debug_mode=self._debug_mode,
-    )
-
-    # model.create_model_surface(
+    # model.new_create_model_surface(
     #     point_cloud=self._cloud.get_points().copy(),
     #     roof_polygon_vertex_xys=np.array([(point.x, point.y) for point in roof_polygon_vertex_xy_points]),
     #     inner_polygons=inner_polygons,
     #     outer_polygon=outer_polygon,
     #     ground_height=self._min_ground_height,
-    #     balcony_flags=balcony_flags
+    #     balcony_flags=balcony_flags,
+    #     roof_layer_info=self._roof_layer_info,
+    #     debug_mode=self._debug_mode,
     # )
+
+    model.create_model_surface(
+        point_cloud=self._cloud.get_points().copy(),
+        roof_polygon_vertex_xys=np.array([(point.x, point.y) for point in roof_polygon_vertex_xy_points]),
+        inner_polygons=inner_polygons,
+        outer_polygon=outer_polygon,
+        ground_height=self._min_ground_height,
+        balcony_flags=balcony_flags
+    )
 
     model.simplify(threshold=5)
 
@@ -181,7 +185,7 @@ class CreateHouseModel:
     file_name = f'{self._building_id}.obj'
     obj_path = os.path.join(self._output_folder_path, file_name)
     model.output_obj(path=obj_path)
-    breakpoint()
+    # breakpoint()
 
   def _get_delta_i_average_and_delta_j_average(
       self,
@@ -294,9 +298,5 @@ class CreateHouseModel:
           for point_id in inner_polygon
       ])
       xy_polys.append(xy_poly)
-
-    # roof_polygon_vertex_xy_points = tmp_roof_polygon_vertex_xy_points
-    # outer_polygon = tmp_outer_polygon
-    # inner_polygons = tmp_inner_polygons
 
     return roof_polygon_vertex_xy_points, outer_polygon, inner_polygons

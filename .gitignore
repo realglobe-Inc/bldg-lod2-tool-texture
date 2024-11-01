@@ -10,16 +10,21 @@ __pycache__
 # ログ
 /output_log
 
+# docker 実行の副産物
+param.json
+
 # 中間結果
 /temp
 
 # デバッグ
 /debug
 
-# 環境変数設定
+# pip 環境設定
 /bldg-lod2-tool
 /tools/Atlas_Prot/Atlas_Prot
 /tools/SuperResolution/SuperResolution
+/tools/SuperResolution/RoofSurface/RoofSurface
+/tools/SuperResolution/WallSurface/WallSurface
 
 # 入力・出力ファイル
 /src/createmodel/data/*
@@ -40,3 +45,4 @@ __pycache__
 !/tools/SuperResolution/WallSurface/data/.keep
 /tools/SuperResolution/WallSurface/output/*
 !/tools/SuperResolution/WallSurface/output/.keep
+

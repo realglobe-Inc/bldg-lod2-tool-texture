@@ -6,9 +6,10 @@
 ## 環境構築 & 実行方法
 
 ### [AWS EC2 Ubuntu 20.04 での環境構築のガイド](./docs/tutorials/setup-linux/README.md)
+### [Docker Image のビルドとテスト方法](./docs/tutorials/docker/README.md)
 ### [VSCode Remote 設定ガイド](./docs/tutorials/vscode-remote/README.md)
 
-## [デバッグモードの使い方](./docs/tutorials/debug-mode//README.md)
+## [デバッグモードの使い方](./docs/tutorials/debug-mode/README.md)
 
 ## 利用技術
 
@@ -48,9 +49,7 @@
 |-|-|
 | `./` | LOD2建築物自動作成ツール |
 | `./tools/Atlas_Prot/` | 建物テクスチャアトラス化ツール |
-| `./tools/SuperResolution/` | 建物テクスチャ視認性向上ツール |
 | `./tools/SuperResolution/RoofSurface/` | 屋根面視認性向上ツール |
-| `./tools/SuperResolution/WallSurface/` | 壁面視認性向上ツール |
 | `./tools/SuperResolution/WallSurface/` | 壁面視認性向上ツール |
 | `./tools/DeblurGANv2` | 画質向上ツール |
 | `./tools/UnsharpMask/` | 画質のエッジシャープ化ツール |
