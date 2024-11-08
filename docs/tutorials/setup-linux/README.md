@@ -46,10 +46,10 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
   |`./tools/SuperResolution/RoofSurface`  |屋根面視認性向上ツール|不要になった|
   |`./`                                   |LOD2建築物モデル自動作成ツール||
   |`./tools/SuperResolution/WallSurface`  |壁面視認性向上ツール||
-  |`./tools/DeblurGANv2`                  |画質向上ツール|
-  |`./tools/UnsharpMask`                  |画質のエッジシャープ化ツール|
+  |`./tools/DeblurGANv2`                  |テクスチャ鮮明化ツール|
+  |`./tools/UnsharpMask`                  |テクスチャシャープ化ツール|
+  |`./tools/Real-ESRGAN`                  |テクスチャ解像度向上ツール|
   |`./tools/Atlas_Prot`                   |アトラス化ツール|
-  |`./tools/Real-ESRGAN`                  |解像度向上ツール|
 
 
 - 仮想環境の開始
@@ -213,7 +213,7 @@ python3 main.py param.json
 ```
 
 
-## 画質向上ツール
+## テクスチャ鮮明化ツール
 
 ### プロジェクト内相対パスへ移動 : ./tools/DeblurGANv2
 
@@ -239,7 +239,7 @@ python3 predict.py -i input -o output -c checkpoints/fpn_inception.h5
 
 
 
-## 画質のエッジシャープ化ツール
+## テクスチャシャープ化ツール
 
 ### プロジェクト内相対パスへ移動 : ./tools/UnsharpMask
 
@@ -248,14 +248,14 @@ python3 predict.py -i input -o output -c checkpoints/fpn_inception.h5
 pip install –r requirements.txt # 仮想環境の開始後
 ```
 
-### 画質のエッジシャープ化ツール実行
+### テクスチャシャープ化ツール実行
 ```
 python3 UnsharpMask.py -i input -o output
 ```
 
 
 
-## 解像度向上ツール
+## テクスチャ解像度向上ツール
 
 ### プロジェクト内相対パスへ移動 : ./tools/Real-ESRGAN
 
@@ -336,8 +336,8 @@ cp -r datasets/d10/train_d10B_backup/ datasets/d10/train_d10B/
 - 学習するデーターを追加する場合
   - datasets/d10/train_d10B_backup/ に B画像追加
   - datasets/d10/train_d10A/ に A画像追加
-  - [画質向上ツール](#画質向上ツール)で `datasets/d10/train_d10B_backup/` の画質向上
-  - 画質向上された画像を [画質のエッジシャープ化ツール](#画質のエッジシャープ化ツール)で `datasets/d10/train_d10B_backup/` ジシャープ化
+  - [テクスチャ鮮明化ツール](#テクスチャ鮮明化ツール)で `datasets/d10/train_d10B_backup/` の画質向上
+  - 画質向上された画像を [テクスチャシャープ化ツール](#テクスチャシャープ化ツール)で `datasets/d10/train_d10B_backup/` ジシャープ化
   - ジシャープ化された画像を `datasets/d10/train_d10B/` にコピー
 
 

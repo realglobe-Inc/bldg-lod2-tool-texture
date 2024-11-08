@@ -51,9 +51,9 @@
 | `./tools/Atlas_Prot/` | 建物テクスチャアトラス化ツール |
 | `./tools/SuperResolution/RoofSurface/` | 屋根面視認性向上ツール |
 | `./tools/SuperResolution/WallSurface/` | 壁面視認性向上ツール |
-| `./tools/DeblurGANv2` | 画質向上ツール |
-| `./tools/UnsharpMask/` | 画質のエッジシャープ化ツール |
-| `./tools/Real-ESRGAN/` | 解像度向上ツール |
+| `./tools/DeblurGANv2` | テクスチャ鮮明化ツール |
+| `./tools/UnsharpMask/` | テクスチャシャープ化ツール |
+| `./tools/Real-ESRGAN/` | テクスチャ解像度向上ツール |
 
 ## ライセンス
 - 本プロジェクトは[Auto-Create-bldg-lod2-tool](https://github.com/Project-PLATEAU/Auto-Create-bldg-lod2-tool/tree/f68a85bac55ff61d3c5c6192121513e7b7f77861)をフォークしたものです。
