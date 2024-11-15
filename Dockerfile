@@ -170,9 +170,9 @@ RUN test weights/RealESRGAN_x2plus.pth || \
 
 
 
-########## 06-アトラス化ツールのインストール ##########
+########## 06-テクスチャアトラス化ツールのインストール ##########
 
-# アトラス化ツールのフォルダーに移動
+# テクスチャアトラス化ツールのフォルダーに移動
 RUN mkdir -p /app/tools/Atlas_Prot
 WORKDIR /app/tools/Atlas_Prot
 
@@ -250,9 +250,9 @@ COPY tools/Real-ESRGAN/inference_realesrgan.py .
 
 
 
-########## 06-アトラス化ツールの頻繁に変更されるファイル ##########
+########## 06-テクスチャアトラス化ツールの頻繁に変更されるファイル ##########
 
-# アトラス化ツールのフォルダーに移動
+# テクスチャアトラス化ツールのフォルダーに移動
 WORKDIR /app/tools/Atlas_Prot
 
 # 必要なファイルをコピー

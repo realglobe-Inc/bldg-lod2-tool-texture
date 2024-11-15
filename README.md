@@ -48,7 +48,7 @@
 | 相対パス |　詳細 |
 |-|-|
 | `./` | LOD2建築物自動作成ツール |
-| `./tools/Atlas_Prot/` | 建物テクスチャアトラス化ツール |
+| `./tools/Atlas_Prot/` | テクスチャアトラス化ツール |
 | `./tools/SuperResolution/RoofSurface/` | 屋根面視認性向上ツール |
 | `./tools/SuperResolution/WallSurface/` | 壁面視認性向上ツール |
 | `./tools/DeblurGANv2` | テクスチャ鮮明化ツール |

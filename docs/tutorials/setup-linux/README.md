@@ -49,7 +49,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
   |`./tools/DeblurGANv2`                  |テクスチャ鮮明化ツール|
   |`./tools/UnsharpMask`                  |テクスチャシャープ化ツール|
   |`./tools/Real-ESRGAN`                  |テクスチャ解像度向上ツール|
-  |`./tools/Atlas_Prot`                   |アトラス化ツール|
+  |`./tools/Atlas_Prot`                   |テクスチャアトラス化ツール|
 
 
 - 仮想環境の開始
@@ -289,7 +289,7 @@ python3 inference_realesrgan.py -n RealESRGAN_x2plus -g 0 -s 2 -i input -o outpu
 
 
 
-## アトラス化ツール
+## テクスチャアトラス化ツール
 
 ### プロジェクト内相対パスへ移動 : ./tools/Atlas_Prot
 
