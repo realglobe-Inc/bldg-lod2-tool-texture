@@ -45,9 +45,9 @@ RUN mkdir -p ./output
 RUN echo "alias create_env='python -m venv \$(basename \$PWD)'" >> ~/.bashrc && \
     echo "alias activate='source \"\$PWD/\$(basename \$PWD)/bin/activate\"'" >> ~/.bashrc
 
-########## 01-建物テクスチャアトラス化ツールのインストール ##########
+########## 01-LOD2建築物自動作成ツールのインストール ##########
 
-# 建物テクスチャアトラス化ツールのフォルダーに移動
+# LOD2建築物自動作成ツールのフォルダーに移動
 RUN mkdir -p /app
 WORKDIR /app
 
@@ -99,7 +99,7 @@ RUN test -f checkpoint/latest_net_G_A.pth || \
 
 ########## 03-テクスチャ鮮明化ツールのインストール ##########
 
-# 壁面視認性向上ツールのフォルダーに移動
+# テクスチャ鮮明化ツールのフォルダーに移動
 RUN mkdir -p /app/tools/DeblurGANv2
 WORKDIR /app/tools/DeblurGANv2
 
@@ -144,7 +144,7 @@ RUN python3 -m venv $(basename $PWD) && \
 
 ########## 05-テクスチャ解像度向上ツールのインストール ##########
 
-# テクスチャシャープ化ツールのフォルダーに移動
+# テクスチャ解像度向上ツールのフォルダーに移動
 RUN mkdir -p /app/tools/Real-ESRGAN
 WORKDIR /app/tools/Real-ESRGAN
 
@@ -194,9 +194,9 @@ RUN python3 -m venv $(basename $PWD) && \
 
 
 
-########## 01-建物テクスチャアトラス化ツールの頻繁に変更されるファイル ##########
+########## 01-LOD2建築物自動作成ツールの頻繁に変更されるファイル ##########
 
-# 建物テクスチャアトラス化ツールのフォルダーに移動
+# LOD2建築物自動作成ツールのフォルダーに移動
 WORKDIR /app
 
 # 必要なファイルをコピー
@@ -222,7 +222,7 @@ COPY tools/SuperResolution/WallSurface/main.py .
 
 ########## 03-テクスチャ鮮明化ツールの頻繁に変更されるファイル ##########
 
-# 壁面視認性向上ツールのフォルダーに移動
+# テクスチャ鮮明化ツールのフォルダーに移動
 WORKDIR /app/tools/DeblurGANv2
 
 # 必要なファイルをコピー
@@ -242,7 +242,7 @@ WORKDIR /app/tools/UnsharpMask
 
 ########## 05-テクスチャ解像度向上ツールの頻繁に変更されるファイル ##########
 
-# テクスチャシャープ化ツールのフォルダーに移動
+# テクスチャ解像度向上ツールのフォルダーに移動
 WORKDIR /app/tools/Real-ESRGAN
 
 # 必要なファイルをコピー

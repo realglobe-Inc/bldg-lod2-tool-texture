@@ -8,11 +8,11 @@ workspace_dir=$PWD
 base_output_dir="${workspace_dir}/output"
 base_input_dir="${base_input_dir}/input"
 
-########## 01-建物テクスチャアトラス化ツール ##########
+########## 01-LOD2建築物自動作成ツール ##########
 
-echo '########## 01-建物テクスチャアトラス化ツール ##########'
+echo '########## 01-LOD2建築物自動作成ツール ##########'
 
-# 建物テクスチャアトラス化ツールのフォルダーに移動
+# LOD2建築物自動作成ツールのフォルダーに移動
 cd "${workspace_dir}"
 source ./$(basename $PWD)/bin/activate
 
@@ -98,7 +98,7 @@ deactivate
 
 echo '########## 03-テクスチャ鮮明化ツール ##########'
 
-# 壁面視認性向上ツールのフォルダーに移動
+# テクスチャ鮮明化ツールのフォルダーに移動
 cd "${workspace_dir}/tools/DeblurGANv2"
 source ./$(basename $PWD)/bin/activate
 
@@ -131,7 +131,7 @@ deactivate
 
 echo '########## 05-テクスチャ解像度向上ツール ##########'
 
-# テクスチャシャープ化ツールのフォルダーに移動
+# テクスチャ解像度向上ツールのフォルダーに移動
 cd "${workspace_dir}/tools/Real-ESRGAN"
 source ./$(basename $PWD)/bin/activate
 
