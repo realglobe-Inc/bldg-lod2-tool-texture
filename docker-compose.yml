@@ -1,0 +1,45 @@
+version : '3.8'
+services:
+  3d-model:
+    image: bldg-lod2-tool-3d-model
+    build:
+      context: .
+    tty: true
+    stdin_open: true
+    command: /bin/bash -c "sleep 1000000"
+    volumes:
+      - ~/lod2_data/kawazaki:/app/input
+      - ~/lod2_data/kawazaki/output:/app/output
+    environment:
+      PARAM_JSON: '{
+        "TextureFolderPath": "/app/input/01_原画像",
+        "ExternalCalibElementPath": "/app/input/02_外部標定要素/ExCalib.txt",
+        "CameraInfoPath": "/app/input/03_内部標定要素/CamInfo.txt",
+        "DsmFolderPath": "/app/input/04_DSM_RGB",
+        "CityGMLFolderPath": "/app/input/08_CityGML",
+        "LasCoordinateSystem": 9,
+        "LasSwapXY": false,
+        "RotateMatrixMode": 0,
+        "OutputFolderPath": "/app/output",
+        "OutputOBJ": true,
+        "OutputTexture": true,
+        "OutputLogFolderPath": "/app/output",
+        "DebugLogOutput": true,
+        "PhaseConsistency": {
+          "DeleteErrorObject": true,
+          "NonPlaneThickness": 0.05,
+          "NonPlaneAngle": 15
+        },
+        "DebugMode": false,
+        "TargetCoordAreas": null,
+        "TargetBuildingIds": null,
+        "TextureOutputWidthMax": 2048,
+        "TextureOutputHeightMax": 2048
+      }'
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]

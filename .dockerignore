@@ -1,0 +1,6 @@
+# ビルド
+__pycache__
+*egg-info
+
+# ローカルの事前学習ファイル
+src/createmodel/data
