@@ -60,16 +60,17 @@ RUN python3 -m venv $(basename $PWD) && \
     python3 -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
+
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
 RUN mkdir -p src/createmodel/data && \
     test -f src/createmodel/data/classifier_parameter.pkl || \
-    wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1hs-DT4Y0ZtjdV9kJ438lvAPpJcfz_dE_' \
+    wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl' \
       -O src/createmodel/data/classifier_parameter.pkl && \
     test -f src/createmodel/data/roof_edge_detection_parameter.pth || \
-    wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1QqxfS05a4T1_IdrzYle3iuBXjuyqFz-u' \
+    wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth' \
       -O src/createmodel/data/roof_edge_detection_parameter.pth && \
     test -f src/createmodel/data/balcony_segmentation_parameter.pkl || \
-    wget --no-check-certificate 'https://drive.google.com/uc?export=download&id=1MINHffIvcooDOrQq3E4mBvdsgWUfzIi5' \
+    wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl' \
       -O src/createmodel/data/balcony_segmentation_parameter.pkl
 
 
@@ -116,10 +117,10 @@ RUN python3 -m venv $(basename $PWD) && \
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
 RUN mkdir -p ~/.cache/torch/hub/checkpoints && \
     test -f ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth || \
-    wget --no-check-certificate 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth' \
+    wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth' \
       -O ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth && \
     test -f checkpoints/fpn_inception.h5 || \
-    wget --no-check-certificate 'https://drive.google.com/uc?export=view&id=1UXcsRVW-6KF23_TNzxw-xC0SzaMfXOaR' \
+    wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/fpn_inception.h5' \
       -O checkpoints/fpn_inception.h5
 
 

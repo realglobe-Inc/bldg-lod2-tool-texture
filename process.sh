@@ -6,7 +6,7 @@ source ~/.bashrc
 
 workspace_dir=$PWD
 base_output_dir="${workspace_dir}/output"
-base_input_dir="${base_input_dir}/input"
+base_input_dir="${workspace_dir}/input"
 
 ########## 01-LOD2建築物自動作成ツール ##########
 
@@ -55,9 +55,6 @@ city_gml_dir_name=$(basename $(jq -r '.CityGMLFolderPath' param.json))
 
 python3 AutoCreateLod2.py param.json
 deactivate
-
-# ベースディレクトリを指定
-base_output_dir=./output
 
 # 最新のフォルダを取得
 output_latest_bldb_lod2_tool_path=''

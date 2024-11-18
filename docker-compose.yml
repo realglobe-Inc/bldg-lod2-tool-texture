@@ -8,15 +8,15 @@ services:
     stdin_open: true
     command: /bin/bash -c "sleep 1000000"
     volumes:
-      - ~/lod2_data/kawazaki:/app/input
-      - ~/lod2_data/kawazaki/output:/app/output
+      - ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset:/app/input
+      - ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/output:/app/output
     environment:
       PARAM_JSON: '{
-        "TextureFolderPath": "/app/input/01_原画像",
-        "ExternalCalibElementPath": "/app/input/02_外部標定要素/ExCalib.txt",
-        "CameraInfoPath": "/app/input/03_内部標定要素/CamInfo.txt",
-        "DsmFolderPath": "/app/input/04_DSM_RGB",
-        "CityGMLFolderPath": "/app/input/08_CityGML",
+        "TextureFolderPath": "/app/input/RawImage",
+        "ExternalCalibElementPath": "/app/input/ExCalib/ExCalib.txt",
+        "CameraInfoPath": "/app/input/CamInfo/CamInfo.txt",
+        "DsmFolderPath": "/app/input/DSM",
+        "CityGMLFolderPath": "/app/input/CityGML",
         "LasCoordinateSystem": 9,
         "LasSwapXY": false,
         "RotateMatrixMode": 0,

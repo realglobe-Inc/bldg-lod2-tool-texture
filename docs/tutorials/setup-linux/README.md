@@ -73,17 +73,17 @@ pip install –r requirements.txt # 仮想環境の開始後
 
 ### 建物分類用モデルの学習済みパラメーターをダウンロード
 ```
-wget -O src/createmodel/data/classifier_parameter.pkl https://drive.google.com/file/d/1hs-DT4Y0ZtjdV9kJ438lvAPpJcfz_dE_/view?usp=drive_link
+wget -O src/createmodel/data/classifier_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl
 ```
 
 ### 屋根線検出用モデルの学習済みパラメーターをダウンロード
 ```
-wget -O src/createmodel/data/roof_edge_detection_parameter.pth https://drive.google.com/file/d/1QqxfS05a4T1_IdrzYle3iuBXjuyqFz-u/view?usp=drive_link
+wget -O src/createmodel/data/roof_edge_detection_parameter.pth https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth
 ```
 
 ### バルコニー検出用モデルの学習済みパラメーターをダウンロード
 ```
-wget -O src/createmodel/data/balcony_segmentation_parameter.pkl https://drive.google.com/file/d/1MINHffIvcooDOrQq3E4mBvdsgWUfzIi5/view?usp=drive_link
+wget -O src/createmodel/data/balcony_segmentation_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl
 ```
 
 ### LOD2建築物モデル自動作成のテスト用の入力データーのダウンロード
@@ -225,11 +225,12 @@ pip install –r requirements.txt # 仮想環境の開始後
 ### 事前学習モデルの学習済みパラメーターをダウンロード
 - `~/.cache/torch/hub/checkpoints` に `1inceptionresnetv2-520b38e4.pth`
 ```
+mkdir -p ~/.cache/torch/hub/checkpoints
 wget -O ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth
 ```
 - `checkpoints/fpn_inception.h5` に fpn_inception.h5
 ```
-wget -O checkpoints/fpn_inception.h5 'https://drive.google.com/uc?export=view&id=1UXcsRVW-6KF23_TNzxw-xC0SzaMfXOaR'
+wget -O checkpoints/fpn_inception.h5 https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/fpn_inception.h5
 ```
 
 ### 画質向上開始
