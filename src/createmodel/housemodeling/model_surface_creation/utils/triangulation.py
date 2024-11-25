@@ -1,3 +1,4 @@
+from collections import Counter
 import enum
 from dataclasses import dataclass
 
@@ -85,7 +86,7 @@ def triangulation(
 
   poly = Polygon(points[polygon][:, 0:2])
   assert poly.is_valid, "invalid polygon"
-  assert poly.area >= 0.0001, "too small polygon"
+  assert poly.area >= 1e-9, "too small polygon"
 
   # 全三角形の法線を計算
   normals_list = []
@@ -396,16 +397,22 @@ def new_triangulation_2d(
 
   poly = Polygon(points[polygon][:, 0:2])
   assert poly.is_valid, "invalid polygon"
-  assert poly.area >= 0.0001, "too small polygon"
 
   # 分割しようとする多角形がすでに三角形の場合
   polygon_xys: list[tuple[float, float]] = list(poly.exterior.coords[:-1])
+
+  # 重複があるか確認
+  counter = Counter(polygon_xys)
+  duplicates = [point for point, count in counter.items() if count > 1]
+  assert len(duplicates) == 0, f"重複点があります: {duplicates}"
+
   if len(polygon_xys) == 3:
     triangle = Triangle(
         [TriangleVertex(point_id, order_id) for order_id, point_id in enumerate(polygon)]
     )
     return [triangle]
 
+  assert poly.area >= 1e-9, "too small polygon"
   # 時間複雑度(n log n)
   tmp_poly_triangles: list[Polygon] = [
       geom for geom in delaunay_triangles(MultiPoint(polygon_xys)).geoms
@@ -430,7 +437,7 @@ def new_triangulation_2d(
 
   other_poly_triangles: list[Polygon] = []
   for other_poly in other_polys:
-    other_poly_xys = list(other_poly.exterior.coords[:-1])
+    other_poly_xys = list(dict.fromkeys(other_poly.exterior.coords))
     if len(other_poly_xys) == 3:
       other_poly_triangles.append(other_poly)
     else:

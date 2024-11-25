@@ -1,3 +1,4 @@
+from collections import Counter
 import os
 from typing import Optional
 
@@ -72,6 +73,11 @@ class CreateHouseModel:
     roof_edge_detection = RoofEdgeDetection(self._roof_edge_detection_checkpoint_path, self._use_gpu)
     tmp_roof_edge_vertice_ijs, tmp_roof_edges = roof_edge_detection.infer(self._square_dsm_grid_rgbs)
 
+    # 重複があるか確認
+    counter = Counter(tmp_roof_edge_vertice_ijs)
+    duplicates = [point for point, count in counter.items() if count > 1]
+    assert len(duplicates) == 0, f"重複点があります: {duplicates}"
+
     # 画像座標から平面直角座標への変換
     tmp_roof_vertex_xys = np.array([
         self._coord_converter.image_point_to_cartesian_point(i, j)
@@ -86,10 +92,6 @@ class CreateHouseModel:
     tmp_outer_polygon, tmp_inner_polygons = extract_roof_surface(
         tmp_roof_polygon_vertex_xy_points, result_edges,
     )
-
-    roof_polygon_vertex_xy_points = tmp_roof_polygon_vertex_xy_points
-    outer_polygon = tmp_outer_polygon
-    inner_polygons = tmp_inner_polygons
 
     roof_polygon_vertex_xy_points, outer_polygon, inner_polygons = self._get_roof_polygon_xy(
         tmp_roof_polygon_vertex_xy_points, tmp_outer_polygon, tmp_inner_polygons,
@@ -179,7 +181,7 @@ class CreateHouseModel:
     model.simplify(threshold=5)
 
     # 壁面非水密エラー修正
-    # model.rectify()
+    model.rectify()
 
     # objファイルの作成
     file_name = f'{self._building_id}.obj'
@@ -209,11 +211,38 @@ class CreateHouseModel:
     delta_j_average = delta_j_sum / len(tmp_roof_polygon_vertex_from_heat_ijs)
     return (delta_i_average, delta_j_average, tmp_roof_polygon_vertex_from_heat_ijs)
 
-  def _ij_to_xy(self, i: float, j: float, delta_i_average: float, delta_j_average: float):
-    left, upper = self._roof_layer_info.origin_dsm_grid_xyzs[0, 0][:2]
-    x = float(left + (j + delta_j_average) * self._grid_size)
-    y = float(upper - (i + delta_i_average) * self._grid_size)
-    return (x, y)
+  def _xy_to_ij(self, xy: tuple[float, float]) -> tuple[float, float]:
+    """
+    xy 座標(DSM 座標)を ij 座標(画像の Pixel 座標)に変換
+
+    Args:
+      xy (tuple[float, float]): DSM 座標
+
+    Return:
+      tuple[float, float]: 画像の Pixel 座標
+    """
+
+    # 可能な xy 座標範囲
+    x_coords = [point[0] for point in self._shape.exterior.coords]
+    y_coords = [point[1] for point in self._shape.exterior.coords]
+    x_min = min(x_coords)
+    x_max = max(x_coords)
+    y_min = min(y_coords)
+    y_max = max(y_coords)
+
+    # xy 座標と ij 座標の間隔比率
+    x_width = x_max - x_min
+    y_height = y_max - y_min
+    j_height, i_width = self._roof_layer_info.dsm_grid_rgbs.shape[:2]
+    x_width_per_i_width = x_width / i_width
+    y_height_per_j_height = y_height / j_height
+
+    # xy -> ij の変換
+    x, y = xy
+    j = float((x - x_min) / y_height_per_j_height)
+    i = float((y_max - y) / x_width_per_i_width)
+
+    return (round(i, 6), round(j, 6))
 
   def _get_roof_polygon_vertex_ijs(
       self,
@@ -230,8 +259,7 @@ class CreateHouseModel:
 
     for polygon in polygons:
       polygon_ijs = [fixed_roof_polygon_vertex_ijs[point_id] for point_id in polygon]
-      if not Polygon(polygon_ijs).is_valid:
-        breakpoint()
+      assert Polygon(polygon_ijs).is_valid, "不正ポリゴンです"
 
     return fixed_roof_polygon_vertex_ijs
 
@@ -241,37 +269,24 @@ class CreateHouseModel:
       tmp_outer_polygon,
       tmp_inner_polygons,
   ):
-    (
-        delta_i_average,
-        delta_j_average,
-        tmp_roof_polygon_vertex_from_heat_ijs,
-    ) = self._get_delta_i_average_and_delta_j_average(tmp_roof_polygon_vertex_xy_points)
-
-    tmp_roof_polygon_vertex_ijs = self._get_roof_polygon_vertex_ijs(
-        tmp_roof_polygon_vertex_from_heat_ijs=tmp_roof_polygon_vertex_from_heat_ijs,
-        polygons=[tmp_outer_polygon, *tmp_inner_polygons],
-        delta_i_average=delta_i_average,
-        delta_j_average=delta_j_average,
-    )
+    tmp_roof_polygon_vertex_ijs = [
+        self._xy_to_ij((xy_point.x, xy_point.y)) for xy_point in tmp_roof_polygon_vertex_xy_points
+    ]
 
     inner_polygon_ijs_list_before: list[list[tuple[int, int]]] = []
     for inner_polygon in tmp_inner_polygons:
-      inner_polygon_ijs_list = [tmp_roof_polygon_vertex_ijs[point_id] for point_id in inner_polygon]
-      inner_polygon_ijs_list_before.append(inner_polygon_ijs_list)
+      inner_polygon_ijs = [tmp_roof_polygon_vertex_ijs[point_id] for point_id in inner_polygon]
+      inner_polygon_ijs_list_before.append(inner_polygon_ijs)
 
     extra_roof_line = ExtraRoofLine(
+        id=self._building_id,
         shape=self._shape,
         inner_polygon_ijs_list_before=inner_polygon_ijs_list_before,
         roof_layer_info=self._roof_layer_info,
-        delta_i_average=delta_i_average,
-        delta_j_average=delta_j_average,
         grid_size=self._grid_size,
         debug_mode=self._debug_mode,
     )
 
-    roof_polygon_vertex_xy_points = tmp_roof_polygon_vertex_xy_points
-    outer_polygon = tmp_outer_polygon
-    inner_polygons = tmp_inner_polygons
     if extra_roof_line.has_splited_polygon:
       roof_polygon_vertex_xy_points = [
           Point(*new_polygon_vertex_xy)
@@ -279,24 +294,9 @@ class CreateHouseModel:
       ]
       outer_polygon = extra_roof_line.new_outer_polygon
       inner_polygons = extra_roof_line.new_inner_polygons
-
-    tmp_inner_polys: list[Polygon] = []
-    for inner_polygon in tmp_inner_polygons:
-      poly = Polygon([
-          (tmp_roof_polygon_vertex_xy_points[point_id].x, tmp_roof_polygon_vertex_xy_points[point_id].y)
-          for point_id in inner_polygon
-      ])
-      tmp_inner_polys.append(poly)
-
-    roof_polygon_vertex_xys = np.array(
-        [(point.x, point.y) for point in roof_polygon_vertex_xy_points]
-    )
-    xy_polys: list[Polygon] = []
-    for inner_polygon in inner_polygons:
-      xy_poly = Polygon([
-          tuple(roof_polygon_vertex_xys[point_id])
-          for point_id in inner_polygon
-      ])
-      xy_polys.append(xy_poly)
+    else:
+      roof_polygon_vertex_xy_points = tmp_roof_polygon_vertex_xy_points
+      outer_polygon = tmp_outer_polygon
+      inner_polygons = tmp_inner_polygons
 
     return roof_polygon_vertex_xy_points, outer_polygon, inner_polygons

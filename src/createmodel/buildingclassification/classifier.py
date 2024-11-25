@@ -60,7 +60,6 @@ class Classifier:
         checkpoint.pop('criterion.weight')
       self._model.load_state_dict(checkpoint)
     except Exception as e:
-      breakpoint()
       class_name = self.__class__.__name__
       func_name = sys._getframe().f_code.co_name
       msg = '{}.{}, {}'.format(class_name, func_name, e)

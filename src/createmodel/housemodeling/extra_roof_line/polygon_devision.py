@@ -8,6 +8,7 @@ from shapely.geometry import Point as GeoPoint
 from shapely.ops import unary_union
 import cv2
 
+from ....createmodel.housemodeling.extra_roof_line.utils.merge_close_vertices import merge_close_vertices
 from ....createmodel.createmodelexception import CreateModelException
 from ....createmodel.message import CreateModelMessage
 from ..roof_layer_info import RoofLayerInfo
@@ -127,26 +128,49 @@ class PolygonDevision:
     if not noise_area.is_empty:
       if isinstance(noise_area, MultiPolygon):
         for poly in noise_area.geoms:
-          polygon_ijs = [coord for coord in poly.exterior.coords[:-1]]
+          polygon_ijs = list(dict.fromkeys(poly.exterior.coords))
           noise_area_polygon_ijs_list.append(polygon_ijs)
       elif isinstance(noise_area, Polygon):
-        polygon_ijs = [coord for coord in noise_area.exterior.coords[:-1]]
+        polygon_ijs = list(dict.fromkeys(noise_area.exterior.coords))
         noise_area_polygon_ijs_list.append(polygon_ijs)
 
     # 分割されたポリゴンリスト = 共通部ポリゴンリスト + DSMノイズ領域のポリゴンリスト
-    splited_polygon_ijs_list_tmp = [*intersection_polygon_ijs_list, *noise_area_polygon_ijs_list]
+    merged_polygon_ijs_list_tmp = [*intersection_polygon_ijs_list, *noise_area_polygon_ijs_list]
 
     # 小さいポリゴンを大きいポリゴンと合併
-    splited_polygon_ijs_list = PolygonDevision.merge_small_polygon_into_large_polygon(
-        splited_polygon_ijs_list_tmp, 40
+    merged_polygon_ijs_list = PolygonDevision.merge_small_polygon_into_large_polygon(
+        merged_polygon_ijs_list_tmp, 40
     )
 
+    # float 演算浮動小数点誤差の制御パッチ : 丸めて誤差を抑える
+    rounded_polygon_ijs_list = []
+    for polygon_ijs in merged_polygon_ijs_list:
+      rounded_polygon_ijs = [(round(i, 6), round(j, 6)) for i, j in polygon_ijs]
+
+      fixed_rounded_polys: list[Polygon] = []
+      fixed_rounded_poly_or_multi_poly = Polygon(rounded_polygon_ijs).buffer(0)
+      if isinstance(fixed_rounded_poly_or_multi_poly, MultiPolygon):
+        fixed_rounded_polys = list(fixed_rounded_poly_or_multi_poly.geoms)
+      else:
+        fixed_rounded_polys = [fixed_rounded_poly_or_multi_poly]
+
+      for fixed_rounded_poly in fixed_rounded_polys:
+        fixed_rounded_polygon_ijs = [
+            (round(i, 6), round(j, 6)) for i, j in list(fixed_rounded_poly.exterior.coords[:-1])
+        ]
+        if fixed_rounded_poly.area == 0 or len(fixed_rounded_polygon_ijs) < 3:
+          continue
+        else:
+          rounded_polygon_ijs_list.append(fixed_rounded_polygon_ijs)
+
+    merged_polygon_ijs_list_2 = merge_close_vertices(rounded_polygon_ijs_list)
+
     if self._debug_mode:
-      self._save_splited_polygons_image(splited_polygon_ijs_list, debug_image_file_name)
+      self._save_splited_polygons_image(merged_polygon_ijs_list_2, debug_image_file_name)
 
-    self._validate_splited_poylgon_ijs(self._origin_polygon_ijs, splited_polygon_ijs_list)
+    self._validate_splited_poylgon_ijs(self._origin_polygon_ijs, merged_polygon_ijs_list_2)
 
-    return splited_polygon_ijs_list
+    return merged_polygon_ijs_list_2
 
   def _calculate_angle_between_points(
       self,
@@ -254,7 +278,7 @@ class PolygonDevision:
     splited_poly = Polygon(splited_polygon_ijs)
 
     result = splited_poly.difference(origin_poly)
-    return result.area <= 0.0001
+    return result.area <= 1e-9
 
   def _save_splited_polygons_image(
       self,
@@ -313,10 +337,12 @@ class PolygonDevision:
     polys = [Polygon(polygon_ijs) for polygon_ijs in splited_polygon_ijs_list]
     for poly in polys:
       # 不正ポリゴン
+      assert poly.is_valid, "不正ポリゴンです"
       if not poly.is_valid:
         raise CreateModelException(CreateModelMessage.ERR_POLYGON_DIVISION_FAIL)
       # 小さいポリゴン
-      if not poly.area >= 0.0001:
+      assert poly.area >= 1e-9, "ポリゴンが小さすぎます"
+      if not poly.area >= 1e-9:
         raise CreateModelException(CreateModelMessage.ERR_POLYGON_DIVISION_FAIL)
 
   def _calculate_slope(self, point1_ij: tuple[float, float], point2_ij: tuple[float, float]) -> float:
@@ -466,7 +492,7 @@ class PolygonDevision:
       polygon_ijs_list (list[list[tuple[float, float]]]): ポリゴンの頂点座標(i,j)リスト
 
     Returns:
-      list[list[tuple[float, float]]]: 合成後のポリゴンの頂点座標リスト
+      list[list[tuple[float, float]]]: 合成後のポリゴンの頂点座標(i,j)リスト
     """
     poly_to_index_poly_from_indexes_pair: dict[int, list[int]] = defaultdict(list)
     poly_indexes_for_merging: set[int] = set()
@@ -519,11 +545,19 @@ class PolygonDevision:
       # ポリゴンの合成
       poly_to = polys[poly_to_index]
       poly_froms = [polys[poly_from_index] for poly_from_index in poly_from_indexes]
-      merged_poly = unary_union([poly_to, *poly_froms])
-      merged_polys.append(merged_poly)
+      merged_poly_area = unary_union([poly_to, *poly_froms]).buffer(0)
+      tmp_merged_polys: list[Polygon] = []
+      if isinstance(merged_poly_area, MultiPolygon):
+        tmp_merged_polys = list(merged_poly_area.geoms)
+      else:
+        tmp_merged_polys = [merged_poly_area]
 
-      merged_polygon_ijs = [coord for coord in merged_poly.exterior.coords[:-1]]
-      merged_polygon_ijs_list.append(merged_polygon_ijs)
+      merged_polys.extend(tmp_merged_polys)
+      tmp_merged_polygon_ijs = [
+          list(poly.exterior.coords[:-1])
+          for poly in tmp_merged_polys
+      ]
+      merged_polygon_ijs_list.extend(tmp_merged_polygon_ijs)
 
     return merged_polygon_ijs_list
 

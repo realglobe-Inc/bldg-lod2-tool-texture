@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 import itertools
 import os
@@ -7,8 +8,9 @@ import numpy as np
 import numpy.typing as npt
 from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
+from shapely.ops import unary_union
 
-from .model_surface_creation.utils.triangulation import new_triangulation_2d
+from .model_surface_creation.utils.triangulation import Triangle, new_triangulation_2d
 from .custom_itertools import pairwise
 
 from ...util.objinfo import BldElementType, ObjInfo
@@ -143,8 +145,7 @@ class HouseModel:
         points(list[ModelPoint]): 面の点のリスト (反時計回り)
         face_group_id(int): 面のグループ番号
     """
-    self._faces.append(
-        ModelFace(points, BldElementType.ROOF, face_group_id))
+    self._faces.append(ModelFace(points, BldElementType.ROOF, face_group_id))
 
   def _add_ground(self, points: list[ModelPoint], face_group_id: int):
     """地面の面を追加する
@@ -153,8 +154,7 @@ class HouseModel:
       points(list[ModelPoint]): 面の点のリスト (反時計回り)
       face_group_id(int): 面のグループ番号
     """
-    self._faces.append(
-        ModelFace(points, BldElementType.GROUND, face_group_id))
+    self._faces.append(ModelFace(points, BldElementType.GROUND, face_group_id))
 
   def _generate_wall(self, face_group_id: int):
     """屋根面同士、屋根面と地面を繋ぐ壁を生成する
@@ -166,8 +166,7 @@ class HouseModel:
     # assert all([face.type is not BldElementType.WALL for face in self._faces]), \
     #    "壁がすでに生成されています"
 
-    edge_pairs: dict[tuple[int, int],
-                     list[tuple[ModelPoint, ModelPoint]]] = {}
+    edge_pairs: dict[tuple[int, int], list[tuple[ModelPoint, ModelPoint]]] = {}
 
     # 同じ位置の線分毎にペアを作成する
     for face in self._faces:
@@ -185,7 +184,10 @@ class HouseModel:
     for edges in edge_pairs.values():
       # assert len(edges) == 2, "屋根面と地面が正しく登録されていません"
 
-      edge1, edge2 = edges
+      try:
+        edge1, edge2 = edges
+      except Exception:
+        breakpoint()
       # assert (edge1[0].position_id_2d, edge1[1].position_id_2d) == (edge2[1].position_id_2d, edge2[0].position_id_2d), \
       #    "屋根面と地面が正しく登録されていません"
 
@@ -196,13 +198,9 @@ class HouseModel:
 
       # 線分が3次元で交差している(端点のz座標の上下が反転している)場合には追加の頂点を作成する
       if p10[2] != p21[2] and p11[2] != p20[2] and ((p10[2] < p21[2]) ^ (p11[2] < p20[2])):
-        cross_point_rate = (p10[2] - p21[2]) / \
-            ((p10[2] - p21[2]) + (p20[2] - p11[2]))
+        cross_point_rate = (p10[2] - p21[2]) / ((p10[2] - p21[2]) + (p20[2] - p11[2]))
         cross_point_position = (p11 - p10) * cross_point_rate + p10
-
-        cross_point = ModelPoint(
-            -1, self._add_point(cross_point_position), -1
-        )
+        cross_point = ModelPoint(-1, self._add_point(cross_point_position), -1)
 
         self._faces.append(
             ModelFace([
@@ -309,7 +307,6 @@ class HouseModel:
 
   def new_create_model_surface(
       self,
-      point_cloud: npt.NDArray[np.float_],
       roof_polygon_vertex_xys: npt.NDArray[np.float_],
       inner_polygons: list[list[int]],
       outer_polygon: list[int],
@@ -337,81 +334,98 @@ class HouseModel:
         for vertex_xy in roof_polygon_vertex_xys
     ]
 
+    polys = []
+    triangle_polys = []
+    polygon_xys_list: list[list[tuple[float, float, float]]] = []
+    triangle_xys_list: list[list[tuple[float, float, float]]] = []
+    triangle_xyzs_list: list[list[tuple[float, float, float]]] = []
+    polygon_id_triangles_pair: dict[int, list[Triangle]] = defaultdict(list)
+    for polygon_idx, polygon in enumerate(inner_polygons):
+      polygon_xys = []
+      for point_id in polygon:
+        x, y = roof_polygon_vertex_xys[point_id].copy()
+        polygon_xys.append((x, y, 0.5 * polygon_idx))
+
+      polys.append(Polygon(np.array(polygon_xys)[:, :2]))
+      polygon_xys_list.append(polygon_xys)
+
+      poly_triangles = new_triangulation_2d(polygon, roof_polygon_vertex_xys)
+      for triangle in poly_triangles:
+        triangle_xys = []
+        triangle_xyzs = []
+        for vertex in triangle:
+          x, y = roof_polygon_vertex_xys[vertex.point_id].copy()
+          z = heights[vertex.point_id]
+          triangle_xys.append((x, y, 0))
+          triangle_xyzs.append((x, y, z))
+        triangle_polys.append(Polygon(np.array(triangle_xys)[:, :2]))
+        triangle_xys_list.append(triangle_xys)
+        triangle_xyzs_list.append(triangle_xyzs)
+        polygon_id_triangles_pair[polygon_idx].append(triangle)
+
+    poly_area = unary_union(polys)
+    triangle_poly_area = unary_union(triangle_polys)
+
     if debug_mode:
       triangulation_before_polygons_2d = ObjInfo()
-      triangulation_before_triangles_3d = ObjInfo()
       triangulation_before_triangles_2d = ObjInfo()
-      polys = []
-      triangle_polys = []
-      for polygon_idx, polygon in enumerate(inner_polygons):
-        polygon_xys = []
-        for point_id in polygon:
-          x, y = roof_polygon_vertex_xys[point_id].copy()
-          polygon_xys.append((x, y, 0.5 * polygon_idx))
-        polys.append(Polygon(np.array(polygon_xys)[:, :2]))
+      triangulation_before_triangles_3d = ObjInfo()
 
-        triangulation_before_polygons_2d.append_faces(BldElementType.ROOF, [polygon_xys])
-
-        triangles = new_triangulation_2d(polygon, roof_polygon_vertex_xys)
-        for triangle in triangles:
-          triangle_xys = []
-          triangle_xyzs = []
-          for vertex in triangle:
-            x, y = roof_polygon_vertex_xys[vertex.point_id].copy()
-            z = heights[vertex.point_id]
-            triangle_xys.append((x, y, 0))
-            triangle_xyzs.append((x, y, z))
-          triangle_polys.append(Polygon(np.array(triangle_xys)[:, :2]))
-
-          triangulation_before_triangles_2d.append_faces(BldElementType.ROOF, [triangle_xys])
-          triangulation_before_triangles_3d.append_faces(BldElementType.ROOF, [triangle_xyzs])
+      triangulation_before_polygons_2d.append_faces(BldElementType.ROOF, polygon_xys_list)
+      triangulation_before_triangles_2d.append_faces(BldElementType.ROOF, triangle_xys_list)
+      triangulation_before_triangles_3d.append_faces(BldElementType.ROOF, triangle_xyzs_list)
 
       debug_dir = os.path.join('debug', self._id)
       Path(debug_dir).mkdir(parents=True, exist_ok=True)
       triangulation_before_polygons_2d_obj_path = os.path.join(debug_dir, 'triangulation_before_polygons_2d.obj')
       triangulation_before_triangles_2d_obj_path = os.path.join(debug_dir, 'triangulation_before_triangles_2d.obj')
       triangulation_before_triangles_3d_obj_path = os.path.join(debug_dir, 'triangulation_before_triangles_3d.obj')
+
       triangulation_before_polygons_2d.write_file(file_path=triangulation_before_polygons_2d_obj_path)
       triangulation_before_triangles_2d.write_file(file_path=triangulation_before_triangles_2d_obj_path)
       triangulation_before_triangles_3d.write_file(file_path=triangulation_before_triangles_3d_obj_path)
 
-    # breakpoint()
+    assert isinstance(poly_area, Polygon), "分割されたポリゴンに隙間があります"
+    assert len(poly_area.interiors) == 0, "分割されたポリゴンに隙間があります"
 
-    # balcony_height: float = max(ground_height + 0.1, min(heights))
+    assert isinstance(triangle_poly_area, Polygon), "分割された三角形に隙間があります"
+    assert len(triangle_poly_area.interiors) == 0, "分割された三角形に隙間があります"
+
+    balcony_height: float = max(ground_height + 0.1, min(heights))
+    roof_polygon_vertex_xyzs = np.concatenate([roof_polygon_vertex_xys, np.array(heights)[:, np.newaxis]], axis=1)
 
     # roof
-    # for triangle, polygon_idx in roof_triangles:
-    #   face_points = []
-    #   for vertex in triangle:
-    #     xyz = roof_polygon_vertex_xyzs[vertex.point_id].copy()
-    #     if balcony_flags[polygon_idx]:
-    #       xyz[2] = balcony_height
+    for polygon_id, triangles in polygon_id_triangles_pair.items():
+      roof_triangle_model_points = []
+      for triangle in triangles:
+        for vertex in triangle:
+          xyz = roof_polygon_vertex_xyzs[vertex.point_id].copy()
+          if balcony_flags[polygon_id]:
+            xyz[2] = balcony_height
 
-    #     face_points.append(ModelPoint(
-    #         position_id_2d=vertex.point_id,
-    #         position_id_3d=self._add_point(xyz),
-    #         order_id=vertex.order_id,
-    #     ))
+          roof_triangle_model_points.append(ModelPoint(
+              position_id_2d=vertex.point_id,
+              position_id_3d=self._add_point(xyz),
+              order_id=vertex.order_id,
+          ))
 
-    #   self._add_roof(face_points, polygon_idx)
+      self._add_roof(roof_triangle_model_points, polygon_id)
 
-    # # floor
-    # ground_points = [
-    #     ModelPoint(
-    #         position_id_2d=position_id_2d,
-    #         position_id_3d=self._add_point((
-    #             roof_polygon_vertex_xyzs[position_id_2d][0],
-    #             roof_polygon_vertex_xyzs[position_id_2d][1],
-    #             ground_height
-    #         )),
-    #         order_id=i
-    #     ) for i, position_id_2d in enumerate(outer_polygon[::-1])
-    # ]
-
-    # self._add_ground(ground_points, -1)
+    # floor
+    floor_polygon_model_points = [
+        ModelPoint(
+            position_id_2d=position_id_2d,
+            position_id_3d=self._add_point((
+                roof_polygon_vertex_xyzs[position_id_2d][0],
+                roof_polygon_vertex_xyzs[position_id_2d][1],
+                ground_height
+            )),
+            order_id=i
+        ) for i, position_id_2d in enumerate(outer_polygon[::-1])
+    ]
+    self._add_ground(floor_polygon_model_points, -1)
 
     # wall
-    # self._generate_wall(-2)
 
   def simplify(self, threshold: float):
     """屋根面の単純化

@@ -534,10 +534,10 @@ class RoofLayerInfo:
       if not difference.is_empty:
         if isinstance(difference, MultiPolygon):
           for poly in difference.geoms:
-            polygon_ijs = [coord for coord in poly.exterior.coords[:-1]]
+            polygon_ijs = list(dict.fromkeys(poly.exterior.coords))
             current_polygon_ijs.append(polygon_ijs)
         elif isinstance(difference, Polygon):
-          polygon_ijs = [coord for coord in difference.exterior.coords[:-1]]
+          polygon_ijs = list(dict.fromkeys(difference.exterior.coords))
           current_polygon_ijs.append(polygon_ijs)
 
       self._layer_number_layer_area_polygon_ijs_list_pair[layer_number] = current_polygon_ijs
