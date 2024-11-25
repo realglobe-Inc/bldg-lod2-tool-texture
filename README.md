@@ -6,8 +6,8 @@
 
 ## ドキュメントを読む手順
 1. [環境構築 & 実行方法](#環境構築実行方法)
-2. 処理手順（要ドキュメント作成）
-3. ドキュメントの限界、コスト限界、技術的限界
+2. [処理手順（要ドキュメント作成）](#処理手順)
+3. [ドキュメントの限界](#ドキュメントの限界)、[コスト限界](#コスト限界)、[技術的限界](#技術的限界)
 4. [なぜそこが技術的限界かに対する参考資料で深掘り](#2023年までの開発履歴の参照)
 
 
@@ -19,9 +19,22 @@
 ### [便利な VSCode Extensions](./docs/tutorials/vscode-extensions/README.md)
 ### [開発ツールの利用ガイド](./docs/tutorials/dev-tools/README.md)
 
+
+## 処理手順
+| 順番 | 相対パス | 説明 | 内部処理の詳細 |
+|-|-|-|-|
+| 1 | `./` | LOD2建築物自動作成ツール | [実行フロー](./docs/tutorials/tools/bldg-lod2-tool/README.md) |
+| - | ~~`./tools/SuperResolution/RoofSurface/`~~ | ~~屋根面視認性向上ツール~~ | |
+| 2 | `./tools/SuperResolution/WallSurface/` | 壁面視認性向上ツール | （要ドキュメント作成） |
+| 3 | `./tools/DeblurGANv2` | テクスチャ鮮明化ツール | [実行フロー](./docs/tutorials/tools/DeblurGANv2/README.md) |
+| 4 | `./tools/UnsharpMask/` | テクスチャシャープ化ツール | [実行フロー](./docs/tutorials/tools/UnsharpMask/README.md) |
+| 5 | `./tools/Real-ESRGAN/` | テクスチャ解像度向上ツール | [実行フロー](./docs/tutorials/tools/Real-ESRGAN/README.md) |
+| 6 | `./tools/Atlas_Prot/` | テクスチャアトラス化ツール | （要ドキュメント作成） |
+
+
 ## [デバッグモードの使い方](./docs/tutorials/debug-mode/README.md)
 
-## ドキュメントの限界（[plateau_tech_doc_0062_ver01.pdf 等](#2023年までの開発履歴の参照)）
+## ドキュメントの限界(#2023年までの開発履歴の参照)）
 ### ${\text{\color{red}読む人にとってどこが重要な部分かのフォーカスがない。}}$
 - 読む人が誰かを想定していない。
   - 辞書式で、すでに開発をしっている人にしか理解できない。
@@ -111,16 +124,7 @@
 |  |Torch|BSD 3-Clause Lisence|機械学習ライブラリ|
 |  |Torchvision|BSD 3-Clause Lisence|機械学習ライブラリ|
 
-## フォルダ構成
-| 相対パス |　詳細 |
-|-|-|
-| `./` | LOD2建築物自動作成ツール |
-| `./tools/Atlas_Prot/` | テクスチャアトラス化ツール |
-| `./tools/SuperResolution/RoofSurface/` | 屋根面視認性向上ツール |
-| `./tools/SuperResolution/WallSurface/` | 壁面視認性向上ツール |
-| `./tools/DeblurGANv2` | テクスチャ鮮明化ツール |
-| `./tools/UnsharpMask/` | テクスチャシャープ化ツール |
-| `./tools/Real-ESRGAN/` | テクスチャ解像度向上ツール |
+
 
 ## ライセンス
 - 本プロジェクトは[Auto-Create-bldg-lod2-tool](https://github.com/Project-PLATEAU/Auto-Create-bldg-lod2-tool/tree/f68a85bac55ff61d3c5c6192121513e7b7f77861)をフォークしたものです。
