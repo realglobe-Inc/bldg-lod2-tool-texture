@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Union
 import numpy as np
 import numpy.typing as npt
-from shapely.ops import unary_union
 from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
 
@@ -367,9 +366,6 @@ class HouseModel:
           triangulation_before_triangles_2d.append_faces(BldElementType.ROOF, [triangle_xys])
           triangulation_before_triangles_3d.append_faces(BldElementType.ROOF, [triangle_xyzs])
 
-      polys_area = unary_union(polys)
-      triangle_polys_area = unary_union(triangle_polys)
-
       debug_dir = os.path.join('debug', self._id)
       Path(debug_dir).mkdir(parents=True, exist_ok=True)
       triangulation_before_polygons_2d_obj_path = os.path.join(debug_dir, 'triangulation_before_polygons_2d.obj')
@@ -379,9 +375,9 @@ class HouseModel:
       triangulation_before_triangles_2d.write_file(file_path=triangulation_before_triangles_2d_obj_path)
       triangulation_before_triangles_3d.write_file(file_path=triangulation_before_triangles_3d_obj_path)
 
-    breakpoint()
+    # breakpoint()
 
-    balcony_height: float = max(ground_height + 0.1, min(heights))
+    # balcony_height: float = max(ground_height + 0.1, min(heights))
 
     # roof
     # for triangle, polygon_idx in roof_triangles:

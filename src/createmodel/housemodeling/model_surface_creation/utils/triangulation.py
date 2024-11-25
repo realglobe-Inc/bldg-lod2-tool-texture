@@ -345,7 +345,7 @@ def triangulation_2d(
 
   # dp[i,i+N-1]が最小となるiを求める
   min_cost_index = int(np.argmin(np.diag(dp, N - 1)))
-  min_cost: float = dp[min_cost_index, min_cost_index + N - 1]
+  # min_cost: float = dp[min_cost_index, min_cost_index + N - 1]
 
   # assert min_cost != np.inf
 
@@ -435,7 +435,7 @@ def new_triangulation_2d(
       other_poly_triangles.append(other_poly)
     else:
       # 残りのポリゴンは earcut で分割して確実に三角形に分割
-      earcut_res = earcut(np.array(other_poly_xys, dtype=np.int).flatten(), dim=2)
+      earcut_res = earcut(np.array(other_poly_xys, dtype=np.float).flatten(), dim=2)
       other_poly_earcut_triangles: list[list[int]] = np.array(earcut_res).reshape((-1, 3)).tolist()
       for other_poly_earcut_triangle in other_poly_earcut_triangles:
         splited_triangle = Polygon(
@@ -444,9 +444,10 @@ def new_triangulation_2d(
         other_poly_triangles.append(splited_triangle)
 
   # ポリゴンの頂点順序
+  poly_triangles = [*inner_poly_triangles, *other_poly_triangles]
   triangle_order_ids_list: list[list[int]] = []
-  for filtered_poly_triangle in [*inner_poly_triangles, *other_poly_triangles]:
-    triangle_xys = list(filtered_poly_triangle.exterior.coords[:-1])
+  for poly_triangle in poly_triangles:
+    triangle_xys = list(poly_triangle.exterior.coords[:-1])
     assert len(triangle_xys) == 3, "三角形に分割されてないです"
     triangle_order_ids = [polygon_xys.index(triangle_xy) for triangle_xy in triangle_xys]
     triangle_order_ids_list.append(triangle_order_ids)
