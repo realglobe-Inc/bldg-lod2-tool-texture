@@ -5,6 +5,7 @@ from typing import Optional
 from shapely.geometry import Polygon
 import numpy as np
 
+from .utils.polys import validate_polygon_ijs_list
 from .extra_roof_line import ExtraRoofLine
 from .house_model import HouseModel
 from .coordinates_converter import CoordConverterForCartesianAndImagePos
@@ -13,8 +14,8 @@ from .model_surface_creation.optimize_roof_edge import optimize_roof_edge
 from .model_surface_creation.utils.geometry import Point
 from .balcony_detection import BalconyDetection
 from .roof_edge_detection import RoofEdgeDetection
-from ..lasmanager import PointCloud
 from .preprocess import Preprocess
+from ..lasmanager import PointCloud
 
 
 class CreateHouseModel:
@@ -69,7 +70,7 @@ class CreateHouseModel:
     result_preprocess = preprocess.preprocess(self._cloud, min_ground_height, shape, debug_mode)
     self._square_dsm_grid_rgbs, self._depth_image, self._roof_layer_info = result_preprocess
 
-    self._coord_converter = self._get_coord_converter()
+    self._coord_converter_for_heat_image = self._get_coord_converter_for_heat_image()
     roof_edge_detection = RoofEdgeDetection(self._roof_edge_detection_checkpoint_path, self._use_gpu)
     tmp_roof_edge_vertice_ijs, tmp_roof_edges = roof_edge_detection.infer(self._square_dsm_grid_rgbs)
 
@@ -80,7 +81,7 @@ class CreateHouseModel:
 
     # 画像座標から平面直角座標への変換
     tmp_roof_vertex_xys = np.array([
-        self._coord_converter.image_point_to_cartesian_point(i, j)
+        self._coord_converter_for_heat_image.image_point_to_cartesian_point(i, j)
         for i, j in tmp_roof_edge_vertice_ijs
     ])
 
@@ -93,22 +94,30 @@ class CreateHouseModel:
         tmp_roof_polygon_vertex_xy_points, result_edges,
     )
 
-    roof_polygon_vertex_xy_points, outer_polygon, inner_polygons = self._get_roof_polygon_xy(
+    # HEATのポリゴンが不完全な場合、ポリゴン分割
+    (
+        roof_polygon_vertex_xy_points, roof_polygon_vertex_ijs, outer_polygon, inner_polygons,
+    ) = self._might_get_extra_roof_line(
         tmp_roof_polygon_vertex_xy_points, tmp_outer_polygon, tmp_inner_polygons,
     )
 
-    self._balcony_flags = self._get_balcony_flags(roof_polygon_vertex_xy_points, inner_polygons)
+    # ポリゴンがバルコニーか
+    polygon_balcony_flags = self._get_polygon_balcony_flags(roof_polygon_vertex_xy_points, inner_polygons)
 
     self._create_model(
-        roof_polygon_vertex_xy_points=roof_polygon_vertex_xy_points,
+        roof_polygon_vertex_xys=[(point.x, point.y) for point in roof_polygon_vertex_xy_points],
+        roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
         inner_polygons=inner_polygons,
         outer_polygon=outer_polygon,
-        balcony_flags=self._balcony_flags,
+        polygon_balcony_flags=polygon_balcony_flags,
     )
 
-  def _get_coord_converter(self):
+  def _get_coord_converter_for_heat_image(self):
     """
-    座標変換 : 画像 image pos(i,j) <-> DSM(x,y)
+    HEAT入力画像の座標(i,j)とDSM座標(x,y)を変換する Converter を生成
+
+    Returns:
+      CoordConverterForCartesianAndImagePos: HEAT入力画像の座標(i,j)とDSM座標(x,y)を変換する Converter
     """
     min_x, min_y = self._cloud.get_points()[:, :2].min(axis=0)
     max_x, max_y = self._cloud.get_points()[:, :2].max(axis=0)
@@ -119,21 +128,30 @@ class CreateHouseModel:
         min_x - (self._image_size - width) / 2 * expanded_grid_size,
         max_y + (self._image_size - height) / 2 * expanded_grid_size,
     )
-    coord_converter = CoordConverterForCartesianAndImagePos(
+    coord_converter_for_heat_image = CoordConverterForCartesianAndImagePos(
         grid_size=expanded_grid_size,
         cartesian_coord_upper_left=cartesian_coord_upper_left,
     )
 
-    return coord_converter
+    return coord_converter_for_heat_image
 
-  def _get_balcony_flags(
+  def _get_polygon_balcony_flags(
       self,
       roof_polygon_vertex_xy_points: list[Point],
-      inner_polygons: list[int],
+      inner_polygons: list[list[int]],
   ):
+    """
+    Args:
+      roof_polygon_vertex_xy_points (list[Point]): 頂点のリスト
+      inner_polygons (lit[list[int]]): 内部ポリゴンの頂点番号リスト
+
+    Return:
+      list[bool]: ポリゴンのバルコニーフラグ
+    """
+
     # 平面直角座標から画像座標への変換
     image_points = [
-        Point(*self._coord_converter.cartesian_point_to_image_point(cartesian_point.x, cartesian_point.y))
+        Point(*self._coord_converter_for_heat_image.cartesian_point_to_image_point(cartesian_point.x, cartesian_point.y))
         for cartesian_point in roof_polygon_vertex_xy_points
     ]
 
@@ -151,37 +169,29 @@ class CreateHouseModel:
 
   def _create_model(
       self,
-      roof_polygon_vertex_xy_points: list[Point],
+      roof_polygon_vertex_xys: list[tuple[float, float]],
+      roof_polygon_vertex_ijs: list[tuple[float, float]],
       inner_polygons: list[int],
       outer_polygon: list[int],
-      balcony_flags: list[bool],
+      polygon_balcony_flags: list[bool],
   ):
     # 3Dモデルの生成
-    model = HouseModel(id=self._building_id, shape=self._shape)
-    model.new_create_model_surface(
-        point_cloud=self._cloud.get_points().copy(),
-        roof_polygon_vertex_xys=np.array([(point.x, point.y) for point in roof_polygon_vertex_xy_points]),
+    model = HouseModel(
+        id=self._building_id,
+        roof_layer_info=self._roof_layer_info,
+        roof_polygon_vertex_xys=roof_polygon_vertex_xys,
+        roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
         inner_polygons=inner_polygons,
         outer_polygon=outer_polygon,
         ground_height=self._min_ground_height,
-        balcony_flags=balcony_flags,
-        roof_layer_info=self._roof_layer_info,
+        polygon_balcony_flags=polygon_balcony_flags,
         debug_mode=self._debug_mode,
     )
 
-    # model.create_model_surface(
-    #     point_cloud=self._cloud.get_points().copy(),
-    #     roof_polygon_vertex_xys=np.array([(point.x, point.y) for point in roof_polygon_vertex_xy_points]),
-    #     inner_polygons=inner_polygons,
-    #     outer_polygon=outer_polygon,
-    #     ground_height=self._min_ground_height,
-    #     balcony_flags=balcony_flags
-    # )
-
-    model.simplify(threshold=5)
+    # model.simplify(threshold=5)
 
     # 壁面非水密エラー修正
-    model.rectify()
+    # model.rectify()
 
     # objファイルの作成
     file_name = f'{self._building_id}.obj'
@@ -259,16 +269,29 @@ class CreateHouseModel:
 
     for polygon in polygons:
       polygon_ijs = [fixed_roof_polygon_vertex_ijs[point_id] for point_id in polygon]
-      assert Polygon(polygon_ijs).is_valid, "不正ポリゴンです"
+      validate_polygon_ijs_list([polygon_ijs])
 
     return fixed_roof_polygon_vertex_ijs
 
-  def _get_roof_polygon_xy(
+  def _might_get_extra_roof_line(
       self,
-      tmp_roof_polygon_vertex_xy_points,
-      tmp_outer_polygon,
-      tmp_inner_polygons,
+      tmp_roof_polygon_vertex_xy_points: list[Point],
+      tmp_outer_polygon: list[int],
+      tmp_inner_polygons: list[list[int]],
   ):
+    """
+    Args:
+      tmp_roof_polygon_vertex_xy_points (list[Point]): 頂点のリスト
+      tmp_outer_polygon (list[int]): 外周ポリゴンの頂点番号リスト
+      tmp_inner_polygons (lit[list[int]]): 内部ポリゴンの頂点番号リスト
+
+    Return:
+      list[Point]: 頂点のリスト(x,y)
+      list[tuple[float, float]]: 頂点のリスト(i,j)
+      list[int]: 外周ポリゴンの頂点番号リスト
+      list[list[int]]: 内部ポリゴンの頂点番号リスト
+    """
+
     tmp_roof_polygon_vertex_ijs = [
         self._xy_to_ij((xy_point.x, xy_point.y)) for xy_point in tmp_roof_polygon_vertex_xy_points
     ]
@@ -277,6 +300,8 @@ class CreateHouseModel:
     for inner_polygon in tmp_inner_polygons:
       inner_polygon_ijs = [tmp_roof_polygon_vertex_ijs[point_id] for point_id in inner_polygon]
       inner_polygon_ijs_list_before.append(inner_polygon_ijs)
+
+    validate_polygon_ijs_list(inner_polygon_ijs_list_before)
 
     extra_roof_line = ExtraRoofLine(
         id=self._building_id,
@@ -294,9 +319,11 @@ class CreateHouseModel:
       ]
       outer_polygon = extra_roof_line.new_outer_polygon
       inner_polygons = extra_roof_line.new_inner_polygons
+      roof_polygon_vertex_ijs = extra_roof_line.new_polygon_vertex_ijs
     else:
       roof_polygon_vertex_xy_points = tmp_roof_polygon_vertex_xy_points
       outer_polygon = tmp_outer_polygon
       inner_polygons = tmp_inner_polygons
+      roof_polygon_vertex_ijs = tmp_roof_polygon_vertex_ijs
 
-    return roof_polygon_vertex_xy_points, outer_polygon, inner_polygons
+    return roof_polygon_vertex_xy_points, roof_polygon_vertex_ijs, outer_polygon, inner_polygons

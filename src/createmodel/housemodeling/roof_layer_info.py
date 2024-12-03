@@ -8,8 +8,10 @@ import numpy as np
 import numpy.typing as npt
 from PIL import Image
 import cv2
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Polygon
 from shapely.ops import unary_union
+
+from src.createmodel.housemodeling.utils.polys import get_polygon_ijs_list
 
 
 class RoofLayerInfo:
@@ -512,44 +514,31 @@ class RoofLayerInfo:
             simplified_polygon_ijs.append(merged_outline_polygon_ijs)
 
       # 今回までマージしたポリゴンリスト
-      current_merged_polygon_ijs: list[list[tuple[int, int]]] = []
       merged_polygon_ijs: list[list[tuple[int, int]]] = simplified_polygon_ijs
       merged_polygon_ijs.extend(last_merged_polygon_ijs)
-      merged_polygon_ijs_union = unary_union([Polygon(p) for p in merged_polygon_ijs])
-      if not merged_polygon_ijs_union.is_empty:
-        if isinstance(merged_polygon_ijs_union, MultiPolygon):
-          for poly in merged_polygon_ijs_union.geoms:
-            polygon_ijs = [coord for coord in poly.exterior.coords[:-1]]
-            current_merged_polygon_ijs.append(polygon_ijs)
-        elif isinstance(merged_polygon_ijs_union, Polygon):
-          polygon_ijs = [coord for coord in merged_polygon_ijs_union.exterior.coords[:-1]]
-          current_merged_polygon_ijs.append(polygon_ijs)
+      merged_polygons_area = unary_union([Polygon(p) for p in merged_polygon_ijs])
+      current_merged_polygon_ijs_list = get_polygon_ijs_list([merged_polygons_area])
 
       last_merged_polygon_ijs_union = unary_union([Polygon(p) for p in last_merged_polygon_ijs])
-      current_merged_polygon_ijs_union = unary_union([Polygon(p) for p in current_merged_polygon_ijs])
+      current_merged_polygon_ijs_list_union = unary_union([Polygon(p) for p in current_merged_polygon_ijs_list])
 
       # layer_numberのポリゴンリスト = 今回までマージしたポリゴンリスト - 前回までマージしたのポリゴンリスト
-      difference = current_merged_polygon_ijs_union.difference(last_merged_polygon_ijs_union)
-      current_polygon_ijs = []
-      if not difference.is_empty:
-        if isinstance(difference, MultiPolygon):
-          for poly in difference.geoms:
-            polygon_ijs = list(dict.fromkeys(poly.exterior.coords))
-            current_polygon_ijs.append(polygon_ijs)
-        elif isinstance(difference, Polygon):
-          polygon_ijs = list(dict.fromkeys(difference.exterior.coords))
-          current_polygon_ijs.append(polygon_ijs)
+      difference = current_merged_polygon_ijs_list_union.difference(last_merged_polygon_ijs_union)
+      current_polygon_ijs_list = get_polygon_ijs_list([difference])
 
-      self._layer_number_layer_area_polygon_ijs_list_pair[layer_number] = current_polygon_ijs
+      self._layer_number_layer_area_polygon_ijs_list_pair[layer_number] = current_polygon_ijs_list
 
       # 前回までマージしたのポリゴンリスト
-      last_merged_polygon_ijs = current_merged_polygon_ijs
+      last_merged_polygon_ijs = current_merged_polygon_ijs_list
 
       # 輪郭線を描画 (塗りつぶさない)
       if self._debug_mode:
         outline_part_image_rgb = np.full((height, width, 3), 255, dtype=np.uint8)
 
-        polygon_np = [np.array(polygon, np.int32)[:, ::-1].reshape((-1, 1, 2)) for polygon in current_polygon_ijs]
+        polygon_np = [
+            np.array(polygon_ijs, np.int32)[:, ::-1].reshape((-1, 1, 2))
+            for polygon_ijs in current_polygon_ijs_list
+        ]
         if len(polygon_np) > 0:
           cv2.fillPoly(outline_all_image_rgb, polygon_np, color=rgb_color)
           cv2.polylines(outline_part_image_rgb, polygon_np, isClosed=True, color=rgb_color, thickness=1)

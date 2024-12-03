@@ -1,8 +1,11 @@
+from collections import defaultdict
+
+
 class LineGroup:
-  def __init__(self, max_distance: float = 1e-4):
+  def __init__(self, distance_threshold: float = 1e-4):
     # 各グループキーに属する点を管理
-    self._line_group_key_point_ijs_pair: dict[tuple[float, float], set[tuple[float, float]]] = {}
-    self._max_distance = max_distance
+    self._line_group_key_point_ijs_pair: dict[tuple[float, float], set[tuple[float, float]]] = defaultdict(set)
+    self._distance_threshold = distance_threshold
 
   def add_line(
       self,
@@ -16,16 +19,10 @@ class LineGroup:
         start_point_ij (tuple[float, float]): 線分の開始点
         end_point_ij (tuple[float, float]): 線分の終了点
     """
-    # 既存のキーを検索
-    line_group_key = self._get_line_group_key(start_point_ij, end_point_ij)
+    line_group_key = self.get_line_group_key(start_point_ij, end_point_ij)
 
-    if line_group_key in self._line_group_key_point_ijs_pair:
-      # 既存グループに点を追加
-      self._line_group_key_point_ijs_pair[line_group_key].add(start_point_ij)
-      self._line_group_key_point_ijs_pair[line_group_key].add(end_point_ij)
-    else:
-      # 新しいグループを作成
-      self._line_group_key_point_ijs_pair[line_group_key] = {start_point_ij, end_point_ij}
+    self._line_group_key_point_ijs_pair[line_group_key].add(start_point_ij)
+    self._line_group_key_point_ijs_pair[line_group_key].add(end_point_ij)
 
   def get_line_group(
       self,
@@ -43,12 +40,12 @@ class LineGroup:
         set[tuple[float, float]]: グループ内の点の集合
     """
     # グループキーを取得
-    line_group_key = self._get_line_group_key(start_point_ij, end_point_ij)
+    line_group_key = self.get_line_group_key(start_point_ij, end_point_ij)
 
     # キーに対応する点群を返す
     return self._line_group_key_point_ijs_pair.get(line_group_key, set())
 
-  def _get_line_group_key(
+  def get_line_group_key(
       self,
       start_point_ij: tuple[float, float],
       end_point_ij: tuple[float, float],
@@ -66,7 +63,15 @@ class LineGroup:
     (i1, j1) = start_point_ij
     (i2, j2) = end_point_ij
 
-    # 線分の傾きと切片を計算
+    for existing_line_group_key in self._line_group_key_point_ijs_pair:
+      existing_a, existing_b = existing_line_group_key
+      start_point_distance = self._calculate_normal_distance(existing_a, existing_b, start_point_ij)
+      end_point_distance = self._calculate_normal_distance(existing_a, existing_b, end_point_ij)
+
+      if start_point_distance < self._distance_threshold and end_point_distance < self._distance_threshold:
+        return existing_line_group_key
+
+    # 一致するキーが見つからなかった場合、新しいキーを返す
     if i2 != i1:
       a = (j2 - j1) / (i2 - i1)  # 傾き
       b = j1 - a * i1            # 切片
@@ -75,23 +80,8 @@ class LineGroup:
       a = float("inf")  # 無限大を使用して垂直線を表現
       b = i1
 
-    default_line_group_key = (round(a, 5), round(b, 5))
-
-    # グループキーで検索
-    if default_line_group_key in self._line_group_key_point_ijs_pair:
-      return default_line_group_key
-
-    # 既存のキーと比較
-    for existing_line_group_key in self._line_group_key_point_ijs_pair:
-      existing_a, existing_b = existing_line_group_key
-      start_point_distance = self._calculate_normal_distance(existing_a, existing_b, start_point_ij)
-      end_point_distance = self._calculate_normal_distance(existing_a, existing_b, end_point_ij)
-
-      if start_point_distance < self._max_distance and end_point_distance < self._max_distance:
-        return existing_line_group_key
-
-    # 一致するキーが見つからなかった場合、新しいキーを返す
-    return default_line_group_key
+    new_line_group_key = (round(a, 4), round(b, 3))
+    return new_line_group_key
 
   def _calculate_normal_distance(
       self,

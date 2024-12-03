@@ -42,7 +42,7 @@ def merge_close_vertices(polygon_ijs_list: list[list[tuple[float, float]]], thre
       merged_vertice_ijs.append(vertex_ij)
 
   # 変更マップを適用してポリゴンを更新
-  merged_polygon_ijs_list = []
+  merged_polygon_ijs_list: list[list[tuple[float, float]]] = []
   for polygon_ijs in polygon_ijs_list:
     merged_polygon_ijs = [
         change_map.get(polygon_ij, polygon_ij)  # 変更された頂点に置換

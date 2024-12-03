@@ -9,6 +9,7 @@ from shapely.geometry import LineString, Polygon, MultiPoint
 from shapely.ops import unary_union
 
 from .....thirdparty.plateaupy.thirdparty.earcutpython.earcut.earcut import earcut
+from ...utils.polys import get_polys_from_geometry_collections
 from ...custom_itertools import pairwise
 from .geometry import Point, is_ccw_order
 
@@ -109,7 +110,7 @@ def triangulation(
   normals = np.array(normals_list * 2)  # (2N,2N,2N,3)
 
   # 全頂点間の線分が多角形内部か判定する
-  # 条件: 端点以外で他の多角形と交差しない & 端点から内側方向に線分がある
+  # 条件: 頂点以外で他の多角形と交差しない & 頂点から内側方向に線分がある
   is_inner_segment = np.zeros((N, N))
   for i in range(N):
     for j in range(i, N):
@@ -136,7 +137,7 @@ def triangulation(
 
         # 外形線と交差しないかチェック
         for edge in pairwise(range(N), loop=True):
-          # 端点が同じ場合は除く
+          # 頂点が同じ場合は除く
           if len({polygon[i], polygon[j]} & {polygon[edge[0]], polygon[edge[1]]}):
             continue
 
@@ -275,7 +276,7 @@ def triangulation_2d(
 
   # 全頂点間の線分の距離を計算する
   # 線分が多角形外部を通る場合はnp.infとする
-  # 内部の条件: 端点以外で他の多角形と交差しない & 端点から内側方向に線分がある
+  # 内部の条件: 頂点以外で他の多角形と交差しない & 頂点から内側方向に線分がある
   distance = np.full((N, N), np.inf)
   for i in range(N):
     for j in range(i, N):
@@ -302,7 +303,7 @@ def triangulation_2d(
 
         # 外形線と交差しないかチェック
         for edge in pairwise(range(N), loop=True):
-          # 端点が同じ場合は除く
+          # 頂点が同じ場合は除く
           if len({polygon[i], polygon[j]} & {polygon[edge[0]], polygon[edge[1]]}):
             continue
 
@@ -375,37 +376,27 @@ def triangulation_2d(
   ]
 
 
-def new_triangulation_2d(
-    polygon: list[int],
-    points: npt.NDArray[np.float_],
-    score_type: ScoreType = ScoreType.MINIMIZE_SUM
-) -> list[Triangle]:
+def triangulate(polygon: list[int], vertex_xy: list[tuple[float, float]]):
   """Delaunay で2D多角形の2D三角形に分割する
 
   Args:
-    polygon(list[int]): 多角形の頂点番号のリスト(反時計回り)
-    points(NDArray[np.float_]): 頂点の2次元座標 (num of points, 2)
-    score_type(ScoreType): 分割時の最適化種類
+    polygon (list[int]): 多角形の頂点番号のリスト(反時計回り)
+    vertex_xy (list[tuple[float, float]]): 頂点の2次元座標 (num of vertex_xy, 2)
 
   Returns:
     list[Triangle]: 分割後の三角形のリスト
   """
 
-  assert points.ndim == 2 and points.shape[1] == 2, "shape of points must be (*, 2)"
-
-  assert score_type == ScoreType.MINIMIZE_SUM, "MINIMIZE_SUMのみ実行可能です"
-
-  poly = Polygon(points[polygon][:, 0:2])
+  polygon_xys: list[tuple[float, float]] = [vertex_xy[point_id] for point_id in polygon]
+  poly = Polygon(polygon_xys)
   assert poly.is_valid, "invalid polygon"
-
-  # 分割しようとする多角形がすでに三角形の場合
-  polygon_xys: list[tuple[float, float]] = list(poly.exterior.coords[:-1])
 
   # 重複があるか確認
   counter = Counter(polygon_xys)
   duplicates = [point for point, count in counter.items() if count > 1]
   assert len(duplicates) == 0, f"重複点があります: {duplicates}"
 
+  # 分割しようとする多角形がすでに三角形の場合
   if len(polygon_xys) == 3:
     triangle = Triangle(
         [TriangleVertex(point_id, order_id) for order_id, point_id in enumerate(polygon)]
@@ -428,12 +419,7 @@ def new_triangulation_2d(
   outer_area = poly.difference(unary_union(inner_poly_triangles))
 
   # まだ処理されていない領域でさらに三角形分割を行う
-  other_polys: list[Polygon] = []
-  if not outer_area.is_empty:
-    if isinstance(outer_area, Polygon):
-      other_polys = [outer_area]
-    else:
-      other_polys = [geom for geom in outer_area.geoms if geom.area > 0]
+  other_polys = get_polys_from_geometry_collections([outer_area])
 
   other_poly_triangles: list[Polygon] = []
   for other_poly in other_polys:
@@ -452,18 +438,20 @@ def new_triangulation_2d(
 
   # ポリゴンの頂点順序
   poly_triangles = [*inner_poly_triangles, *other_poly_triangles]
-  triangle_order_ids_list: list[list[int]] = []
-  for poly_triangle in poly_triangles:
-    triangle_xys = list(poly_triangle.exterior.coords[:-1])
-    assert len(triangle_xys) == 3, "三角形に分割されてないです"
-    triangle_order_ids = [polygon_xys.index(triangle_xy) for triangle_xy in triangle_xys]
-    triangle_order_ids_list.append(triangle_order_ids)
 
   triangles: list[Triangle] = []
-  for triangle_order_ids in triangle_order_ids_list:
+  poly_triangle_area_sum = 0
+  for poly_triangle in poly_triangles:
+    poly_triangle_area_sum += poly_triangle.area
+    triangle_xys = list(poly_triangle.exterior.coords[:-1])
+    assert len(triangle_xys) == 3, "三角形に分割されてないです"
+    order_ids = [polygon_xys.index(triangle_xy) for triangle_xy in triangle_xys]
     triangle = Triangle(
-        [TriangleVertex(polygon[order_id], order_id) for order_id in triangle_order_ids]
+        [TriangleVertex(polygon[order_id], order_id) for order_id in order_ids]
     )
     triangles.append(triangle)
+
+  if abs(poly_triangle_area_sum - poly.area) >= 1e-9:
+    breakpoint()
 
   return triangles

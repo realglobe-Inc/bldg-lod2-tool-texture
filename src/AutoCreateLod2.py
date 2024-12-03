@@ -111,7 +111,6 @@ def main():
 
         # モデル要素生成中間出力フォルダ確認
         files = glob.glob(os.path.join(Config.OUTPUT_MODEL_OBJDIR, '*.obj'))
-
         if not files:
           log.output_log_write(
               LogLevel.ERROR, ModuleType.NONE, "ModelElementGeneration Module Not Output Obj File"

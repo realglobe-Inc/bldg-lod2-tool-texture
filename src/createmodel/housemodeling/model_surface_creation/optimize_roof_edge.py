@@ -38,7 +38,7 @@ def optimize_roof_edge(
       rotate_step_size(int, optional): 屋根線を回転する際の基準となる角度の間隔 (degree, 90の約数を推奨)
 
   Returns:
-      list[Point]: 線分の端点の座標のリスト
+      list[Point]: 線分の頂点の座標のリスト
       list[tuple[int,int]]: 内部の屋根線の線分のリスト
       list[tuple[int,int]]: 外形線の線分のリスト
   """
@@ -210,7 +210,7 @@ def optimize_step_01(inner_graph: RoofGraph, outer_graph: RoofGraph, threshold: 
       inner_graph(RoofGraph): 内部の屋根線のグラフ表現
       outer_graph(RoofGraph): 外形線のグラフ表現
       threshold(float): 点を移動する距離の上限値
-      point_threshold(float): 端点ではない線分上に移動する場合の点との距離の下限値
+      point_threshold(float): 頂点ではない線分上に移動する場合の点との距離の下限値
       base_line_vector(float): 建物の向きの基準となるベクトル
 
   Returns:
@@ -378,7 +378,7 @@ def optimize_step_02(inner_graph: RoofGraph, outer_graph: RoofGraph, threshold: 
 
 
 def optimize_step_03(graph: RoofGraph, extension_length: float):
-  """線分の次数1の端点を延長して交点ができるなら延長する
+  """線分の次数1の頂点を延長して交点ができるなら延長する
 
   Args:
       graph(RoofGraph): 外形線を含む屋根線のグラフ表現
@@ -399,7 +399,7 @@ def optimize_step_03(graph: RoofGraph, extension_length: float):
     candidates_b: list[Point] = []
 
     for u, v, _ in graph.edge_list():
-      # 同じ辺、または端点を共有しているばあいは除く
+      # 同じ辺、または頂点を共有しているばあいは除く
       if not set([u, v]).isdisjoint([a, b]):
         continue
 
@@ -484,7 +484,7 @@ def optimize_step_04(graph: RoofGraph, extension_length: float):
       distance = segment.distance(target)
       if distance < distance_from_adjacency and distance < extension_length:
         candidate = segment.project(target)
-        # 垂線を下ろした先が線分上でない場合は、端点に寄せる
+        # 垂線を下ろした先が線分上でない場合は、頂点に寄せる
         if not candidate.is_on(segment):
           if target.distance(segment[0]) < target.distance(segment[1]):
             candidate = segment[0]
@@ -523,14 +523,14 @@ def optimize_step_05(graph: RoofGraph, threshold: float, same_threshold: float):
     線分ab上にある点(距離が少し離れている場合でも許容する)を判定する関数を生成
 
     Note:
-        線分の端点から少しだけ距離の離れた点を含んだ場合に、後の処理で問題が発生するため、場合分けを行っている
+        線分の頂点から少しだけ距離の離れた点を含んだ場合に、後の処理で問題が発生するため、場合分けを行っている
         その問題をこの関数で対応することは良くないため、修正が必要
     """
     def filter_func(adj):
       point_adj = graph.nodes[adj]
       # 距離が少し離れている場合も許容
       filter_1_result = all([
-          # 線分の端点から一定以上の距離が離れているか
+          # 線分の頂点から一定以上の距離が離れているか
           point_adj.distance(point_a) > same_threshold,
           point_adj.distance(point_b) > same_threshold,
           # 線分の外側に位置していないか
@@ -539,7 +539,7 @@ def optimize_step_05(graph: RoofGraph, threshold: float, same_threshold: float):
           # 線分との距離が閾値以下であるか
           segment_ab.distance(point_adj) < threshold,
       ])
-      # 距離が特に近い点のみ許容、線分の端点付近も含む
+      # 距離が特に近い点のみ許容、線分の頂点付近も含む
       filter_2_result = all([
           # 線分の外側に位置していないか
           max(point_adj.distance(point_a), point_adj.distance(
@@ -616,11 +616,11 @@ def optimize_step_06(graph: RoofGraph, rotate_threshold: float, same_threshold: 
     point = graph.nodes[idx]
     another_point = graph.nodes[another_idx]
     for segment in graph.to_segments(label=RoofGraphLabel.OUTER):
-      # 端点上と一致する場合は移動しない
+      # 頂点上と一致する場合は移動しない
       if point.is_same(segment[0]) or point.is_same(segment[1]):
         return False, None
 
-      # 端点ではない線分上にある場合は移動可能 (ただし、もう一方と同じ線分上の場合は除く)
+      # 頂点ではない線分上にある場合は移動可能 (ただし、もう一方と同じ線分上の場合は除く)
       if point.is_on(segment) and not another_point.is_on(segment):
         return True, segment
 
