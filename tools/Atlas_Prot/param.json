@@ -1,11 +1,10 @@
 {
   "FilePath": {
-    "InputGMLFolderPath": "./input",
-    "OutputGMLFolderPath": "./output"
+    "InputGMLFolderPath": "~/gifu_WallSurface",
+    "OutputGMLFolderPath": "~/gifu_Atlas_Prot"
   },
   "OutputWidth": 2048,
   "OutputHeight": 2048,
   "BackGroundColor": 255,
   "Extentpixel": 1
 }
-

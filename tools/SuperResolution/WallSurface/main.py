@@ -1,4 +1,5 @@
 import os
+from typing import Union
 import cv2
 import time
 import json
@@ -8,6 +9,7 @@ import logging
 import argparse
 from tqdm import tqdm
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from src.preprocessing import PreProcessing
 from src.postprocessing import PostProcessing
@@ -16,254 +18,385 @@ from cyclegan.model.cyclegan_model import CycleGANModel
 from cyclegan.util import util
 
 
+def fix_relative_path(path):
+  if os.path.isabs(path):
+    return path
+  else:
+    return os.path.join('.', os.path.relpath(path, start=Path('.')))
+
+
 def setup_logging(log_filename="debug.log", log_flag=False):
 
-    # Create a logger
-    logger = None
+  # Create a logger
+  logger = None
 
-    # If DebugLogOutput is set to 'true', configure the logging
-    if log_flag:
-        logger = logging.getLogger(__name__)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        file_handler = logging.FileHandler(log_filename)
-        file_handler.setFormatter(formatter)
+  # If DebugLogOutput is set to 'true', configure the logging
+  if log_flag:
+    logger = logging.getLogger(__name__)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setFormatter(formatter)
 
-        # Set the logging level
-        logger.setLevel(logging.DEBUG)
-        # Add the file handler to the logger
-        logger.addHandler(file_handler)
+    # Set the logging level
+    logger.setLevel(logging.DEBUG)
+    # Add the file handler to the logger
+    logger.addHandler(file_handler)
 
-    return logger
+  return logger
 
 
 def write_log(log_root, action, filename=None):
-    """
-    Write a log entry to a log file.
+  """
+  Write a log entry to a log file.
 
-    Parameters:
-    - log_root: Path to the log file.
-    - action: The action to log.
-    - filename: Optional filename for additional information.
-    """
-    log_file = open(log_root, 'a')
+  Parameters:
+  - log_root: Path to the log file.
+  - action: The action to log.
+  - filename: Optional filename for additional information.
+  """
+  log_file = open(log_root, 'a')
 
-    if filename is not None:
-        log_file.write(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} : Execution of {filename}\n")
+  if filename is not None:
+    log_file.write(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} : Execution of {filename}\n")
 
-    log_file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} : {action}\n")
-    log_file.close()
+  log_file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} : {action}\n")
+  log_file.close()
 
 
 def check_path(path, cfg, logger):
-    """
-    Check if a path exists and raise an error if it doesn't.
+  """
+  Check if a path exists and raise an error if it doesn't.
 
-    Parameters:
-    - path: Path to check.
-    - cfg: Configuration information.
-    - logger: Logger for logging messages.
-    """
-    try:
-        if not os.path.exists(path):
-            raise ValueError(f"Error : {path} not found")
-    except ValueError as ve:
-        handle_error(ve, cfg, logger)
+  Parameters:
+  - path: Path to check.
+  - cfg: Configuration information.
+  - logger: Logger for logging messages.
+  """
+  try:
+    if not os.path.exists(path):
+      raise ValueError(f"Error : {path} not found")
+  except ValueError as ve:
+    handle_error(ve, cfg, logger)
 
 
 def handle_error(logger, error, log_flag):
-    """
-    Handle errors, log the message, and exit the program.
+  """
+  Handle errors, log the message, and exit the program.
 
-    Parameters:
-    - error: The error that occurred.
-    - param: Parameter Information.
-    - logger: Logger for logging messages.
-    """
-    if log_flag:
-        logger.error(f"{error}")
-    print(f"Error: {error}")
-    raise SystemExit(1)
+  Parameters:
+  - error: The error that occurred.
+  - param: Parameter Information.
+  - logger: Logger for logging messages.
+  """
+  if log_flag:
+    logger.error(f"{error}")
+  print(f"Error: {error}")
+  raise SystemExit(1)
 
 
 def format_elapsed_time(process_time):
-    """
-    Format elapsed time into a human-readable string.
+  """
+  Format elapsed time into a human-readable string.
 
-    Parameters:
-    - process_time: Elapsed time in seconds.
+  Parameters:
+  - process_time: Elapsed time in seconds.
 
-    Returns:
-    - Formatted elapsed time string.
-    """
-    hours, remainder = divmod(process_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
+  Returns:
+  - Formatted elapsed time string.
+  """
+  hours, remainder = divmod(process_time, 3600)
+  minutes, seconds = divmod(remainder, 60)
 
-    return f"{int(hours)} hours {int(minutes)} minutes {int(seconds)} seconds"
+  return f"{int(hours)} hours {int(minutes)} minutes {int(seconds)} seconds"
 
 
 def check_error(param):
-    """
-    Check the validity of configuration information, log errors, 
-    and exit the program if there are any.
+  """
+  Check the validity of configuration information, log errors,
+  and exit the program if there are any.
 
-    Parameters:
-    - param: Parameter Information.
-    """
-    try:
-        log_root = None
-        if not param.get('OutputLogDir'):
-            log_root = Path("main_log.txt")
-            bug_root = Path("debug.log")
-        else:
-            param['OutputLogDir'] = os.path.expanduser(param['OutputLogDir'])
-            log_dir = os.path.join(param['OutputLogDir'], f"outputlog_{time.strftime('%Y%m%d_%H%M%S')}")
-            Path(log_dir).mkdir(parents=True, exist_ok=True)
-            log_root = Path(os.path.join(log_dir, "main_log.txt"))
-            bug_root = Path(os.path.join(log_dir, "debug.log"))
-        
-        if not param.get('DebugLogOutput'):
-            param['DebugLogOutput'] = 'false'
-        elif param.get('DebugLogOutput') not in ['true', 'false']:
-            param['DebugLogOutput'] = 'false'
+  Parameters:
+  - param: Parameter Information.
+  """
+  try:
+    log_root = None
+    if not param.get('OutputLogDir'):
+      log_root = Path("main_log.txt")
+      bug_root = Path("debug.log")
+    else:
+      param['OutputLogDir'] = os.path.expanduser(param['OutputLogDir'])
+      log_dir = os.path.join(param['OutputLogDir'], f"outputlog_{time.strftime('%Y%m%d_%H%M%S')}")
+      Path(log_dir).mkdir(parents=True, exist_ok=True)
+      log_root = Path(os.path.join(log_dir, "main_log.txt"))
+      bug_root = Path(os.path.join(log_dir, "debug.log"))
 
-        # Initialize the logger conditionally based on DebugLogOutput
-        logger = setup_logging(bug_root, (param['DebugLogOutput'] == 'true'))
+    if not param.get('DebugLogOutput'):
+      param['DebugLogOutput'] = 'false'
+    elif param.get('DebugLogOutput') not in ['true', 'false']:
+      param['DebugLogOutput'] = 'false'
 
-        if not param.get('InputDir') or not param.get('OutputDir'):
-            raise ValueError("'InputDir' and 'OutputDir' must be specified in the JSON file.")
+    # Initialize the logger conditionally based on DebugLogOutput
+    logger = setup_logging(bug_root, (param['DebugLogOutput'] == 'true'))
 
-        param['OutputDir'] = os.path.expanduser(param['OutputDir'])
+    if not param.get('InputDir') or not param.get('OutputDir'):
+      raise ValueError("'InputDir' and 'OutputDir' must be specified in the JSON file.")
 
-        if not param.get('InputDir'):
-            param["Device"] = 'cuda'
-        elif param.get('Device') not in ['cuda', 'cpu']:
-            param['InputDir'] = os.path.expanduser(param['InputDir'])
-            param["Device"] = 'cuda'
+    param['OutputDir'] = os.path.expanduser(param['OutputDir'])
 
-    except ValueError as ve:
-        handle_error(logger, ve, (param['DebugLogOutput'] == 'true'))
+    if not param.get('InputDir'):
+      param["Device"] = 'cuda'
+    elif param.get('Device') not in ['cuda', 'cpu']:
+      param['InputDir'] = os.path.expanduser(param['InputDir'])
+      param["Device"] = 'cuda'
 
-    except Exception as e:
-        handle_error(logger, e, (param['DebugLogOutput'] == 'true'))
+  except ValueError as ve:
+    handle_error(logger, ve, (param['DebugLogOutput'] == 'true'))
 
-    return log_root, logger
+  except Exception as e:
+    handle_error(logger, e, (param['DebugLogOutput'] == 'true'))
+
+  return log_root, logger
+
+
+def get_original_texture_path(obj_file_path: Union[str, Path]):
+  """
+  Parse an OBJ file and its associated MTL file to extract textures
+  matching the materials used in the OBJ file.
+
+  Parameters:
+  - obj_file_path (str or Path): Path to the OBJ file.
+
+  Returns:
+  - List of texture paths used in the OBJ file.
+  """
+  obj_file_path = Path(obj_file_path)
+  if not obj_file_path.is_file():
+    raise FileNotFoundError(f"OBJ file not found: {obj_file_path}")
+
+  mtl_file_path = None
+  used_materials = set()
+  original_texture_path = None
+
+  # Step 1: Parse the OBJ file to find the mtllib and used materials (usemtl)
+  with obj_file_path.open("r") as obj_file:
+    for line in obj_file:
+      line = line.strip()
+      if line.lower().startswith("mtllib "):  # Find the MTL file
+        mtl_file_name = line.split(" ", 1)[1]
+        mtl_file_path = obj_file_path.parent / mtl_file_name
+      elif line.lower().startswith("usemtl "):  # Track used materials
+        material_name = line.split(" ", 1)[1]
+        used_materials.add(material_name)
+
+  if not mtl_file_path or not mtl_file_path.is_file():
+    raise FileNotFoundError(f"MTL file not found: {mtl_file_path}")
+
+  # Step 2: Parse the MTL file to find matching materials and their textures
+  current_material = None
+  with mtl_file_path.open("r") as mtl_file:
+    for line in mtl_file:
+      line = line.strip()
+      if line.lower().startswith("newmtl "):  # Start of a new material
+        current_material = line.split(" ", 1)[1]
+      elif line.lower().startswith("map_kd ") and current_material in used_materials:
+        texture_relative_path = line.split(" ", 1)[1]
+        texture_full_path = mtl_file_path.parent / texture_relative_path
+        original_texture_path = texture_full_path.resolve()
+
+  return original_texture_path
+
+
+def get_texture_check_list(city_gml_path: Union[str, Path]):
+  tree = ET.parse(city_gml_path)
+  root = tree.getroot()
+  namespaces = {'app': "http://www.opengis.net/citygml/appearance/2.0"}
+  texture_check_list: dict[str, bool] = {}
+
+  for image_uri in root.findall(".//app:imageURI", namespaces):
+    texture_check_list[image_uri.text] = False
+
+  return texture_check_list
 
 
 if __name__ == "__main__":
-    # Parse command line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument("param_file", type=Path)
-    parser.add_argument("--cfg_file", type=Path, default="config.yml")
-    args = parser.parse_args()
+  # Parse command line arguments
+  parser = argparse.ArgumentParser()
+  parser.add_argument("param_file", type=Path)
+  parser.add_argument("--cfg_file", type=Path, default="config.yml")
+  args = parser.parse_args()
 
-    # Load parameter information from JSON file
-    with args.param_file.open("rt") as pf:
-        param = json.load(pf)
+  # Load parameter information from JSON file
+  with args.param_file.open("rt") as pf:
+    param = json.load(pf)
 
-    cfg_path = Path("src", args.cfg_file)
-    with cfg_path.open("rt") as cf:
-        cfg = yaml.safe_load(cf)
+  cfg_path = Path("src", args.cfg_file)
+  with cfg_path.open("rt") as cf:
+    cfg = yaml.safe_load(cf)
 
-    # Check required fields in the configuration
-    log_root, logger = check_error(param)
+  # Check required fields in the configuration
+  log_root, logger = check_error(param)
 
-    # Create execution log
-    start_time = time.time()
-    with open(log_root, 'w') as log_file:
-        log_file.write(f"処理開始時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}\n")
-        log_file.write(f"指定パラメータ内容 : {json.dumps(param)}\n")
-        log_file.write(f"各処理の詳細情報 : {json.dumps(cfg)}\n")
+  # Enable Relative Path(.) and User Path(~)
+  param['InputDir'] = os.path.expanduser(fix_relative_path(param['InputDir']))
+  param['OutputDir'] = os.path.expanduser(fix_relative_path(param['OutputDir']))
+  param['OutputLogDir'] = os.path.expanduser(fix_relative_path(param['OutputLogDir']))
 
-    cfg_process = cfg['processing']
-    processA_dir = Path(os.path.join(param['OutputDir'], "processA"))
-    preprocessing = PreProcessing(logger, cfg_process['overlap'], cfg_process['size'], cfg_process['z_threshold'],
-                                  cfg_process['lower_limit'], cfg_process['upper_limit'])
-    
-    cfg_cyclegan = cfg['cyclegan']
-    processB_dir = Path(os.path.join(param['OutputDir'], "processB"))
-    dataset = DatasetDataLoader(cfg_cyclegan)
-    model = CycleGANModel(cfg_cyclegan, param['Device'])
-    model.setup(cfg_cyclegan)
-    AtoB = cfg_cyclegan['direction'] == 'AtoB'
+  # Create execution log
+  start_time = time.time()
+  with open(log_root, 'w') as log_file:
+    log_file.write(f"処理開始時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}\n")
+    log_file.write(f"指定パラメータ内容 : {json.dumps(param)}\n")
+    log_file.write(f"各処理の詳細情報 : {json.dumps(cfg)}\n")
 
-    processC_dir = Path(os.path.join(param['OutputDir'], "processC"))
-    postprocessing = PostProcessing(logger, processC_dir, cfg_process['overlap'], cfg_process['size'], cfg_process['z_threshold'])
+  cfg_process = cfg['processing']
+  processA_dir = Path(os.path.join(param['OutputDir'], "processA"))
+  preprocessing = PreProcessing(
+      logger=logger,
+      overlap=cfg_process['overlap'],
+      size=cfg_process['size'],
+      z_threshold=cfg_process['z_threshold'],
+      lower_limit=cfg_process['lower_limit'],
+      upper_limit=cfg_process['upper_limit'],
+  )
 
+  cfg_cyclegan = cfg['cyclegan']
+  processB_dir = Path(os.path.join(param['OutputDir'], "processB"))
+  dataset = DatasetDataLoader(cfg_cyclegan)
+  model = CycleGANModel(cfg_cyclegan, param['Device'])
+  model.setup(cfg_cyclegan)
+  AtoB = cfg_cyclegan['direction'] == 'AtoB'
 
-    input_files = Path(param['InputDir']).iterdir()
-    for input_file in input_files:
-        # Check cityGML
-        if input_file.suffix.lower() == ".gml":
-            input_obj_dir = Path(param['InputDir']).joinpath(Path("obj", input_file.stem))
-            output_obj_dir = Path(param['OutputDir']).joinpath(Path("obj", input_file.stem))
+  processC_dir = Path(os.path.join(param['OutputDir'], "processC"))
+  postprocessing = PostProcessing(
+      logger=logger,
+      output_dir=processC_dir,
+      overlap=cfg_process['overlap'],
+      size=cfg_process['size'],
+      z_threshold=cfg_process['z_threshold'],
+  )
 
-            # Copy cityGML and Object Directories
-            if output_obj_dir.is_dir():
-                shutil.rmtree(output_obj_dir)
-            shutil.copytree(input_obj_dir, output_obj_dir)
-            shutil.copy(input_file, Path(param['OutputDir']).joinpath(Path(input_file.name)))
+  city_gml_paths = Path(param['InputDir']).iterdir()
+  for city_gml_path in city_gml_paths:
+    # Check cityGML
+    if city_gml_path.suffix.lower() == ".gml":
+      texture_check_list = get_texture_check_list(city_gml_path)
 
-            progress_bar = tqdm(input_obj_dir.iterdir(), desc=f"{input_file.stem}", position=0, 
-                                leave=True, total=len(list(input_obj_dir.iterdir())))
+      input_obj_dir = Path(param['InputDir']).joinpath(Path("obj", city_gml_path.stem))
+      output_obj_dir = Path(param['OutputDir']).joinpath(Path("obj", city_gml_path.stem))
 
-            for obj_file in progress_bar:
-                # Check object files
-                if obj_file.suffix.lower() == ".obj":
-                    # if 'bldg-0b39fb58-a0a5-48d0-aba4-14ba7ae53bed' not in str(obj_file):
-                    #     continue
-                    index = obj_file.name.replace('.', '_')
-                    # Setting Sub Directories Paths
-                    sub_processA_dir = processA_dir.joinpath(Path(input_file.stem, index))
-                    sub_processB_dir = processB_dir.joinpath(Path(input_file.stem, index))
-                    sub_processC_dir = processC_dir.joinpath(Path(input_file.stem, index))
-                    # Creating Sub Directories Paths
-                    if logger is not None:
-                        sub_processA_dir.mkdir(exist_ok=True, parents=True)
-                        sub_processB_dir.mkdir(exist_ok=True, parents=True)
-                        sub_processC_dir.mkdir(exist_ok=True, parents=True)
-                    
-                    # Check if the file is present
-                    check_path(obj_file, param, logger)
-                    
-                    # pre-processing
-                    write_log(log_root, "変換対象壁面の抽出および正対化開始", obj_file)
-                    preprocess_log = preprocessing.main_step(obj_file, sub_processA_dir)
+      # Copy cityGML and Object Directories
+      if output_obj_dir.is_dir():
+        shutil.rmtree(output_obj_dir)
+      shutil.copytree(input_obj_dir, output_obj_dir)
+      shutil.copy(city_gml_path, Path(param['OutputDir']).joinpath(Path(city_gml_path.name)))
 
-                    # cyclegan processing
-                    write_log(log_root, "壁面画像生成開始")
-                    for num_iw, img_iw in enumerate(preprocess_log['output_images']):
-                        for num_ih, img_ih in enumerate(img_iw):
-                            for num, img in enumerate(img_ih):
-                                img = dataset.read_img(img['img'], img['path'])
+      progress_bar = tqdm(
+          input_obj_dir.iterdir(),
+          desc=f"{city_gml_path.stem}", position=0,
+          leave=True,
+          total=len(list(input_obj_dir.iterdir())),
+      )
 
-                                model.set_input(img)
-                                model.test()
-                                visuals = model.get_current_visuals()  # get image results
-                                result = util.tensor2im(visuals['fake_B' if AtoB else 'fake_A'])
-                                if logger is not None:
-                                    img_path = model.get_image_paths()     # get image paths
-                                    util.save_image(result, os.path.join(sub_processB_dir, os.path.basename(str(img_path))))
+      for obj_file in progress_bar:
+        # Check object files
+        if obj_file.suffix.lower() == ".obj":
+          index = obj_file.name.replace('.', '_')
+          # Setting Sub Directories Paths
+          sub_processA_dir = processA_dir.joinpath(Path(city_gml_path.stem, index))
+          sub_processB_dir = processB_dir.joinpath(Path(city_gml_path.stem, index))
+          sub_processC_dir = processC_dir.joinpath(Path(city_gml_path.stem, index))
+          # Creating Sub Directories Paths
+          if logger is not None:
+            sub_processA_dir.mkdir(exist_ok=True, parents=True)
+            sub_processB_dir.mkdir(exist_ok=True, parents=True)
+            sub_processC_dir.mkdir(exist_ok=True, parents=True)
 
-                                result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
-                                preprocess_log['output_images'][num_iw][num_ih][num]['img'] = result
+          # Check if the file is present
+          check_path(obj_file, param, logger)
 
-                    # post-processing
-                    write_log(log_root, "アトラス化画像再構成開始")
-                    result = postprocessing.main_step(preprocess_log, sub_processA_dir, sub_processB_dir, sub_processC_dir)
+          original_texture_path = get_original_texture_path(obj_file)
+          if original_texture_path is None:
+            continue
 
-                    # Saving output results
-                    resolve_path_img = Path(preprocess_log['seitaika_logs'][0]['texture_file_path'])
-                    relative_path_img = resolve_path_img.relative_to(Path(param['InputDir']).resolve())
-                    output_path = Path(param['OutputDir']).joinpath(relative_path_img)
-                    output_path.parent.mkdir(exist_ok=True, parents=True)
-                    cv2.imwrite(str(output_path), result)
+          # pre-processing
+          write_log(log_root, "変換対象壁面の抽出および正対化開始", obj_file)
 
-    end_time = time.time()
-    process_time = end_time - start_time
-    with open(log_root, 'a') as log_file:
-        log_file.write(f"\n処理終了時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}\n")
-        log_file.write(f"トータル処理時間 : {format_elapsed_time(process_time)}\n")
+          try:
+            preprocess_log = preprocessing.main_step(obj_file, sub_processA_dir)
+          except Exception:
+            result = cv2.imread(str(original_texture_path))
 
-    # debug log
-    if logger is not None:
-        logger.info(f"Total processing time: {format_elapsed_time(process_time)}")
+            # Saving output results
+            resolve_path_img = Path(original_texture_path)
+            relative_path_img = resolve_path_img.relative_to(Path(param['InputDir']).resolve())
+            output_path = Path(param['OutputDir']).joinpath(relative_path_img)
+            output_path.parent.mkdir(exist_ok=True, parents=True)
+            cv2.imwrite(str(output_path), result)
+
+            if texture_check_list.get(str(relative_path_img)) is not None:
+              texture_check_list[str(relative_path_img)] = True
+
+            continue
+
+          # cyclegan processing
+          write_log(log_root, "壁面画像生成開始")
+          for num_iw, img_iw in enumerate(preprocess_log['output_images']):
+            for num_ih, img_ih in enumerate(img_iw):
+              for num, img in enumerate(img_ih):
+                img = dataset.read_img(img['img'], img['path'])
+
+                model.set_input(img)
+                model.test()
+                visuals = model.get_current_visuals()  # get image results
+                result = util.tensor2im(visuals['fake_B' if AtoB else 'fake_A'])
+                if logger is not None:
+                  img_path = model.get_image_paths()     # get image paths
+                  util.save_image(result, os.path.join(sub_processB_dir, os.path.basename(str(img_path))))
+
+                result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
+                preprocess_log['output_images'][num_iw][num_ih][num]['img'] = result
+
+          # post-processing
+          write_log(log_root, "アトラス化画像再構成開始")
+
+          try:
+            result = postprocessing.main_step(preprocess_log, sub_processC_dir)
+          except Exception:
+            logger.info(f"Failed PostProcessing: {obj_file}")
+            result = cv2.imread(str(original_texture_path))
+
+          # Saving output results
+          resolve_path_img = Path(original_texture_path)
+          relative_path_img = resolve_path_img.relative_to(Path(param['InputDir']).resolve())
+          output_path = Path(param['OutputDir']).joinpath(relative_path_img)
+          output_path.parent.mkdir(exist_ok=True, parents=True)
+          cv2.imwrite(str(output_path), result)
+
+          if texture_check_list.get(str(relative_path_img)) is not None:
+            texture_check_list[str(relative_path_img)] = True
+
+      processed_count = 0
+      for is_processed in texture_check_list.values():
+        if is_processed:
+          processed_count += 1
+
+      assert processed_count > 0
+
+      for texture_path, is_processed in texture_check_list.items():
+        if not is_processed:
+          original_texture_path = Path(param['InputDir']).joinpath(texture_path)
+          not_processed_texture = cv2.imread(str(original_texture_path))
+
+          output_path = Path(param['OutputDir']).joinpath(texture_path)
+          output_path.parent.mkdir(exist_ok=True, parents=True)
+          cv2.imwrite(str(output_path), not_processed_texture)
+
+  end_time = time.time()
+  process_time = end_time - start_time
+  with open(log_root, 'a') as log_file:
+    log_file.write(f"\n処理終了時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}\n")
+    log_file.write(f"トータル処理時間 : {format_elapsed_time(process_time)}\n")
+
+  # debug log
+  if logger is not None:
+    logger.info(f"Total processing time: {format_elapsed_time(process_time)}")
