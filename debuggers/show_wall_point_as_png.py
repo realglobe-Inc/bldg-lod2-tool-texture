@@ -2,6 +2,8 @@ import os
 import argparse
 from typing import Union
 
+from utils.relative_path import fix_relative_path
+
 import numpy as np
 from PIL import Image
 import laspy
@@ -147,6 +149,8 @@ def main():
   parser.add_argument("--wall_meter", "-w", type=float, default=1, help="Decision for mark as Wall")
 
   args = parser.parse_args()
+
+  args.output_dir = fix_relative_path(args.output_dir)
 
   # python3 show_wall_point_as_png.py -21330 -34630 -21030 -34330 ~/DSM/DSM/
 

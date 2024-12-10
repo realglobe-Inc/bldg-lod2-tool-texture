@@ -8,10 +8,8 @@ from PIL import Image, ImageFilter
 
 
 def fix_relative_path(path):
-  if os.path.isabs(path):
-    return path
-  else:
-    return os.path.join('.', os.path.relpath(path, start=Path('.')))
+  # pathlibで統一して簡潔にする
+  return str(Path(path).expanduser().resolve())
 
 
 def sorted_glob(patterns):
@@ -23,8 +21,8 @@ def sorted_glob(patterns):
 
 def main(input_dir='./input/', out_dir='./output/'):
   img_patterns = [
-      os.path.join(os.path.expanduser(input_dir), '**', '*.jpg'),
-      os.path.join(os.path.expanduser(input_dir), '**', '*.png')
+      os.path.join(fix_relative_path(input_dir), '**', '*.jpg'),
+      os.path.join(fix_relative_path(input_dir), '**', '*.png')
   ]
   imgs = sorted_glob(img_patterns)
   os.makedirs(out_dir, exist_ok=True)
@@ -55,7 +53,7 @@ if __name__ == '__main__':
   )
 
   args = parser.parse_args()
-  args.input = os.path.expanduser(fix_relative_path(args.input))
-  args.output = os.path.expanduser(fix_relative_path(args.output))
+  args.input = fix_relative_path(args.input)
+  args.output = fix_relative_path(args.output)
 
   main(input_dir=args.input, out_dir=args.output)

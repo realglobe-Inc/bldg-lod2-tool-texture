@@ -19,10 +19,8 @@ from cyclegan.util import util
 
 
 def fix_relative_path(path):
-  if os.path.isabs(path):
-    return path
-  else:
-    return os.path.join('.', os.path.relpath(path, start=Path('.')))
+  # pathlibで統一して簡潔にする
+  return str(Path(path).expanduser().resolve())
 
 
 def setup_logging(log_filename="debug.log", log_flag=False):
@@ -124,7 +122,6 @@ def check_error(param):
       log_root = Path("main_log.txt")
       bug_root = Path("debug.log")
     else:
-      param['OutputLogDir'] = os.path.expanduser(param['OutputLogDir'])
       log_dir = os.path.join(param['OutputLogDir'], f"outputlog_{time.strftime('%Y%m%d_%H%M%S')}")
       Path(log_dir).mkdir(parents=True, exist_ok=True)
       log_root = Path(os.path.join(log_dir, "main_log.txt"))
@@ -141,12 +138,9 @@ def check_error(param):
     if not param.get('InputDir') or not param.get('OutputDir'):
       raise ValueError("'InputDir' and 'OutputDir' must be specified in the JSON file.")
 
-    param['OutputDir'] = os.path.expanduser(param['OutputDir'])
-
     if not param.get('InputDir'):
       param["Device"] = 'cuda'
     elif param.get('Device') not in ['cuda', 'cpu']:
-      param['InputDir'] = os.path.expanduser(param['InputDir'])
       param["Device"] = 'cuda'
 
   except ValueError as ve:
@@ -233,13 +227,18 @@ if __name__ == "__main__":
   with cfg_path.open("rt") as cf:
     cfg = yaml.safe_load(cf)
 
+  # Enable Relative Path(.) and User Path(~)
+  if param.get('InputDir'):
+    param['InputDir'] = fix_relative_path(param['InputDir'])
+
+  if param.get('OutputDir'):
+    param['OutputDir'] = fix_relative_path(param['OutputDir'])
+
+  if param.get('OutputLogDir'):
+    param['OutputLogDir'] = fix_relative_path(param['OutputLogDir'])
+
   # Check required fields in the configuration
   log_root, logger = check_error(param)
-
-  # Enable Relative Path(.) and User Path(~)
-  param['InputDir'] = os.path.expanduser(fix_relative_path(param['InputDir']))
-  param['OutputDir'] = os.path.expanduser(fix_relative_path(param['OutputDir']))
-  param['OutputLogDir'] = os.path.expanduser(fix_relative_path(param['OutputLogDir']))
 
   # Create execution log
   start_time = time.time()

@@ -6,6 +6,8 @@ import numpy as np
 from PIL import Image
 import laspy
 
+from utils.relative_path import fix_relative_path
+
 
 def make_image(las_path: str, bbox: tuple[float], output_dir: Union[str, None]):
   """
@@ -111,6 +113,8 @@ def main():
   parser.add_argument("--output_dir", "-o", type=str, help="Optional directory for output image")
 
   args = parser.parse_args()
+
+  args.output_dir = fix_relative_path(args.output_dir)
 
   # python3 search_dsm_file_by_pos.py -21146 -34454 -21132 -34440 ~/DSM/DSM/
 
