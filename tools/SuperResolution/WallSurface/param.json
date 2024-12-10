@@ -1,7 +1,7 @@
 {
-  "InputDir": "/home/ubuntu/kawasaki2",
-  "OutputDir": "/home/ubuntu/kawasaki2_WallSurface",
+  "InputDir": "./data",
+  "OutputDir": "./output/result",
   "Device": "cuda",
   "OutputLogDir": "./output/log",
-  "DebugLogOutput": "false"
+  "DebugLogOutput": "true"
 }

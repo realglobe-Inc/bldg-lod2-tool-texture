@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 import cv2
 
+from debuggers.utils.relative_path import fix_relative_path
 from src.createmodel.housemodeling.roof_edge_detection import RoofEdgeDetection
 
 
@@ -42,10 +43,10 @@ def main():
 
   # python3 test_roof_edge.py ~/bldg-lod2-tool/tools/Real-ESRGAN/output/DSM_-214_-347_out.jpg -o .
 
-  input_image_path: str = os.path.expanduser(args.input_image_path)
+  input_image_path: str = fix_relative_path(args.input_image_path)
 
   roof_edge_detection = RoofEdgeDetection(
-      os.path.expanduser('~/bldg-lod2-tool/src/createmodel/data/roof_edge_detection_parameter.pth'),
+      fix_relative_path('~/bldg-lod2-tool/src/createmodel/data/roof_edge_detection_parameter.pth'),
       True,
   )
 
@@ -75,7 +76,7 @@ def main():
   input_image_basename_without_ext, _ = os.path.splitext(input_image_basename)
   output_image_basename = f"{input_image_basename_without_ext}_out.png"
   if args.output_dir is not None:
-    output_dir = os.path.expanduser(args.output_dir)
+    output_dir = fix_relative_path(args.output_dir)
     output_image_path = os.path.join(output_dir, output_image_basename)
   else:
     input_image_dir = os.path.dirname(input_image_path)

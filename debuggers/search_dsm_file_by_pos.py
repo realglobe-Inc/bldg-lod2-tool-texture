@@ -1,6 +1,8 @@
 import os
 import argparse
 from typing import Union
+from utils.relative_path import fix_relative_path
+
 
 import laspy
 
@@ -57,6 +59,9 @@ def main():
   parser.add_argument("dsm_dir", type=str, help="Directory containing DSM (LAS) files")
 
   args = parser.parse_args()
+
+  args.dsm_dir = fix_relative_path(args.dsm_dir)
+
   # python3 search_dsm_file_by_pos.py -21146 -34454 -21132 -34440 ~/DSM/DSM/
 
   bbox: tuple[float] = (args.min_x, args.min_y, args.max_x, args.max_y)

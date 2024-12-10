@@ -2,6 +2,8 @@ import os
 import argparse
 import xml.etree.ElementTree as ET
 
+from utils.relative_path import fix_relative_path
+
 import laspy
 from pyproj import Transformer
 
@@ -68,6 +70,9 @@ def main():
   parser.add_argument("dsm_dir", type=str, help="Directory containing DSM (LAS) files")
   parser.add_argument("dsm_epsg", type=int, help="EPSG code for DSM (LAS) file")
   args = parser.parse_args()
+
+  args.citygml_file = fix_relative_path(args.citygml_file)
+  args.dsm_dir = fix_relative_path(args.dsm_dir)
 
   # python search_dsm_file_by_city_gml.py \
   #   ~/lod2_data/kawazaki/08_CityGML/53392535_bldg_6697_op.gml \

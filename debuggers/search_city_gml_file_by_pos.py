@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from pyproj import Transformer
 
+from utils.relative_path import fix_relative_path
+
 
 def is_bbox_overlap(bbox1: tuple[float], bbox2: tuple[float]):
   """
@@ -105,6 +107,8 @@ def main():
   parser.add_argument("dst_epsg", type=int, help="EPSG code for cartesian coordinate")
 
   args = parser.parse_args()
+
+  args.city_gml_dir = fix_relative_path(args.city_gml_dir)
   # python3 search_city_gml_file_by_pos.py -9000 -51000 -10000 -52000 \
   #   ~/lod2_data/kawazaki/08_CityGML 6677
 

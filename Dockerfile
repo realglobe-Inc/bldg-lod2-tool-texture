@@ -45,7 +45,7 @@ RUN mkdir -p ./output
 RUN echo "alias create_env='python -m venv \$(basename \$PWD)'" >> ~/.bashrc && \
     echo "alias activate='source \"\$PWD/\$(basename \$PWD)/bin/activate\"'" >> ~/.bashrc
 
-########## 01-LOD2建築物自動作成ツールのインストール ##########
+########## LOD2建築物自動作成ツールのインストール ##########
 
 # LOD2建築物自動作成ツールのフォルダーに移動
 RUN mkdir -p /app
@@ -75,7 +75,7 @@ RUN mkdir -p src/createmodel/data && \
 
 
 
-########## 02-壁面視認性向上ツールのインストール ##########
+########## 壁面視認性向上ツールのインストール ##########
 
 # 壁面視認性向上ツールのフォルダーに移動
 RUN mkdir -p /app/tools/SuperResolution/WallSurface
@@ -98,7 +98,7 @@ RUN test -f checkpoint/latest_net_G_A.pth || \
 
 
 
-########## 03-テクスチャ鮮明化ツールのインストール ##########
+########## テクスチャ鮮明化ツールのインストール ##########
 
 # テクスチャ鮮明化ツールのフォルダーに移動
 RUN mkdir -p /app/tools/DeblurGANv2
@@ -125,7 +125,7 @@ RUN mkdir -p ~/.cache/torch/hub/checkpoints && \
 
 
 
-########## 04-テクスチャシャープ化ツールのインストール ##########
+########## テクスチャシャープ化ツールのインストール ##########
 
 # テクスチャシャープ化ツールのフォルダーに移動
 RUN mkdir -p /app/tools/UnsharpMask
@@ -143,7 +143,7 @@ RUN python3 -m venv $(basename $PWD) && \
 
 
 
-########## 05-テクスチャ解像度向上ツールのインストール ##########
+########## テクスチャ解像度向上ツールのインストール ##########
 
 # テクスチャ解像度向上ツールのフォルダーに移動
 RUN mkdir -p /app/tools/Real-ESRGAN
@@ -171,7 +171,7 @@ RUN test weights/RealESRGAN_x2plus.pth || \
 
 
 
-########## 06-テクスチャアトラス化ツールのインストール ##########
+########## テクスチャアトラス化ツールのインストール ##########
 
 # テクスチャアトラス化ツールのフォルダーに移動
 RUN mkdir -p /app/tools/Atlas_Prot
@@ -195,7 +195,7 @@ RUN python3 -m venv $(basename $PWD) && \
 
 
 
-########## 01-LOD2建築物自動作成ツールの頻繁に変更されるファイル ##########
+########## LOD2建築物自動作成ツールの頻繁に変更されるファイル ##########
 
 # LOD2建築物自動作成ツールのフォルダーに移動
 WORKDIR /app
@@ -209,7 +209,7 @@ COPY AutoCreateLod2.py .
 
 
 
-########## 02-壁面視認性向上ツールの頻繁に変更されるファイル ##########
+########## 壁面視認性向上ツールの頻繁に変更されるファイル ##########
 
 # 壁面視認性向上ツールのフォルダーに移動
 WORKDIR /app/tools/SuperResolution/WallSurface
@@ -221,7 +221,7 @@ COPY tools/SuperResolution/WallSurface/main.py .
 
 
 
-########## 03-テクスチャ鮮明化ツールの頻繁に変更されるファイル ##########
+########## テクスチャ鮮明化ツールの頻繁に変更されるファイル ##########
 
 # テクスチャ鮮明化ツールのフォルダーに移動
 WORKDIR /app/tools/DeblurGANv2
@@ -234,14 +234,14 @@ COPY tools/DeblurGANv2/aug.py .
 
 
 
-########## 04-テクスチャシャープ化ツールの頻繁に変更されるファイル ##########
+########## テクスチャシャープ化ツールの頻繁に変更されるファイル ##########
 
 # テクスチャシャープ化ツールのフォルダーに移動
 WORKDIR /app/tools/UnsharpMask
 
 
 
-########## 05-テクスチャ解像度向上ツールの頻繁に変更されるファイル ##########
+########## テクスチャ解像度向上ツールの頻繁に変更されるファイル ##########
 
 # テクスチャ解像度向上ツールのフォルダーに移動
 WORKDIR /app/tools/Real-ESRGAN
@@ -251,7 +251,7 @@ COPY tools/Real-ESRGAN/inference_realesrgan.py .
 
 
 
-########## 06-テクスチャアトラス化ツールの頻繁に変更されるファイル ##########
+########## テクスチャアトラス化ツールの頻繁に変更されるファイル ##########
 
 # テクスチャアトラス化ツールのフォルダーに移動
 WORKDIR /app/tools/Atlas_Prot
