@@ -165,9 +165,9 @@ RUN python3 -m venv $(basename $PWD) && \
     deactivate
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
-RUN test weights/RealESRGAN_x2plus.pth || \
-    wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x2plus.pth \
-      -O weights/RealESRGAN_x2plus.pth
+RUN test weights/RealESRGAN_x4plus.pth || \
+    wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth \
+      -O weights/RealESRGAN_x4plus.pth
 
 
 

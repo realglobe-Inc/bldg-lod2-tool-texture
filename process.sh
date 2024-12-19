@@ -41,8 +41,8 @@ if [ -z "${PARAM_JSON}" ]; then
     \"DebugMode\": false,
     \"TargetCoordAreas\": null,
     \"TargetBuildingIds\": null,
-    \"TextureOutputWidthMax\": 2048,
-    \"TextureOutputHeightMax\": 2048
+    \"TextureOutputWidthMax\": 1024,
+    \"TextureOutputHeightMax\": 1024
   }" > param.json
 else
   # PARAM_JSON が設定されている場合、その内容を param.json に保存
@@ -103,7 +103,7 @@ source ./$(basename $PWD)/bin/activate
 output_latest_esrgan_path="${base_output_dir}/output_latest_esrgan"
 rm -rf "${output_latest_esrgan_path}/*"
 python3 inference_realesrgan.py \
-  -n RealESRGAN_x2plus -g 0 -s 2 \
+  -n RealESRGAN_x4plus -g 0 -s 4 \
   -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}"
 deactivate
 
