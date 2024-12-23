@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 from typing import Union
 
@@ -230,7 +231,7 @@ class PolygonDevision:
       list[tuple[float, float]]: 交差している領域のポリゴンリスト
     """
 
-    new_polygon_ijs = []
+    new_polygon_ijs: list[tuple[float, float]] = []
     for current_polygon_ij in polygon_ijs:
       if len(new_polygon_ijs) == 0:
         new_polygon_ijs.append(current_polygon_ij)
@@ -395,17 +396,14 @@ class PolygonDevision:
 
     height, width = roof_layer_info.dsm_grid_rgbs.shape[:2]
     poly = Polygon(origin_polygon_ijs)
-    layer_number_grid_ijs_pair: dict[int, list[tuple[float, float]]] = {}
+    layer_number_grid_ijs_pair: dict[int, list[tuple[float, float]]] = defaultdict(list)
     for i in range(height):
       for j in range(width):
         is_inside_polygon = poly.contains(GeoPoint(i, j))
         if is_inside_polygon:
           layer_number = roof_layer_info.layer_class[i, j]
-
-          if layer_number_grid_ijs_pair.get(layer_number) is None:
-            layer_number_grid_ijs_pair[layer_number] = []
-
           layer_number_grid_ijs_pair[layer_number].append((i, j))
+
     return layer_number_grid_ijs_pair
 
   @staticmethod

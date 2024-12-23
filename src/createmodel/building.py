@@ -109,7 +109,7 @@ class Building:
       cloud, min_ground_height, graphcut_height = las_mng.get_points(self._shape, self._ground_area)
 
       # デバッグ : CityGMLファイル読み込みを早くするため、pickle でキャッシュ化
-      if debug_mode is True:
+      if debug_mode:
         with open(cache_file_path, "wb") as f:
           pickle.dump((cloud, min_ground_height, graphcut_height), f)
 
@@ -125,7 +125,7 @@ class Building:
           grid_size=0.25,
           expand_rate_for_house_model=0.25 / 0.08
       )
-      if debug_mode is True:
+      if debug_mode:
         param.building_class_cache[self._id] = building_class
         with open(param.building_class_cache_path, "w") as f:
           json.dump(param.building_class_cache, f, indent=2, sort_keys=True)

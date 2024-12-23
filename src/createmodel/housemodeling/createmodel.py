@@ -5,6 +5,7 @@ from typing import Optional
 from shapely.geometry import Polygon
 import numpy as np
 
+from .model_edge_height_info import ModelEdgeHeightInfo
 from .utils.polys import validate_polygon_ijs_list
 from .extra_roof_line import ExtraRoofLine
 from .house_model import HouseModel
@@ -56,7 +57,7 @@ class CreateHouseModel:
     self._cloud = cloud
     self._shape = shape
     self._building_id = building_id
-    self._min_ground_height = min_ground_height
+    self._ground_height = min_ground_height
     self._output_folder_path = output_folder_path
     self._balcony_segmentation_checkpoint_path = balcony_segmentation_checkpoint_path
     self._roof_edge_detection_checkpoint_path = roof_edge_detection_checkpoint_path
@@ -103,6 +104,16 @@ class CreateHouseModel:
 
     # ポリゴンがバルコニーか
     polygon_balcony_flags = self._get_polygon_balcony_flags(roof_polygon_vertex_xy_points, inner_polygons)
+
+    model_edge_height_info = ModelEdgeHeightInfo(
+        roof_layer_info=self._roof_layer_info,
+        roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
+        inner_polygons=inner_polygons,
+        outer_polygon=outer_polygon,
+        ground_height=self._ground_height,
+    )
+    # To Do : 中間点の追加(重要度🔽)
+    twisted_edge_middle_point_rate_pair = model_edge_height_info.get_twisted_edge_middle_point_rate_pair()
 
     self._create_model(
         roof_polygon_vertex_xys=[(point.x, point.y) for point in roof_polygon_vertex_xy_points],
@@ -183,21 +194,20 @@ class CreateHouseModel:
         roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
         inner_polygons=inner_polygons,
         outer_polygon=outer_polygon,
-        ground_height=self._min_ground_height,
+        ground_height=self._ground_height,
         polygon_balcony_flags=polygon_balcony_flags,
         debug_mode=self._debug_mode,
     )
-
-    # model.simplify(threshold=5)
-
-    # 壁面非水密エラー修正
-    # model.rectify()
 
     # objファイルの作成
     file_name = f'{self._building_id}.obj'
     obj_path = os.path.join(self._output_folder_path, file_name)
     model.output_obj(path=obj_path)
-    # breakpoint()
+
+    if self._debug_mode:
+      debug_dir = os.path.join('debug', self._building_id)
+      debug_obj_path = os.path.join(debug_dir, file_name)
+      model.output_obj(path=debug_obj_path)
 
   def _get_delta_i_average_and_delta_j_average(
       self,

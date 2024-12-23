@@ -1,7 +1,7 @@
 from collections import defaultdict
+import copy
 from dataclasses import dataclass
 import itertools
-from math import sqrt
 import os
 from pathlib import Path
 from typing import Union
@@ -12,14 +12,15 @@ from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
 from shapely.ops import unary_union
 
+
 from ...util.objinfo import BldElementType, ObjInfo
+from .utils.polys import ensure_counter_clockwise
 from .model_surface_creation.utils.triangulation import Triangle, triangulate
 from .custom_itertools import pairwise
 from .model_surface_creation.utils.geometry_3d import get_angle_degree_3d
 from .model_surface_creation.utils.disjoint_set_union import DisjointSetUnion
-from .model_surface_creation.estimate_roof_height import estimate_roof_heights
 from .roof_layer_info import RoofLayerInfo
-from .extra_roof_line.polygon_devision import PolygonDevision
+from .model_edge_height_info import ModelEdgeHeightInfo
 
 
 @dataclass(frozen=True)
@@ -58,10 +59,6 @@ class HouseModel:
   """家屋モデルクラス
   """
 
-  _id: str
-  _faces: list[ModelFace]
-  _points: npt.NDArray[np.float_]
-
   def __init__(
       self,
       id: str,
@@ -70,7 +67,7 @@ class HouseModel:
       roof_polygon_vertex_ijs: list[tuple[float, float]] = [],
       inner_polygons: list[list[int]] = [],
       outer_polygon: list[int] = [],
-      ground_height: int = 0,
+      ground_height: float = 0,
       polygon_balcony_flags: list[bool] = [],
       debug_mode: bool = False,
   ) -> None:
@@ -98,67 +95,31 @@ class HouseModel:
     self._polygon_balcony_flags = polygon_balcony_flags
     self._debug_mode = debug_mode
 
-    self._faces = []
+    self._faces: list[ModelFace] = []
     self._points = np.zeros((0, 3), dtype=np.float_)
 
-    # ポリゴンの三角形分割
-    self._polygon_id_triangles_pair = self._get_polygon_id_triangles_pair(
-        self._roof_polygon_vertex_xys,
-        self._inner_polygons,
+    model_edge_height_info = ModelEdgeHeightInfo(
+        roof_layer_info=roof_layer_info,
+        roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
+        inner_polygons=inner_polygons,
+        outer_polygon=outer_polygon,
+        ground_height=self._ground_height,
     )
 
-    # ポリゴンの屋根階層クラス分析図のリスト
-    self._layer_number_point_ijs_pairs = self._get_layer_number_point_ijs_pairs(
-        roof_polygon_vertex_ijs,
-        inner_polygons
-    )
+    # 壁面を作る
+    self._create_wall_faces(model_edge_height_info.sorted_edge_wall_bottom_top_pair)
 
-    # ポリゴンの屋根階層クラスのリスト
-    self._polygon_layer_numbers = self._get_polygon_layer_numbers(self._layer_number_point_ijs_pairs)
+    # 屋根面を作る
+    self._create_roof_faces(model_edge_height_info.polygon_zs_list)
 
-    self._outer_polygon_sorted_edges = self._get_polygon_sorted_edges(
-        self._outer_polygon,
-        self._roof_polygon_vertex_ijs,
-    )
+    # 床面を作る
+    self._create_ground_face()
 
-    self._polygon_id_inner_polygon_sorted_edges_pair: dict[int, list[tuple[int, int]]] = defaultdict(list)
-    for polygon_id, inner_polygon in enumerate(self._inner_polygons):
-      inner_polygon_sorted_edges = self._get_polygon_sorted_edges(
-          inner_polygon,
-          self._roof_polygon_vertex_ijs,
-      )
-      self._polygon_id_inner_polygon_sorted_edges_pair[polygon_id] = inner_polygon_sorted_edges
+    # 屋根面の単純化
+    self._simplify(threshold=5)
 
-    self._polygon_sorted_edge_polygon_ids_pair: dict[tuple[int, int], list[int]] = defaultdict(list)
-    for polygon_id, inner_polygon_sorted_edges in self._polygon_id_inner_polygon_sorted_edges_pair.items():
-      for inner_polygon_sorted_edge in inner_polygon_sorted_edges:
-        self._polygon_sorted_edge_polygon_ids_pair[inner_polygon_sorted_edge].append(polygon_id)
-
-    self._get_polygon_walls_list()
-
-    # self._get_roof_polygon_zs_lists(
-    #     roof_polygon_vertex_xys=self._roof_polygon_vertex_xys,
-    #     roof_polygon_vertex_ijs=self._roof_polygon_vertex_ijs,
-    #     outer_polygon=self._outer_polygon,
-    #     inner_polygons=self._inner_polygons,
-    #     layer_number_point_ijs_pairs=self._layer_number_point_ijs_pairs,
-    #     polygon_layer_numbers=self._polygon_layer_numbers,
-    #     polygon_balcony_flags=self._polygon_balcony_flags,
-    # )
-
-    # floor
-    floor_polygon_model_points = [
-        ModelPoint(
-            position_id_2d=position_id_2d,
-            position_id_3d=self._add_point((
-                roof_polygon_vertex_xys[position_id_2d][0],
-                roof_polygon_vertex_xys[position_id_2d][1],
-                ground_height
-            )),
-            order_id=order_id
-        ) for order_id, position_id_2d in enumerate(self._outer_polygon[::-1])
-    ]
-    self._add_ground(floor_polygon_model_points, -1)
+    # 壁面非水密エラー修正
+    self._rectify()
 
   @property
   def id(self) -> str:
@@ -219,162 +180,151 @@ class HouseModel:
       points(list[ModelPoint]): 面の点のリスト (反時計回り)
       face_group_id(int): 面のグループ番号
     """
+
     self._faces.append(ModelFace(points, BldElementType.GROUND, face_group_id))
 
-  def _generate_wall(self, face_group_id: int):
-    """屋根面同士、屋根面と地面を繋ぐ壁を生成する
-
-    Args:
-      face_group_id(int): 面のグループ番号
-    """
-
-    # assert all([face.type is not BldElementType.WALL for face in self._faces]), \
-    #    "壁がすでに生成されています"
-
-    edge_pairs: dict[tuple[int, int], list[tuple[ModelPoint, ModelPoint]]] = {}
-
-    # 同じ位置の線分毎にペアを作成する
-    for face in self._faces:
-      for p1, p2 in pairwise(face.points, loop=True):
-        a = p1.position_id_2d
-        b = p2.position_id_2d
-
-        edge_2d = (min(a, b), max(a, b))
-        if edge_2d not in edge_pairs:
-          edge_pairs[edge_2d] = []
-
-        edge_pairs[edge_2d].append((p1, p2))
-
-    # ペアで線分の高さが違う場合には壁を作成する
-    for edges in edge_pairs.values():
-      # assert len(edges) == 2, "屋根面と地面が正しく登録されていません"
-
-      try:
-        edge1, edge2 = edges
-      except Exception:
-        breakpoint()
-      # assert (edge1[0].position_id_2d, edge1[1].position_id_2d) == (edge2[1].position_id_2d, edge2[0].position_id_2d), \
-      #    "屋根面と地面が正しく登録されていません"
-
-      p10 = self._points[edge1[0].position_id_3d]
-      p11 = self._points[edge1[1].position_id_3d]
-      p20 = self._points[edge2[0].position_id_3d]
-      p21 = self._points[edge2[1].position_id_3d]
-
-      # 線分が3次元で交差している(頂点のz座標の上下が反転している)場合には追加の頂点を作成する
-      if p10[2] != p21[2] and p11[2] != p20[2] and ((p10[2] < p21[2]) ^ (p11[2] < p20[2])):
-        cross_point_rate = (p10[2] - p21[2]) / ((p10[2] - p21[2]) + (p20[2] - p11[2]))
-        cross_point_position = (p11 - p10) * cross_point_rate + p10
-        cross_point = ModelPoint(-1, self._add_point(cross_point_position), -1)
-
-        self._faces.append(
-            ModelFace([
-                ModelPoint(
-                    position_id_2d=wall_point.position_id_2d,
-                    position_id_3d=wall_point.position_id_3d,
-                    order_id=wall_point.position_id_2d  # 壁同士は自由に統合できるためorder_idを書き換える
-                ) for wall_point in [edge1[0], edge2[1], cross_point]
-            ], BldElementType.WALL, face_group_id)
-        )
-
-        self._faces.append(
-            ModelFace([
-                ModelPoint(
-                    position_id_2d=wall_point.position_id_2d,
-                    position_id_3d=wall_point.position_id_3d,
-                    order_id=wall_point.position_id_2d  # 壁同士は自由に統合できるためorder_idを書き換える
-                ) for wall_point in [edge2[0], edge1[1], cross_point]
-            ], BldElementType.WALL, face_group_id)
-        )
-      else:
-        # 同じ位置の点を除いて多角形を作成する
-        wall_points = [edge1[1], edge1[0]]
-        if edge1[0].position_id_3d != edge2[1].position_id_3d:
-          wall_points.append(edge2[1])
-        if edge2[0].position_id_3d != edge1[1].position_id_3d:
-          wall_points.append(edge2[0])
-
-        if len(wall_points) >= 3:
-          self._faces.append(
-              ModelFace([
-                  ModelPoint(
-                      position_id_2d=wall_point.position_id_2d,
-                      position_id_3d=wall_point.position_id_3d,
-                      order_id=wall_point.position_id_2d  # 壁同士は自由に統合できるためorder_idを書き換える
-                  ) for wall_point in wall_points
-              ], BldElementType.WALL, face_group_id))
-
-  def create_model_surface(
+  def _create_wall_faces(
       self,
-      point_cloud: npt.NDArray[np.float_],
-      roof_polygon_vertex_xys: npt.NDArray[np.float_],
-      inner_polygons: list[list[int]],
-      outer_polygon: list[int],
-      ground_height: float,
-      balcony_flags: list[bool],
-  ) -> None:
-    """モデル面の作成
-
-    Args:
-      point_cloud(NDarray[np.float_]): DSM点群 (num of points, 3)
-      roof_polygon_vertex_xys(NDarray[np.float_]): 屋根面頂点の2次元座標 (num of points, 2)
-      inner_polygons(list[list[int]]): 区切られた各屋根面ポリゴン
-      outer_polygon(list[int]): 屋根面の外形ポリゴン
-      ground_height(float): 地面の高さ
-      balcony_height(float): バルコニーの高さ
-      balcony_flags(list[float]): inner_polygonsの各屋根面がバルコニーであるかのフラグ
+      sorted_edge_wall_bottom_top_pair: dict[
+          tuple[tuple[int, int]],
+          tuple[tuple[float, float], tuple[float, float]]
+      ],
+  ):
+    """壁面を作る
     """
 
-    # 高さを計算
-    heights, roof_triangles = estimate_roof_heights(
-        roof_polygon_vertex_xys,
-        outer_polygon,
-        inner_polygons,
-        point_cloud,
-        ground_height,
+    created_wall_edges: list[tuple[int, int]] = []
+
+    for polygon in self._inner_polygons:
+      polygon_xys_before = [self._roof_polygon_vertex_xys[point_id] for point_id in polygon]
+      polygon_xys_after = ensure_counter_clockwise(polygon_xys_before)
+
+      # 反時計回りに頂点(x,y)の順序を変更
+      roof_polygon = copy.deepcopy(polygon)
+      if polygon_xys_before[0] != polygon_xys_after[0]:
+        roof_polygon = roof_polygon[::-1]
+
+      for index, point_id in enumerate(roof_polygon):
+        next_index = (index + 1) % len(roof_polygon)
+        next_point_id = roof_polygon[next_index]
+        before_edge = [point_id, next_point_id]
+        sorted_edge = tuple(sorted(before_edge))
+
+        if sorted_edge in created_wall_edges:
+          continue
+
+        # 壁だけ作る
+        wall_bottom_top = sorted_edge_wall_bottom_top_pair.get(sorted_edge)
+        if wall_bottom_top is None:
+          continue
+
+        x, y = self._roof_polygon_vertex_xys[point_id]
+        next_x, next_y = self._roof_polygon_vertex_xys[next_point_id]
+
+        if before_edge[0] != sorted_edge[0]:
+          (next_bottom_z, next_top_z), (bottom_z, top_z) = wall_bottom_top
+        else:
+          (bottom_z, top_z), (next_bottom_z, next_top_z) = wall_bottom_top
+
+        # 反時計回りになるように座標(x,y,z)配置
+        wall_model_points = [
+            ModelPoint(
+                position_id_2d=point_id,
+                position_id_3d=self._add_point((x, y, bottom_z)),
+                order_id=index,
+            ),
+            ModelPoint(
+                position_id_2d=point_id,
+                position_id_3d=self._add_point((x, y, top_z)),
+                order_id=index,
+            ),
+            ModelPoint(
+                position_id_2d=next_point_id,
+                position_id_3d=self._add_point((next_x, next_y, next_top_z)),
+                order_id=next_index,
+            ),
+            ModelPoint(
+                position_id_2d=next_point_id,
+                position_id_3d=self._add_point((next_x, next_y, next_bottom_z)),
+                order_id=next_index,
+            ),
+        ]
+
+        created_wall_edges.append(sorted_edge)
+        self._add_wall(wall_model_points, -2)
+
+  def _create_roof_faces(self, polygon_zs_list: list[list[float]]):
+    """屋根面を作る
+
+    Args:
+      polygon_zs_list (list[list[float]]): 複数のポリゴンの頂点高さリスト
+    """
+
+    # 2Dポリゴンの2D三角形分割
+    polygon_id_triangles_pair = self._get_polygon_id_triangles_pair(
+        self._roof_polygon_vertex_xys, self._inner_polygons,
     )
-    balcony_height: float = max(ground_height + 0.1, min(heights))
-    roof_polygon_vertex_xyzs = np.concatenate([roof_polygon_vertex_xys, np.array(heights)[:, np.newaxis]], axis=1)
 
-    # roof
-    for triangle, polygon_id in roof_triangles:
-      face_points = []
-      for vertex in triangle:
-        xyz = roof_polygon_vertex_xyzs[vertex.point_id].copy()
-        if balcony_flags[polygon_id]:
-          xyz[2] = balcony_height
+    for polygon_id, triangles in polygon_id_triangles_pair.items():
+      polygon_zs = polygon_zs_list[polygon_id]
+      for triangle in triangles:
+        face_points: list[ModelPoint] = []
+        triangle_xys_before = [
+            self._roof_polygon_vertex_xys[triangle_vertex.point_id] for triangle_vertex in triangle
+        ]
+        triangle_xys_after = ensure_counter_clockwise(triangle_xys_before)
 
-        face_points.append(ModelPoint(
-            position_id_2d=vertex.point_id,
-            position_id_3d=self._add_point(xyz),
-            order_id=vertex.order_id,
-        ))
+        # 反時計回りに頂点の順序を変更
+        triangle_vertices = [triangle_vertex for triangle_vertex in triangle]
+        if triangle_xys_after[0] != triangle_xys_before[0]:
+          triangle_vertices = triangle_vertices[::-1]
 
-      self._add_roof(face_points, polygon_id)
+        for triangle_vertex in triangle_vertices:
+          x, y = self._roof_polygon_vertex_xys[triangle_vertex.point_id]
+          z = polygon_zs[triangle_vertex.order_id]
+          face_points.append(ModelPoint(
+              position_id_2d=triangle_vertex.point_id,
+              position_id_3d=self._add_point((x, y, z)),
+              order_id=triangle_vertex.order_id,
+          ))
 
-    # floor
-    ground_points = [
-        ModelPoint(
-            position_id_2d=position_id_2d,
-            position_id_3d=self._add_point((
-                roof_polygon_vertex_xyzs[position_id_2d][0],
-                roof_polygon_vertex_xyzs[position_id_2d][1],
-                ground_height
-            )),
-            order_id=i
-        ) for i, position_id_2d in enumerate(outer_polygon[::-1])
+        self._add_roof(face_points, polygon_id)
+
+  def _create_ground_face(self):
+    """床面を作る
+    """
+    ground_polygon_xys_before = [
+        self._roof_polygon_vertex_xys[point_id] for point_id in self._outer_polygon
     ]
 
-    self._add_ground(ground_points, -1)
+    ground_polygon_xys_after = ensure_counter_clockwise(
+        [self._roof_polygon_vertex_xys[point_id] for point_id in self._outer_polygon]
+    )[::-1]
 
-    # wall
-    self._generate_wall(-2)
+    # 時計回りに頂点(x,y)の順序を変更
+    floor_polygon = copy.deepcopy(self._outer_polygon)
+    if ground_polygon_xys_before[0] != ground_polygon_xys_after[0]:
+      floor_polygon = floor_polygon[::-1]
+
+    floor_polygon_model_points = [
+        ModelPoint(
+            position_id_2d=point_id,
+            position_id_3d=self._add_point((
+                self._roof_polygon_vertex_xys[point_id][0],
+                self._roof_polygon_vertex_xys[point_id][1],
+                self._ground_height,
+            )),
+            order_id=i
+        ) for i, point_id in enumerate(floor_polygon)
+    ]
+
+    self._add_ground(floor_polygon_model_points, -1)
 
   def _get_polygon_id_triangles_pair(
       self,
       roof_polygon_vertex_xys: list[tuple[float, float]],
       inner_polygons: list[list[int]],
-  ) -> None:
+  ):
     """モデル面の作成
 
     Args:
@@ -385,16 +335,16 @@ class HouseModel:
       dict[int, list[Triangle]]
     """
 
-    polys = []
-    triangle_polys = []
+    polys: list[Polygon] = []
+    triangle_polys: list[Polygon] = []
     polygon_xys_list: list[list[tuple[float, float]]] = []
     polygon_layer_xys_list: list[list[tuple[float, float, float]]] = []
     triangle_xys_list: list[list[tuple[float, float, float]]] = []
 
     polygon_id_triangles_pair: dict[int, list[Triangle]] = defaultdict(list)
     for polygon_id, polygon in enumerate(inner_polygons):
-      polygon_xys = []
-      polygon_layer_xys = []
+      polygon_xys: list[tuple[float, float]] = []
+      polygon_layer_xys: list[tuple[float, float, float]] = []
       for point_id in polygon:
         x, y = roof_polygon_vertex_xys[point_id]
         polygon_xys.append((x, y))
@@ -407,7 +357,7 @@ class HouseModel:
       poly_triangles = triangulate(polygon, roof_polygon_vertex_xys)
 
       for triangle in poly_triangles:
-        triangle_xys = []
+        triangle_xys: list[tuple[float, float, float]] = []
         for triangle_vertex in triangle:
           x, y = roof_polygon_vertex_xys[triangle_vertex.point_id]
           triangle_xys.append((x, y, 0))
@@ -442,7 +392,7 @@ class HouseModel:
 
     return polygon_id_triangles_pair
 
-  def simplify(self, threshold: float):
+  def _simplify(self, threshold: float):
     """屋根面の単純化
 
     同じ角度の隣接した面を一つにまとめる
@@ -539,7 +489,7 @@ class HouseModel:
 
     self._faces = simplified_faces
 
-  def rectify(self):
+  def _rectify(self):
     """1) 連続点削除
        2) ソリッド非水密エラー修正
           多角形の線分上に頂点が存在する場合、その頂点を多角形に追加する
@@ -688,193 +638,3 @@ class HouseModel:
     info.append_faces(BldElementType.GROUND, [self._points[ground.position_ids_3d] for ground in grounds])
 
     info.write_file(file_path=path)
-
-  def _find_closest_point(
-      self,
-      point_ij: tuple[float, float],
-      layer_number_point_ijs: list[tuple[float, float]],
-  ):
-    closest_point = None
-    min_distance = float('inf')
-
-    for layer_number_point_ij in layer_number_point_ijs:
-      distance = sqrt((layer_number_point_ij[0] - point_ij[0]) ** 2 + (layer_number_point_ij[1] - point_ij[1]) ** 2)
-      if distance < min_distance:
-        min_distance = distance
-        closest_point = layer_number_point_ij
-
-    return closest_point
-
-  def _get_layer_number_point_ijs_pairs(
-      self,
-      roof_polygon_vertex_ijs: list[tuple[float, float]],
-      inner_polygons: list[list[int]],
-  ):
-    """
-    Args:
-      roof_polygon_vertex_ijs (list[tuple[float, float]]): 頂点リスト(i,j)
-      inner_polygons: (lit[list[int]]): 内部ポリゴンの頂点番号リスト
-
-    Return:
-      list[dict[int, list[tuple[float, float]]]]: ポリゴンの屋根階層クラス分析図のリスト
-    """
-
-    # polygon_layer_numbers: list[int] = []
-    layer_number_point_ijs_pairs: list[dict[int, list[tuple[float, float]]]] = []
-    for inner_polygon in inner_polygons:
-      polygon_ijs = [roof_polygon_vertex_ijs[point_id] for point_id in inner_polygon]
-      layer_number_point_ijs_pair = PolygonDevision.get_layer_number_grid_ijs_pair(
-          self._roof_layer_info, polygon_ijs
-      )
-
-      layer_number_point_ijs_pairs.append(layer_number_point_ijs_pair)
-
-    return layer_number_point_ijs_pairs
-
-  def _get_polygon_layer_numbers(
-      self,
-      layer_number_point_ijs_pairs: list[dict[int, list[tuple[float, float]]]],
-  ):
-    """
-    Args:
-      layer_number_point_ijs_pair (list[dict[int, list[tuple[float, float]]]]): ポリゴンの屋根階層クラス分析図のリスト
-
-    Return:
-      list[int]: ポリゴンの屋根階層クラスのリスト
-    """
-
-    polygon_layer_numbers: list[int] = []
-    for layer_number_point_ijs_pair in layer_number_point_ijs_pairs:
-      majority_layer_number = PolygonDevision.get_majority_layer_number(layer_number_point_ijs_pair)
-      polygon_layer_numbers.append(majority_layer_number)
-
-    return polygon_layer_numbers
-
-  def _get_roof_polygon_zs_lists(
-      self,
-      roof_polygon_vertex_xys: list[tuple[float, float]],
-      roof_polygon_vertex_ijs: list[tuple[float, float]],
-      outer_polygon: list[int],
-      inner_polygons: list[list[int]],
-      layer_number_point_ijs_pairs: list[dict[int, list[tuple[float, float]]]],
-      polygon_layer_numbers: list[int],
-      polygon_balcony_flags: list[bool],
-  ):
-    """
-    Args:
-      roof_polygon_vertex_xy_points (list[Point]): 頂点のリスト
-      roof_polygon_vertex_ijs (list[tuple[float, float]]):
-      outer_polygon (list[int]): 外周ポリゴンの頂点番号リスト
-      inner_polygons: (lit[list[int]]): 内部ポリゴンの頂点番号リスト
-      layer_number_point_ijs_pairs (list[dict[int, list[tuple[float, float]]]]): ポリゴンの屋根階層クラス分析図のリスト
-      polygon_layer_numbers (list[int]): ポリゴンの屋根階層クラスのリスト
-      polygon_balcony_flags (list[bool]): ポリゴンのバルコニーフラグ
-
-    Return:
-      list[dict[tuple[int, int], list[float]]]
-    """
-
-    point_id_polygon_ids_pair: dict[int, list[int]] = defaultdict(list)
-    for polygon_id, inner_polygon in enumerate(inner_polygons):
-      for point_id in inner_polygon:
-        point_id_polygon_ids_pair[point_id].append(polygon_id)
-
-    point_id_point_zs_pair: dict[int, list[float]] = defaultdict(list)
-    roof_wall_max_zs_list: list[dict[int, float]] = [{} for _ in inner_polygons]
-    for point_id, polygon_ids in point_id_polygon_ids_pair.items():
-      point_layer_numbers: set[int] = set()
-      for polygon_id in polygon_ids:
-        point_layer_numbers.add(polygon_layer_numbers[polygon_id])
-
-      point_ij = roof_polygon_vertex_ijs[point_id]
-
-      should_make_wall = len(point_layer_numbers) > 1
-      if should_make_wall:
-        # 頂点を起点としてポリゴンごと壁を作るための z 座標を生成
-        for polygon_id in polygon_ids:
-          # ポリゴンが持っている頂点とその頂点の屋根クラス
-          layer_number_point_ijs_pair = layer_number_point_ijs_pairs[polygon_id]
-          # ポリゴンの屋根クラス
-          polygon_layer_number = polygon_layer_numbers[polygon_id]
-          # ポリゴンの屋根クラスと同じ屋根クラスである頂点リストを取得
-          layer_number_point_ijs = layer_number_point_ijs_pair[polygon_layer_number]
-          # ポリゴンの屋根クラスと同じ屋根クラスである頂点リストの中、頂点(i,j)と一番近い点を取得
-          nearest_layer_number_point_ij = self._find_closest_point(point_ij, layer_number_point_ijs)
-          # ポリゴンの頂点での壁の高さを取得
-          max_z = self._roof_layer_info.ij_to_z(*nearest_layer_number_point_ij)
-          roof_wall_max_zs_list[polygon_id][point_id] = max_z
-          point_id_point_zs_pair[point_id].append(max_z)
-
-    roof_wall_min_zs_lists: list[dict[int, float]] = [{} for _ in inner_polygons]
-    for polygon_id, roof_wall_max_zs in enumerate(roof_wall_max_zs_list):
-      for point_id in roof_wall_max_zs.keys():
-        point_zs = point_id_point_zs_pair[point_id]
-        min_z = min(point_zs)
-        roof_wall_min_zs_lists[polygon_id][point_id] = min_z
-
-    default_vertex_zs = [
-        self._roof_layer_info.find_nearest_z(*vertex_xys)
-        for vertex_xys in roof_polygon_vertex_xys
-    ]
-
-    roof_polygon_zs_lists: list[list[list[float]]] = [
-        [[] for _ in inner_polygon] for inner_polygon in inner_polygons
-    ]
-    for polygon_id, inner_polygon in enumerate(inner_polygons):
-      for order_id, point_id in enumerate(inner_polygon):
-        min_z = default_vertex_zs[point_id]
-        max_z = default_vertex_zs[point_id]
-
-        wall_min_z = roof_wall_min_zs_lists[polygon_id].get(point_id)
-        if wall_min_z:
-          min_z = wall_min_z
-
-        wall_max_z = roof_wall_max_zs_list[polygon_id].get(point_id)
-        if wall_max_z:
-          max_z = wall_max_z
-
-        if point_id in outer_polygon:
-          min_z = self._ground_height
-
-        roof_polygon_zs_lists[polygon_id][order_id].extend([round(min_z, 6), round(max_z, 6)])
-
-    return roof_polygon_zs_lists
-
-  def _get_polygon_walls_list(self):
-    polygon_walls_list: list[list[tuple[tuple[int, int], tuple[list[float], list[float]]]]] = []
-    for polygon_id, inner_polygon_sorted_edges in self._polygon_id_inner_polygon_sorted_edges_pair.items():
-      polygon_walls: list[tuple[tuple[int, int], tuple[list[float], list[float]]]] = []
-      for inner_polygon_sorted_edge in inner_polygon_sorted_edges:
-        point_id1, point_id2  = inner_polygon_sorted_edge
-        if inner_polygon_sorted_edge in self._outer_polygon_sorted_edges:
-          point_xy1 = self._roof_polygon_vertex_xys[point_id1]
-          point_xy2 = self._roof_polygon_vertex_xys[point_id2]
-          z1 = self._roof_layer_info.find_nearest_z(*point_xy1)
-          z2 = self._roof_layer_info.find_nearest_z(*point_xy2)
-          polygon_walls.append(
-              ((point_id1, point_id2), ([z1, self._ground_height], [z2, self._ground_height]))
-          )
-        # else:
-        #   polygon_id1, polygon_id2 = self._polygon_sorted_edge_polygon_ids_pair[inner_polygon_sorted_edge]
-        #   polygon_layer1 = self._polygon_layer_numbers[polygon_id1]
-        #   polygon_layer2 = self._polygon_layer_numbers[polygon_id2]
-
-      polygon_walls_list.append(polygon_walls)
-
-    return polygon_walls_list
-
-  def _get_polygon_sorted_edges(self, polygon: list[int], polygon_ijs: list[tuple[float, float]]):
-    sorted_edges: list[tuple[int, int]] = []
-    for index, point_id in enumerate(polygon):
-      next_index = (index + 1) % len(polygon)
-      next_point_id = polygon[next_index]
-
-      point_ij = polygon_ijs[point_id]
-      next_point_ij = polygon_ijs[next_point_id]
-      point_ij1, point_ij2 = sorted([point_ij, next_point_ij])
-      point_id1 = self._roof_polygon_vertex_ijs.index(point_ij1)
-      point_id2 = self._roof_polygon_vertex_ijs.index(point_ij2)
-
-      sorted_edges.append((point_id1, point_id2))
-
-    return sorted_edges

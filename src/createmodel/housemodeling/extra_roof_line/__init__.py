@@ -380,10 +380,10 @@ class ExtraRoofLine:
     if self._debug_mode:
       extra_roof_line_poligons_2d = ObjInfo()
       for polygon_idx, tmp_inner_polygon_ijs in enumerate(merged_inner_polygon_ijs_list_after):
-        polygon_ijs = []
+        polygon_layer_ijs: list[tuple[float, float, float]] = []
         for i, j in tmp_inner_polygon_ijs:
-          polygon_ijs.append((i, j, 2 * polygon_idx))
-        extra_roof_line_poligons_2d.append_faces(BldElementType.ROOF, [polygon_ijs])
+          polygon_layer_ijs.append((i, j, 2 * polygon_idx))
+        extra_roof_line_poligons_2d.append_faces(BldElementType.ROOF, [polygon_layer_ijs])
 
       debug_dir = os.path.join('debug', self._id)
       Path(debug_dir).mkdir(parents=True, exist_ok=True)

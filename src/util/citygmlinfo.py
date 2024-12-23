@@ -206,7 +206,7 @@ class CityGmlManager:
         raise Exception('All outline not found')
 
       # デバッグ : CityGMLファイル読み込みを早くするため、pickle でキャッシュ化
-      if debug_mode is True:
+      if debug_mode:
         with open(city_gml_cache_file_path, "wb") as f:
           pickle.dump(self.citygml_info, f)
 

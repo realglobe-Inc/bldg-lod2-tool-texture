@@ -2,7 +2,7 @@ import itertools
 import math
 import os
 from pathlib import Path
-from collections import deque
+from collections import defaultdict, deque
 
 import numpy as np
 import numpy.typing as npt
@@ -25,6 +25,7 @@ class RoofLayerInfo:
   ROOF_VERTICE_POINT = -4
   WALL_HEIGHT_THRESHOLD = 0.2
 
+  # 予約済み色（この色は屋根レイヤーの色として使われない）
   RESERVED_COLOR = {
       NO_POINT: [255, 255, 255],
       NOISE_POINT: [0, 0, 0],
@@ -197,7 +198,7 @@ class RoofLayerInfo:
         if (x == 0 and y == 0 and z1 == 0):
           continue
 
-        z2s = []
+        z2s: list[float] = []
         for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
           i2, j2 = i + di, j + dj
           if 0 <= i2 < height and 0 <= j2 < width:
@@ -213,7 +214,7 @@ class RoofLayerInfo:
 
     xy_ij: dict[tuple[float, float], tuple[int, int]] = {}
     for i, dsm_grid_xyzs_j in enumerate(dsm_grid_xyzs):
-      for j, (x, y, z1) in enumerate(dsm_grid_xyzs_j):
+      for j, (x, y, _) in enumerate(dsm_grid_xyzs_j):
         xy_ij[(x, y)] = (i, j)
 
     return xy_ij
@@ -464,13 +465,12 @@ class RoofLayerInfo:
 
     height, width = layer_class.shape
 
-    layer_number_point_ijs_pair: dict[int, list[tuple[int, int]]] = {}
+    layer_number_point_ijs_pair: dict[int, list[tuple[int, int]]] = defaultdict(list)
 
     # i, j に基づいて各ピクセルに色を割り当て
     for i in range(height):
       for j in range(width):
         layer_number = layer_class[i, j]
-        layer_number_point_ijs_pair[layer_number] = layer_number_point_ijs_pair.get(layer_number) or []
         layer_number_point_ijs_pair[layer_number].append((i, j))
 
     # 空の RGB 画像を作成 (すべて白で初期化)

@@ -10,7 +10,7 @@ def merge_close_vertices(polygon_ijs_list: list[list[tuple[float, float]]], thre
       threshold (float): マージとみなす距離のしきい値
 
   Returns:
-      list[list[tuple[float, float]]]
+      list[list[tuple[float, float]]]: 近すぎる点がマージされた複数のポリゴンの頂点リスト
   """
   # 頂点を一意化
   vertex_ijs = list(set([
@@ -19,8 +19,8 @@ def merge_close_vertices(polygon_ijs_list: list[list[tuple[float, float]]], thre
       for polygon_ij in polygon_ijs
   ]))
 
-  merged_vertice_ijs = []
-  change_map = {}  # 変更前後の頂点対応を保持
+  merged_vertice_ijs: list[tuple[float, float]] = []
+  change_map: dict[tuple[float, float], tuple[float, float]] = {}  # 変更前後の頂点対応を保持
 
   for vertex_ij in vertex_ijs:
     merged_to_existing = False

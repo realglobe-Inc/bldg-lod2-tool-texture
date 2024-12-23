@@ -8,6 +8,15 @@ import numpy as np
 
 
 def get_polys_from_geometry_collections(geometry_collections: list[GeometryCollection]):
+  """shapely オブジェクトリストの中で、ポリゴン形状をだけ抜き取る
+
+  Args:
+    geometry_collections (list[GeometryCollection]): shapely オブジェクトリスト
+
+  Returns:
+    list[Polygon]: ポリゴンリスト
+  """
+
   polys: list[Polygon] = []
   for geometry_collection in geometry_collections:
     if not geometry_collection.is_empty:
@@ -22,6 +31,15 @@ def get_polys_from_geometry_collections(geometry_collections: list[GeometryColle
 
 
 def get_polys_from_polygon_ijs_list(polygon_ijs_list: list[list[tuple[float, float]]]):
+  """複数ポリゴンの頂点リストから、ポリゴンリストを出す
+
+  Args:
+    polygon_ijs_list: list[list[tuple[float, float]]]
+
+  Returns:
+    list[Polygon]: ポリゴンリスト
+  """
+
   geometry_collections: list[GeometryCollection] = []
   # validate_polygon_ijs_list(polygon_ijs_list)
 
@@ -56,39 +74,6 @@ def calculate_shared_length(polygon1: Polygon, polygon2: Polygon) -> float:
       float: 共有辺の長さ。
   """
   return polygon1.intersection(polygon2).length
-
-
-def find_parent_polygon(
-    child: Polygon,
-    polygons: list[Polygon],
-    parent_map: dict[Polygon, Polygon],
-    visited: set  # 追加: 訪問済みポリゴンを追跡するための集合
-) -> Polygon:
-  max_shared_length = 0
-  parent = None
-
-  for candidate in polygons:
-    if child == candidate or candidate in visited:  # 自分自身を親にしない、かつ訪問済みのポリゴンをスキップ
-      continue
-    shared_length = calculate_shared_length(child, candidate)
-    if shared_length > max_shared_length:
-      max_shared_length = shared_length
-      parent = candidate
-
-  # 再帰的に最上位の親を探す
-  if parent in parent_map:
-    visited.add(parent)  # 訪問済みとしてマーク
-    return find_parent_polygon(parent, polygons, parent_map, visited)
-
-  return parent
-
-
-def find_group_containing_polygon(polygon_id, group_list):
-  """指定されたポリゴンIDが含まれているグループを探す"""
-  for group in group_list:
-    if polygon_id in group:
-      return group
-  return None
 
 
 def find_final_parent(polygon_id: int, longest_neighbor_map: dict[int, tuple[int, float]]):
@@ -170,6 +155,12 @@ def merge_small_polys_into_large_polys(
 
 
 def validate_polygon_ijs_list(polygon_ijs_list: list[list[tuple[float, float]]]):
+  """ポリゴンの頂点リストのポリゴンが正しいか検証する
+
+  Args:
+    polygon_ijs_list (list[list[tuple[float, float]]]): ポリゴンの頂点リスト。
+  """
+
   edge_polygon_ids_pair: dict[tuple[tuple[float, float], tuple[float, float]], list] = defaultdict(list)
   polys: list[Polygon] = []
 
@@ -227,7 +218,7 @@ def ensure_counter_clockwise(polygon_xyzs: list[Union[tuple[float, float, float]
   polygon_xys = np.array(polygon_xyzs)[:, :2]
   poly = Polygon(polygon_xys)
   if not poly.exterior.is_ccw:
-      # 時計回りなら反転させる
+    # 時計回りなら反転させる
     return polygon_xyzs[::-1]
 
   return polygon_xyzs

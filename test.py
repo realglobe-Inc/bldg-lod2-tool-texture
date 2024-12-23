@@ -1,90 +1,55 @@
 from shapely.geometry import Polygon
-from shapely.ops import unary_union
 
-
-def calculate_shared_length(polygon1: Polygon, polygon2: Polygon) -> float:
-  """
-  2つのポリゴン間の共有線の長さを計算。
-  """
-  return polygon1.intersection(polygon2).length
-
-
-def find_parent_polygon(
-    child: Polygon,
-    polygons: list[Polygon],
-    parent_map: dict[Polygon, Polygon]
-) -> Polygon:
-  """
-  子ポリゴンの親ポリゴンを再帰的に探す。
-  :param child: 子ポリゴン
-  :param polygons: 候補のポリゴンリスト
-  :param parent_map: すでに親が設定されているポリゴンのマップ
-  :return: 親ポリゴン（最終的な大きなポリゴン）
-  """
-  max_shared_length = 0
-  parent = None
-
-  for candidate in polygons:
-    if child == candidate:  # 自分自身を親にしない
-      continue
-    shared_length = calculate_shared_length(child, candidate)
-    if shared_length > max_shared_length:
-      max_shared_length = shared_length
-      parent = candidate
-
-  # 再帰的に親をたどる
-  if parent in parent_map:
-    return find_parent_polygon(parent, polygons, parent_map)
-
-  return parent
-
-
-def merge_small_polygons(
-    small_polygons: list[Polygon],
-    large_polygons: list[Polygon]
-) -> list[Polygon]:
-  """
-  小さいポリゴンを大きなポリゴンに合併。
-  :param small_polygons: 小さいポリゴンリスト
-  :param large_polygons: 大きいポリゴンリスト
-  :return: 合併後のポリゴンリスト
-  """
-  merged_polygons = large_polygons[:]  # 初期状態は大きなポリゴンリスト
-  parent_map: dict[Polygon, Polygon] = {}  # 親子関係を保存
-
-  for child in small_polygons:
-    # 子ポリゴンの親ポリゴンを探す
-    parent = find_parent_polygon(child, merged_polygons + small_polygons, parent_map)
-    if parent:
-      # 親を記録
-      parent_map[child] = parent
-
-  # 親子関係に基づいて合併
-  for child, parent in parent_map.items():
-    if parent in merged_polygons:
-      # 親が大きいポリゴンの場合、その親と子を統合
-      merged_polygons.remove(parent)
-      merged_polygons.append(unary_union([child, parent]))
-
-  return merged_polygons
-
-
-# サンプルデータの準備
-polygons: list[Polygon] = [
-    Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]),  # 小さいポリゴン1
-    Polygon([(1, 0), (2, 0), (2, 1), (1, 1)]),  # 小さいポリゴン2
-    Polygon([(2, 0), (3, 0), (3, 3), (2, 3)]),  # 大きいポリゴン1
-    Polygon([(0, 1), (1, 1), (1, 2), (0, 2)])   # 小さいポリゴン3
+# 頂点データとポリゴンの定義
+vertices = [
+    [-10049.760, -52160.090, 10.310], [-10049.741, -52160.735, 10.320],
+    [-10047.747, -52160.031, 10.315], [-10048.065, -52162.495, 10.617],
+    [-10045.505, -52162.415, 10.590], [-10042.880, -52159.890, 9.990],
+    [-10042.726, -52164.931, 9.625], [-10049.636, -52164.332, 10.330],
+    [-10046.785, -52165.055, 9.770], [-10049.612, -52165.141, 9.790],
+    [-10042.726, -52164.931, 7.410], [-10046.785, -52165.055, 8.493],
+    [-10043.503, -52168.087, 7.455], [-10042.630, -52168.060, 6.910],
+    [-10049.612, -52165.141, 8.400], [-10049.520, -52168.270, 7.675],
+    [-10047.747, -52160.031, 1.110], [-10049.760, -52160.090, 1.110],
+    [-10049.741, -52160.735, 1.110], [-10042.880, -52159.890, 1.110],
+    [-10042.726, -52164.931, 1.110], [-10042.630, -52168.060, 1.110],
+    [-10049.636, -52164.332, 1.110], [-10049.612, -52165.141, 1.110],
+    [-10049.520, -52168.270, 1.110], [-10043.503, -52168.087, 1.110]
 ]
 
-# 小さいポリゴンと大きいポリゴンを分ける
-threshold_area = 1.5
-small_polygons: list[Polygon] = [p for p in polygons if p.area < threshold_area]
-large_polygons: list[Polygon] = [p for p in polygons if p.area >= threshold_area]
+faces_roof = [
+    [0, 1, 2], [3, 4, 2, 1], [2, 4, 5], [5, 4, 6], [7, 8, 3], [3, 8, 6, 4],
+    [7, 9, 8], [10, 11, 12], [13, 10, 12], [7, 3, 1], [11, 14, 15], [15, 12, 11]
+]
 
-# 合併実行
-merged_result: list[Polygon] = merge_small_polygons(small_polygons, large_polygons)
+faces_wall = [
+    [16, 2, 0, 17], [18, 17, 0, 1], [10, 6, 5, 19, 20], [2, 16, 19, 5],
+    [6, 10, 11, 14, 9, 8], [21, 13, 10, 20], [22, 18, 1, 7, 9, 14, 23],
+    [23, 14, 15, 24], [25, 24, 15, 12, 13, 21]
+]
 
-# 結果を表示
-for i, polygon in enumerate(merged_result):
-  print(f"Polygon {i}: {polygon}")
+faces_ground = [
+    [22, 18, 17, 16, 19, 20, 21, 25, 24, 23]
+]
+
+# 向きをチェックする関数
+
+
+def check_polygon_orientations(vertices, faces):
+  orientations = []
+  for face in faces:
+    polygon_vertices = [vertices[idx][:2] for idx in face]
+    polygon = Polygon(polygon_vertices)
+    orientations.append(polygon.exterior.is_ccw)
+  return orientations
+
+
+# 各セクションの向きをチェック
+orientations_roof = check_polygon_orientations(vertices, faces_roof)
+orientations_wall = check_polygon_orientations(vertices, faces_wall)
+orientations_ground = check_polygon_orientations(vertices, faces_ground)
+
+# 結果を出力
+print("Roof orientations:", ["CCW" if ccw else "CW" for ccw in orientations_roof])
+print("Wall orientations:", ["CCW" if ccw else "CW" for ccw in orientations_wall])
+print("Ground orientation:", ["CCW" if ccw else "CW" for ccw in orientations_ground])
