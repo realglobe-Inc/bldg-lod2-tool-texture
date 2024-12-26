@@ -241,7 +241,7 @@ class MainManager:
           # 自動補正失敗
           result_info.status = StatusType.ERROR
           build.double_point = ProcessResult.ERROR
-          # print("_check_double_point ERROR")
+          print("_check_double_point ERROR")
           return
 
   def _check_intersection(
@@ -268,7 +268,7 @@ class MainManager:
                               check_face.err_list)
           result_info.status = StatusType.ERROR
           build.intersection = ProcessResult.ERROR
-          # print("_check_intersection ERROR")
+          print("_check_intersection ERROR")
 
   def _check_face_intersection(
       self,
@@ -291,7 +291,7 @@ class MainManager:
                           check_faces.err_list)
       result_info.status = StatusType.ERROR
       build.face_intersection = ProcessResult.ERROR
-      # print("_check_face_intersection ERROR")
+      print("_check_face_intersection ERROR")
 
   def _check_non_plane(
       self,
@@ -321,7 +321,7 @@ class MainManager:
           # 自動補正失敗
           result_info.status = StatusType.ERROR
           build.non_plane = ProcessResult.ERROR
-          # print("_check_non_plane ERROR")
+          print("_check_non_plane ERROR")
           return
 
   def _check_zero_area(
@@ -356,7 +356,7 @@ class MainManager:
           # 予期せぬエラーが発生して、補正処理が失敗
           result_info.status = StatusType.ERROR
           build.zero_area = ProcessResult.ERROR
-          # print("_check_zero_area ERROR")
+          print("_check_zero_area ERROR")
           return
 
     build.zero_area = ProcessResult.SUCCESS
@@ -381,9 +381,9 @@ class MainManager:
       # エラーあり、自動補正済み
       result_info.add_err(ErrorType.OPEN_SOLID, check_faces.err_list)
       result_info.status = StatusType.AUTO_CORRECTED
-      # print("check_solid: AUTO_CORRECTED")
+      # print("_check_solid: AUTO_CORRECTED")
     elif ret is TestResultType.AUTO_CORRECTION_FAILURE:
       # 自動補正失敗
       result_info.status = StatusType.ERROR
       build.solid = ProcessResult.ERROR
-      # print("check_solid: ERROR")
+      print("_check_solid: ERROR")

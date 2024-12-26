@@ -110,6 +110,8 @@ class ExtraRoofLine:
       traceback.print_exc()
       self._inner_polygon_ijs_list_after = self._inner_polygon_ijs_list_before
 
+    validate_polygon_ijs_list(self._inner_polygon_ijs_list_after)
+
     self._new_polygon_vertex_ijs = list(set([
         polygon_ij
         for polygon_ijs in self._inner_polygon_ijs_list_after
