@@ -23,6 +23,7 @@ services:
         "OutputFolderPath": "/app/output",
         "OutputOBJ": true,
         "OutputTexture": true,
+        "OutputCityGml": true,
         "OutputLogFolderPath": "/app/output",
         "DebugLogOutput": true,
         "PhaseConsistency": {

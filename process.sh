@@ -31,6 +31,7 @@ if [ -z "${PARAM_JSON}" ]; then
     \"OutputFolderPath\": \"${base_output_dir}\",
     \"OutputOBJ\": true,
     \"OutputTexture\": true,
+    \"OutputCityGml\": true,
     \"OutputLogFolderPath\": \"${base_output_dir}\",
     \"DebugLogOutput\": true,
     \"PhaseConsistency\": {

@@ -175,7 +175,7 @@ def main():
             for path in pathlist:
               shutil.copyfile(path, os.path.join(optional_output_objdir, os.path.basename(path)))
 
-        if param_manager.debug_mode is False:
+        if param_manager.output_citygml:
           # CityGML出力
           log.module_start_log(ModuleType.OUTPUT_CITYGML, file_name)
           # CityGML書き込み
