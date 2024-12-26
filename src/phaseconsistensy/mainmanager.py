@@ -3,6 +3,8 @@ import sys
 import shutil
 import logging
 
+import trimesh
+
 from ..util.citygmlinfo import CityGmlManager
 from ..util.objinfo import ObjInfos, ObjInfo
 from ..util.parammanager import ParamManager
@@ -98,10 +100,12 @@ class MainManager:
     for build in building_list:
       err_message = ''
       result_info = ResultInfo()
-      result_info.obj_name = os.path.join(
-          self._input_folder, f'{build.build_id}.obj')
+      result_info.obj_name = os.path.join(self._input_folder, f'{build.build_id}.obj')
       obj_info = ObjInfo()
       except_flag = False
+
+      # OBJファイルを読み込む
+      mesh = trimesh.load(result_info.obj_name)
 
       try:
         if pbar is not None:
@@ -112,9 +116,9 @@ class MainManager:
         # 連続頂点重複検査/補正
         self._check_double_point(obj_info, result_info, build)
 
-        # ソリッド閉合検査/補正
+        # ソリッド閉合検査
         if result_info.status != StatusType.ERROR:
-          self._check_solid(obj_info, result_info, build)
+          self._check_solid(mesh, result_info, build)
 
         # 非平面検査/三角形分割
         if result_info.status != StatusType.ERROR:
@@ -236,7 +240,7 @@ class MainManager:
           result_info.add_err(ErrorType.DOUBLE_POINT,
                               check_face.err_list)
           result_info.status = StatusType.AUTO_CORRECTED
-          # print("_check_double_point AUTO_CORRECTED")
+          print("_check_double_point AUTO_CORRECTED")
         elif ret is TestResultType.AUTO_CORRECTION_FAILURE:
           # 自動補正失敗
           result_info.status = StatusType.ERROR
@@ -316,7 +320,7 @@ class MainManager:
           # エラーあり、自動補正済み
           result_info.add_err(ErrorType.NON_PLANE, check_face.err_list)
           result_info.status = StatusType.AUTO_CORRECTED
-          # print("_check_non_plane AUTO_CORRECTED")
+          print("_check_non_plane AUTO_CORRECTED")
         elif ret is TestResultType.AUTO_CORRECTION_FAILURE:
           # 自動補正失敗
           result_info.status = StatusType.ERROR
@@ -351,7 +355,7 @@ class MainManager:
           for face in remove_face_list:
             obj_info.remove_face(f_key, face)
           result_info.status = StatusType.AUTO_CORRECTED
-          # print("_check_zero_area AUTO_CORRECTED")
+          print("_check_zero_area AUTO_CORRECTED")
         except Exception:
           # 予期せぬエラーが発生して、補正処理が失敗
           result_info.status = StatusType.ERROR
@@ -361,12 +365,7 @@ class MainManager:
 
     build.zero_area = ProcessResult.SUCCESS
 
-  def _check_solid(
-      self,
-      obj_info: ObjInfo,
-      result_info: ResultInfo,
-      build: CityGmlManager.BuildInfo,
-  ):
+  def _check_solid(self, mesh, result_info: ResultInfo, build: CityGmlManager.BuildInfo):
     """ソリッド閉合検査/補正
 
     Args:
@@ -374,16 +373,8 @@ class MainManager:
       result_info (ResultInfo): 検査結果格納先
       build (CityGmlManager.BuildInfo): 建物外形情報
     """
+
     build.solid = ProcessResult.SUCCESS
-    check_faces = CheckFaces(obj_info, self._param_manager)
-    ret = check_faces.check_solid()
-    if ret is TestResultType.AUTO_CORRECTED:
-      # エラーあり、自動補正済み
-      result_info.add_err(ErrorType.OPEN_SOLID, check_faces.err_list)
-      result_info.status = StatusType.AUTO_CORRECTED
-      # print("_check_solid: AUTO_CORRECTED")
-    elif ret is TestResultType.AUTO_CORRECTION_FAILURE:
-      # 自動補正失敗
+    if not mesh.is_watertight:
       result_info.status = StatusType.ERROR
       build.solid = ProcessResult.ERROR
-      print("_check_solid: ERROR")
