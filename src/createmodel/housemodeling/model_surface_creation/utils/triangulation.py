@@ -451,7 +451,4 @@ def triangulate(polygon: list[int], vertex_xy: list[tuple[float, float]]):
     )
     triangles.append(triangle)
 
-  if abs(poly_triangle_area_sum - poly.area) >= 1e-9:
-    breakpoint()
-
   return triangles

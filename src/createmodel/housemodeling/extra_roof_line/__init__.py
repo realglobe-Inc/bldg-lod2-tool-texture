@@ -457,7 +457,7 @@ class ExtraRoofLine:
     y = y_max - (i * x_width_per_i_width)
 
     # float 演算浮動小数点誤差の制御パッチ : 丸めて誤差を抑える
-    return round(x, 9), round(y, 9)
+    return round(x, 6), round(y, 6)
 
   def _get_line_group(self, inner_polygon_ijs_list: list[list[tuple[float, float]]]):
     """傾きと切片で同じ直線上にあるエッジの頂点をグループ化

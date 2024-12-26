@@ -14,7 +14,7 @@ from shapely.ops import unary_union
 
 
 from ...util.objinfo import BldElementType, ObjInfo
-from .utils.polys import ensure_counter_clockwise
+from .utils.polys import ensure_counter_clockwise, validate_polygon_ijs_list
 from .model_surface_creation.utils.triangulation import Triangle, triangulate
 from .custom_itertools import pairwise
 from .model_surface_creation.utils.geometry_3d import get_angle_degree_3d
@@ -338,8 +338,9 @@ class HouseModel:
     polys: list[Polygon] = []
     triangle_polys: list[Polygon] = []
     polygon_xys_list: list[list[tuple[float, float]]] = []
+    triangle_xys_list: list[list[tuple[float, float]]] = []
     polygon_layer_xys_list: list[list[tuple[float, float, float]]] = []
-    triangle_xys_list: list[list[tuple[float, float, float]]] = []
+    triangle_layer_xys_list: list[list[tuple[float, float, float]]] = []
 
     polygon_id_triangles_pair: dict[int, list[Triangle]] = defaultdict(list)
     for polygon_id, polygon in enumerate(inner_polygons):
@@ -347,7 +348,7 @@ class HouseModel:
       polygon_layer_xys: list[tuple[float, float, float]] = []
       for point_id in polygon:
         x, y = roof_polygon_vertex_xys[point_id]
-        polygon_xys.append((x, y))
+        polygon_xys.append((round(x, 6), round(y, 6)))
         polygon_layer_xys.append((x, y, 0.5 * polygon_id))
 
       polys.append(Polygon(np.array(polygon_layer_xys)[:, :2]))
@@ -357,24 +358,29 @@ class HouseModel:
       poly_triangles = triangulate(polygon, roof_polygon_vertex_xys)
 
       for triangle in poly_triangles:
-        triangle_xys: list[tuple[float, float, float]] = []
+        triangle_layer_xys: list[tuple[float, float, float]] = []
+        triangle_xys: list[tuple[float, float]] = []
         for triangle_vertex in triangle:
           x, y = roof_polygon_vertex_xys[triangle_vertex.point_id]
-          triangle_xys.append((x, y, 0))
+          triangle_layer_xys.append((x, y, 0))
+          triangle_xys.append((x, y))
 
-        triangle_polys.append(Polygon(np.array(triangle_xys)[:, :2]))
+        triangle_polys.append(Polygon(triangle_xys))
+        triangle_layer_xys_list.append(triangle_layer_xys)
         triangle_xys_list.append(triangle_xys)
         polygon_id_triangles_pair[polygon_id].append(triangle)
 
     poly_area = unary_union(polys)
     triangle_poly_area = unary_union(triangle_polys)
 
+    validate_polygon_ijs_list(triangle_xys_list)
+
     if self._debug_mode:
       triangulation_before_polygons_2d = ObjInfo()
       triangulation_before_triangles_2d = ObjInfo()
 
       triangulation_before_polygons_2d.append_faces(BldElementType.ROOF, polygon_layer_xys_list)
-      triangulation_before_triangles_2d.append_faces(BldElementType.ROOF, triangle_xys_list)
+      triangulation_before_triangles_2d.append_faces(BldElementType.ROOF, triangle_layer_xys_list)
 
       debug_dir = os.path.join('debug', self._id)
       Path(debug_dir).mkdir(parents=True, exist_ok=True)

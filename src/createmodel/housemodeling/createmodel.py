@@ -112,6 +112,7 @@ class CreateHouseModel:
         outer_polygon=outer_polygon,
         ground_height=self._ground_height,
     )
+
     # To Do : 中間点の追加(重要度🔽)
     twisted_edge_middle_point_rate_pair = model_edge_height_info.get_twisted_edge_middle_point_rate_pair()
 
