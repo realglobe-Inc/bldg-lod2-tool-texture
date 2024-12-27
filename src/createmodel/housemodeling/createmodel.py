@@ -110,6 +110,7 @@ class CreateHouseModel:
 
     # ポリゴンがバルコニーか
     polygon_balcony_flags = self._get_polygon_balcony_flags(roof_polygon_vertex_xy_points, inner_polygons)
+    polygon_balcony_flags = [False for _ in polygon_balcony_flags]
 
     # バルコニーの屋根レイヤーを追加
     balcony_polygon_ijs_list = self._get_balcony_polygon_ijs_list(
@@ -117,7 +118,7 @@ class CreateHouseModel:
     )
     self._roof_layer_info.add_balcony_layers(balcony_polygon_ijs_list)
 
-    # To Do : 中間点の追加(重要度🔽)
+    # To Do : X型交差屋根に中間点の追加
     model_edge_height_info = ModelEdgeHeightInfo(
         roof_layer_info=self._roof_layer_info,
         roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,

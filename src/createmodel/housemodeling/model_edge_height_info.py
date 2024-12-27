@@ -1,5 +1,4 @@
 from collections import defaultdict
-from enum import IntEnum
 import statistics
 
 from shapely.geometry import Polygon
@@ -8,14 +7,6 @@ from .utils.polys import get_grid_point_ijs
 from .utils.points import find_closest_point
 from .extra_roof_line.polygon_devision import PolygonDevision
 from .roof_layer_info import RoofLayerInfo
-
-
-class EdgeType(IntEnum):
-  """検査・補正結果
-  """
-  NORMAL = 0                    # エラーなし
-  TWISTED = 1                    # エラーなし
-  TRIANLGLE = 2                       # エラー有り
 
 
 class ModelEdgeHeightInfo:
@@ -258,13 +249,12 @@ class ModelEdgeHeightInfo:
     Returns:
       dict[tuple[int, int], tuple[float, float]]: X交差しているエッジの中間点までの距離率
     """
-    # To Do: 特殊なエッジの壁実装
     twisted_edge_middle_point_rate_pair: dict[tuple[int, int], tuple[float, float]] = {}
     for inner_polygon_sorted_edges in self._polygon_id_inner_polygon_sorted_edges_pair.values():
       for inner_polygon_sorted_edge in inner_polygon_sorted_edges:
-        edge_type, edge_top_bottom = self.get_edge_type(inner_polygon_sorted_edge)
-        if edge_type == EdgeType.TRIANLGLE and edge_top_bottom is not None:
-          (point1_z1, point1_z2), (point2_z1, point2_z2) = edge_top_bottom
+        twisted_edge = self.get_twisted_edge(inner_polygon_sorted_edge)
+        if twisted_edge is not None:
+          (point1_z1, point1_z2), (point2_z1, point2_z2) = twisted_edge
 
           height_z1 = abs(point1_z1 - point1_z2)
           height_z2 = abs(point2_z1 - point2_z2)
@@ -274,33 +264,23 @@ class ModelEdgeHeightInfo:
 
     return twisted_edge_middle_point_rate_pair
 
-  def get_edge_type(self, sorted_edge: tuple[int, int], edge_wall_threashold: int = 0.3):
+  def get_twisted_edge(self, sorted_edge: tuple[int, int]):
     """エッジが X交差しているか、三角壁か、一般エッジか確認
     ### X交差している
     - 交際条件１
       - 頂点１は、向こうの高さが低い、こっちの高さが高い
       - 頂点２は、こっちの高さが高い、向こうの高さが低い
-      - 両店で高低差は edge_wall_threashold 以上
     - 交際条件２
       - 頂点１は、向こうの高さが高い、こっちの高さが低い
       - 頂点２は、こっちの高さが低い、向こうの高さが高い
-      - 両店で高低差は edge_wall_threashold 以上
-
-    ### 三角壁
-    - 交際条件１
-      - 頂点１高低差だけ edge_wall_threashold 以上
-    - 交際条件２
-      - 頂点２高低差だけ edge_wall_threashold 以上
 
     ### その他全部：一般エッジ
 
     Args:
       sorted_edge (tuple[int, int]): エッジ
-      edge_wall_threashold (int): X交差と三角形壁判定に必要な最低高さ(基本値 0.3)
 
     Return:
-      EdgeType: エッジのタイプ（X交差、三角壁、普通）
-      tuple[tuple[float, float], tuple[float, float]]: エッジの二つ頂点でそれぞれ二つの高さ（壁の頂点の上と下の二つの高さ）
+      Union[tuple[tuple[float, float], tuple[float, float]], None]: エッジの二つ頂点でそれぞれ二つの高さ（壁の頂点の上と下の二つの高さ）
     """
 
     # 頂点１, 頂点２
@@ -309,7 +289,7 @@ class ModelEdgeHeightInfo:
     # エッジを共有しているポリゴンは二つ
     polygon_ids = self._polygon_sorted_edge_polygon_ids_pair[sorted_edge]
     if len(polygon_ids) != 2:
-      return EdgeType.NORMAL, None
+      return None
 
     polygon_id1, polygon_id2 = polygon_ids
     polygon_layer1 = self._polygon_layer_numbers[polygon_id1]
@@ -317,7 +297,7 @@ class ModelEdgeHeightInfo:
 
     # エッジの両方のポリゴンが必ず同じ屋根レイヤーの条件で発生
     if polygon_layer1 != polygon_layer2:
-      return EdgeType.NORMAL, None
+      return None
 
     # 頂点１のこっちの高さ
     point1_z1 = self._point_id_polygon_layer_zs_pair[point_id1][polygon_layer1][polygon_id1]
@@ -328,40 +308,22 @@ class ModelEdgeHeightInfo:
     # 頂点２の向こうの高さ
     point2_z2 = self._point_id_polygon_layer_zs_pair[point_id2][polygon_layer1][polygon_id2]
 
-    can_make_rectangle_wall = (abs(point1_z1 - point1_z2) > edge_wall_threashold) and (abs(point2_z1 - point2_z2) > edge_wall_threashold)
     # X交差している
     # - 交際条件１
     #   - 頂点１は、向こうの高さが低い、こっちの高さが高い
     #   - 頂点２は、こっちの高さが高い、向こうの高さが低い
-    #   - 高低差は edge_wall_threashold
-    twisted_pattern1 = (point1_z1 < point1_z2) and (point2_z1 > point2_z2) and can_make_rectangle_wall
+    twisted_pattern1 = (point1_z1 < point1_z2) and (point2_z1 > point2_z2)
 
     # X交差している
     # - 交際条件２
     #   - 頂点１は、向こうの高さが高い、こっちの高さが低い
     #   - 頂点２は、こっちの高さが低い、向こうの高さが高い
-    #   - 高低差は edge_wall_threashold
-    twisted_pattern2 = (point1_z1 > point1_z2) and (point2_z1 < point2_z2) and can_make_rectangle_wall
+    twisted_pattern2 = (point1_z1 > point1_z2) and (point2_z1 < point2_z2)
 
     if twisted_pattern1 or twisted_pattern2:
-      return EdgeType.TWISTED, ((point1_z1, point1_z2), (point2_z1, point2_z2))
+      return ((point1_z1, point1_z2), (point2_z1, point2_z2))
 
-    # 三角壁
-    # - 交際条件１
-    #   - 頂点１高低差だけ edge_wall_threashold 以上
-    # - 交際条件２
-    #   - 頂点２高低差だけ edge_wall_threashold 以上
-    point1_has_wall_heigth = (abs(point1_z1 - point1_z2) > edge_wall_threashold)
-    point2_has_wall_heigth = (abs(point2_z1 - point2_z2) > edge_wall_threashold)
-    can_make_traignle_wall = (
-        (point1_has_wall_heigth and not point2_has_wall_heigth)
-        or (not point1_has_wall_heigth and point2_has_wall_heigth)
-    )
-
-    if can_make_traignle_wall:
-      return EdgeType.TRIANLGLE, None
-
-    return EdgeType.NORMAL, None
+    return None
 
   def _get_balcony_z(self, polygon_id: int):
     balcony_polygon = self._inner_polygons[polygon_id]

@@ -120,9 +120,9 @@ class MainManager:
         if result_info.status != StatusType.ERROR:
           self._check_solid(mesh, result_info, build)
 
-        # # 非平面検査/三角形分割
-        # if result_info.status != StatusType.ERROR:
-        #   self._check_non_plane(obj_info, result_info, build)
+        # 非平面検査/三角形分割
+        if result_info.status != StatusType.ERROR:
+          self._check_non_plane(obj_info, result_info, build)
 
         # 面積 0 ポリゴン検査
         if result_info.status != StatusType.ERROR:
@@ -237,10 +237,9 @@ class MainManager:
         if ret is TestResultType.AUTO_CORRECTED:
           # エラーあり、自動補正済み
           logging.debug('error occured')
-          result_info.add_err(ErrorType.DOUBLE_POINT,
-                              check_face.err_list)
+          result_info.add_err(ErrorType.DOUBLE_POINT, check_face.err_list)
           result_info.status = StatusType.AUTO_CORRECTED
-          print("_check_double_point AUTO_CORRECTED")
+          # print("_check_double_point AUTO_CORRECTED")
         elif ret is TestResultType.AUTO_CORRECTION_FAILURE:
           # 自動補正失敗
           result_info.status = StatusType.ERROR
@@ -264,12 +263,10 @@ class MainManager:
     build.intersection = ProcessResult.SUCCESS
     for f_value in obj_info.faces_list.values():
       for face in f_value.faces:
-        check_face = CheckFace(obj_info, face,
-                               self._param_manager)
+        check_face = CheckFace(obj_info, face, self._param_manager)
         if not check_face.check_intersection():
           # エラーあり
-          result_info.add_err(ErrorType.SELF_INTERSECTION,
-                              check_face.err_list)
+          result_info.add_err(ErrorType.SELF_INTERSECTION, check_face.err_list)
           result_info.status = StatusType.ERROR
           build.intersection = ProcessResult.ERROR
           print("_check_intersection ERROR")
@@ -291,8 +288,7 @@ class MainManager:
     check_faces = CheckFaces(obj_info, self._param_manager)
     if not check_faces.check_face_intersection():
       # エラーあり
-      result_info.add_err(ErrorType.FACE_INTERSECTION,
-                          check_faces.err_list)
+      result_info.add_err(ErrorType.FACE_INTERSECTION, check_faces.err_list)
       result_info.status = StatusType.ERROR
       build.face_intersection = ProcessResult.ERROR
       print("_check_face_intersection ERROR")
@@ -320,7 +316,7 @@ class MainManager:
           # エラーあり、自動補正済み
           result_info.add_err(ErrorType.NON_PLANE, check_face.err_list)
           result_info.status = StatusType.AUTO_CORRECTED
-          print("_check_non_plane AUTO_CORRECTED")
+          # print("_check_non_plane AUTO_CORRECTED")
         elif ret is TestResultType.AUTO_CORRECTION_FAILURE:
           # 自動補正失敗
           result_info.status = StatusType.ERROR
@@ -355,7 +351,7 @@ class MainManager:
           for face in remove_face_list:
             obj_info.remove_face(f_key, face)
           result_info.status = StatusType.AUTO_CORRECTED
-          print("_check_zero_area AUTO_CORRECTED")
+          # print("_check_zero_area AUTO_CORRECTED")
         except Exception:
           # 予期せぬエラーが発生して、補正処理が失敗
           result_info.status = StatusType.ERROR
@@ -378,3 +374,4 @@ class MainManager:
     if not mesh.is_watertight:
       result_info.status = StatusType.ERROR
       build.solid = ProcessResult.ERROR
+      print("_check_solid ERROR")

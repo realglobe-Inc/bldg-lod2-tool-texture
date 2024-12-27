@@ -1,7 +1,6 @@
 from collections import defaultdict
 import copy
 from dataclasses import dataclass
-import itertools
 import os
 from pathlib import Path
 from typing import Union
@@ -17,8 +16,6 @@ from ...util.objinfo import BldElementType, ObjInfo
 from .utils.polys import ensure_counter_clockwise, validate_polygon_ijs_list
 from .model_surface_creation.utils.triangulation import Triangle, triangulate
 from .custom_itertools import pairwise
-from .model_surface_creation.utils.geometry_3d import get_angle_degree_3d
-from .model_surface_creation.utils.disjoint_set_union import DisjointSetUnion
 from .roof_layer_info import RoofLayerInfo
 from .model_edge_height_info import ModelEdgeHeightInfo
 
@@ -115,9 +112,6 @@ class HouseModel:
 
     # 床面を作る
     self._create_ground_face()
-
-    # 屋根面の単純化
-    self._simplify(threshold=5)
 
     # 壁面非水密エラー修正
     self._rectify()
@@ -399,103 +393,6 @@ class HouseModel:
 
     return polygon_id_triangles_pair
 
-  def _simplify(self, threshold: float):
-    """屋根面の単純化
-
-    同じ角度の隣接した面を一つにまとめる
-
-    Args:
-      threshold: 同じ角度と判定する閾値 (degree)
-    """
-
-    num_of_faces = len(self._faces)
-    dsu = DisjointSetUnion(num_of_faces)
-
-    # 面毎に法線を求める
-    normals: list[npt.NDArray[np.float_]] = []
-    for face in self._faces:
-      normal = np.zeros(3, dtype=np.float_)
-      a = face.points[0].position_id_3d
-      for b, c in face.edges_3d():
-        normal += np.cross(self._points[b] - self._points[a],
-                           self._points[c] - self._points[a])
-
-      normals.append(normal / np.linalg.norm(normal))
-
-    # 統合しない面の組を列挙する
-    rules: list[tuple[int, int]] = []
-    for i, j in itertools.combinations(range(num_of_faces), 2):
-      face_i = self._faces[i]
-      face_j = self._faces[j]
-
-      # 位置が同じで、出現順が異なる点を持つ2面は統合しない
-      for point_i, point_j in itertools.product(face_i.points, face_j.points):
-        if point_i.position_id_2d == point_j.position_id_2d and point_i.order_id != point_j.order_id:
-          rules.append((i, j))
-
-    # 同じ向きの隣り合った面を繋げる
-    for i, j in itertools.combinations(range(num_of_faces), 2):
-      face_i = self._faces[i]
-      face_j = self._faces[j]
-
-      # 面のタイプが異なる場合は除く
-      if face_i.type != face_j.type:
-        continue
-
-      # 辺を列挙する (ただし片方の辺の向きは逆転させる)
-      edges_i = set(face_i.edges_3d())
-      edges_j = set([(b, a) for a, b in face_j.edges_3d()])
-
-      # 辺を共有していない場合は除く
-      intersection = set(edges_i) & set(edges_j)
-      if len(intersection) == 0:
-        continue
-
-      # 統合しないペアが統合されないか調べる
-      permitted = True
-      for a, b in rules:
-        # rootの組が一致する場合は、統合した場合に、不許可のペアが統合される
-        if {dsu.root(i), dsu.root(j)} == {dsu.root(a), dsu.root(b)}:
-          permitted = False
-          break
-      if not permitted:
-        continue
-
-      if get_angle_degree_3d(normals[i], normals[j]) < threshold:
-        dsu.unite(i, j)
-
-    groups = dsu.groups()
-
-    simplified_faces: list[ModelFace] = []
-
-    # 繋げた面毎に外形線を求める
-    # 異なる向きの同じ辺をペアとして消すと、残った辺が外形線になる
-    for group in groups:
-      # 回転方向を維持するため、元と同じ順で格納する
-      unique_edges: set[tuple[int, int]] = set()
-
-      for face_id in group:
-        face = self._faces[face_id]
-
-        for a, b in face.edges_3d():
-          if (b, a) in unique_edges:
-            unique_edges.remove((b, a))
-          else:
-            unique_edges.add((a, b))
-
-      # assert len(unique_edges) >= 3
-
-      outer = self._to_polygon(list(unique_edges))
-
-      simplified_faces.append(ModelFace(
-          [ModelPoint(-1, position_id_3d, -1)
-           for position_id_3d in outer],
-          self._faces[group[0]].type,
-          self._faces[group[0]].group_id,
-      ))
-
-    self._faces = simplified_faces
-
   def _rectify(self):
     """1) 連続点削除
        2) ソリッド非水密エラー修正
@@ -514,7 +411,7 @@ class HouseModel:
         dist1 = np.linalg.norm(point - v0)
         dist2 = np.linalg.norm(point - v1)
         dist3 = np.linalg.norm(v0 - v1)
-        if dist1 + dist2 - dist3 < 1e-03:
+        if dist1 + dist2 - dist3 < 1e-06:
           return i
       return -1
 

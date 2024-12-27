@@ -1,7 +1,6 @@
 from collections import defaultdict
 import os
 from pathlib import Path
-import traceback
 import numpy as np
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
