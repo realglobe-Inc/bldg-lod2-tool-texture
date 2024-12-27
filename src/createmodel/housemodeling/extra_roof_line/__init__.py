@@ -84,7 +84,7 @@ class ExtraRoofLine:
     """
     self._id = id
     self._shape = shape
-    self._inner_polygon_ijs_list_before = [
+    self._inner_polygon_ijs_list_before: list[list[tuple[float, float]]] = [
         ensure_counter_clockwise(inner_polygon_ijs) for inner_polygon_ijs in inner_polygon_ijs_list_before
     ]
     self._roof_layer_info = roof_layer_info
@@ -107,7 +107,7 @@ class ExtraRoofLine:
       )
     except Exception as e:
       print(f"To Do: 屋根ポリゴン分割のバグ修正({e})")
-      traceback.print_exc()
+      # traceback.print_exc()
       self._inner_polygon_ijs_list_after = self._inner_polygon_ijs_list_before
 
     validate_polygon_ijs_list(self._inner_polygon_ijs_list_after)
@@ -205,7 +205,7 @@ class ExtraRoofLine:
           dsm_grid_rgbs_of_roof_line_with_layer_class_to_be[i, j] = self._roof_layer_info.get_color(majority_layer_number)
 
     self._roof_layer_info.save_roof_line_image(
-        self._roof_layer_info.dsm_grid_rgbs,
+        self._roof_layer_info.masked_dsm_grid_rgbs,
         polygon_edges_for_debug_image,
         file_name_1,
     )
@@ -447,7 +447,7 @@ class ExtraRoofLine:
     # xy 座標と ij 座標の間隔比率
     x_width = x_max - x_min
     y_height = y_max - y_min
-    j_height, i_width = self._roof_layer_info.dsm_grid_rgbs.shape[:2]
+    j_height, i_width = self._roof_layer_info.masked_dsm_grid_rgbs.shape[:2]
     x_width_per_i_width = x_width / i_width
     y_height_per_j_height = y_height / j_height
 

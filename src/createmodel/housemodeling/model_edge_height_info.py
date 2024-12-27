@@ -2,6 +2,9 @@ from collections import defaultdict
 from enum import IntEnum
 import statistics
 
+from shapely.geometry import Polygon
+
+from .utils.polys import get_grid_point_ijs
 from .utils.points import find_closest_point
 from .extra_roof_line.polygon_devision import PolygonDevision
 from .roof_layer_info import RoofLayerInfo
@@ -42,6 +45,7 @@ class ModelEdgeHeightInfo:
       roof_polygon_vertex_ijs: list[tuple[float, float]] = [],
       inner_polygons: list[list[int]] = [],
       outer_polygon: list[int] = [],
+      polygon_balcony_flags: list[bool] = [],
       ground_height: float = 0,
   ):
     """コンストラクタ
@@ -56,7 +60,11 @@ class ModelEdgeHeightInfo:
     self._roof_polygon_vertex_ijs = roof_polygon_vertex_ijs
     self._inner_polygons = inner_polygons
     self._outer_polygon = outer_polygon
+    self._polygon_balcony_flags = polygon_balcony_flags
     self._ground_height = ground_height
+
+    # 屋根の最低高さ
+    self._min_roof_height = self._ground_height + 0.1
 
     # ポリゴンの屋根階層クラス分析図のリスト
     self._layer_number_point_ijs_pairs = self._get_layer_number_point_ijs_pairs()
@@ -89,10 +97,10 @@ class ModelEdgeHeightInfo:
     self._polygon_zs_list = self._get_polygon_zs_list()
 
   def _get_layer_number_point_ijs_pairs(self):
-    """ポリゴン毎にポリゴン内部領域に入っている頂点(i,j)がどの屋根レイヤーを出す
+    """ポリゴン毎にポリゴン内部領域に入っている頂点(i,j)の屋根レイヤーを出す
 
     Return:
-      list[dict[int, list[tuple[float, float]]]]: ポリゴン毎にポリゴン内部領域に入っている頂点(i,j)の屋根レイヤーを出したもの
+      list[dict[int, list[tuple[float, float]]]]: ポリゴン毎のポリゴン内部領域に入っている頂点(i,j)の屋根レイヤー
     """
 
     layer_number_point_ijs_pairs: list[dict[int, list[tuple[float, float]]]] = []
@@ -136,16 +144,21 @@ class ModelEdgeHeightInfo:
       layer_number_point_ijs_pair = self._layer_number_point_ijs_pairs[polygon_id]
       avaliable_polygon_ijs = layer_number_point_ijs_pair[polygon_layer_number]
       for point_id in inner_polygon:
-        # 頂点と一番近い頂点をの座標(i,j)をポリゴン内部から検索
-        point_ij = self._roof_polygon_vertex_ijs[point_id]
-        nearest_layer_number_point_ij = find_closest_point(point_ij, avaliable_polygon_ijs)
-        # ポリゴンの頂点での壁の高さを取得
-        nearest_z = self._roof_layer_info.ij_to_z(*nearest_layer_number_point_ij)
-        # 高さが取得できてなくて nearest_z が 0 の場合、地面高さ + 0.1 とする。
-        min_roof_height = self._ground_height + 0.1
-        point_z = max(nearest_z, min_roof_height)
-        # 頂点(i,j)周辺の高さを保存(屋根レイヤー毎に)
-        point_id_polygon_layer_zs_pair[point_id][polygon_layer_number][polygon_id] = point_z
+        is_balcony_polygon = self._polygon_balcony_flags[polygon_id]
+        if is_balcony_polygon:
+          # バルコニーポリゴンの場合、バルコニーポリゴンの内部のDSM点群の一番小さい高さにする
+          balcony_z = self._get_balcony_z(polygon_id) if is_balcony_polygon else self._min_roof_height
+          point_id_polygon_layer_zs_pair[point_id][polygon_layer_number][polygon_id] = balcony_z
+        else:
+          # 頂点と一番近い頂点をの座標(i,j)をポリゴン内部から検索
+          point_ij = self._roof_polygon_vertex_ijs[point_id]
+          nearest_layer_number_point_ij = find_closest_point(point_ij, avaliable_polygon_ijs)
+          # ポリゴンの頂点での壁の高さを取得
+          nearest_z = self._roof_layer_info.ij_to_z(*nearest_layer_number_point_ij)
+          # 高さが取得できてなくて nearest_z が 0 の場合、地面高さ + 0.1 とする。
+          point_z = max(nearest_z, self._min_roof_height)
+          # 頂点(i,j)周辺の高さを保存(屋根レイヤー毎に)
+          point_id_polygon_layer_zs_pair[point_id][polygon_layer_number][polygon_id] = point_z
 
     return point_id_polygon_layer_zs_pair
 
@@ -349,3 +362,20 @@ class ModelEdgeHeightInfo:
       return EdgeType.TRIANLGLE, None
 
     return EdgeType.NORMAL, None
+
+  def _get_balcony_z(self, polygon_id: int):
+    balcony_polygon = self._inner_polygons[polygon_id]
+    balcony_polygon_ijs = [
+        self._roof_polygon_vertex_ijs[point_id] for point_id in balcony_polygon
+    ]
+    balcony_poly = Polygon(balcony_polygon_ijs)
+
+    grid_point_ijs = get_grid_point_ijs(balcony_poly)
+    grid_point_zs = [
+        self._roof_layer_info.ij_to_z(*grid_point_ij) for grid_point_ij in grid_point_ijs
+    ]
+    min_grid_point_z = min(grid_point_zs)
+    # 高さが取得できてなくて min_grid_point_z が 0 の場合、地面高さ + 0.1 とする。
+    balcony_z = max(min_grid_point_z, self._min_roof_height)
+
+    return balcony_z

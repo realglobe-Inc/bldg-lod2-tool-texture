@@ -103,6 +103,7 @@ class HouseModel:
         roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
         inner_polygons=inner_polygons,
         outer_polygon=outer_polygon,
+        polygon_balcony_flags=self._polygon_balcony_flags,
         ground_height=self._ground_height,
     )
 

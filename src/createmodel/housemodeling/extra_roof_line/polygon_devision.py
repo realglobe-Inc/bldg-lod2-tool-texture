@@ -133,11 +133,12 @@ class PolygonDevision:
 
     # 共通部ポリゴンリスト = 分割対象ポリゴン ∩ DSM屋根レイヤーポリゴン
     intersection_polygon_ijs_list: list[list[tuple[float, float]]] = []
+    layer_number_layer_area_polygon_ijs_list_pair = self._roof_layer_info.get_layer_number_layer_area_polygon_ijs_list_pair()
     for layer_number in self._layer_number_grid_ijs_pair.keys():
       if layer_number < 0:
         continue
 
-      layer_area_polygon_ijs_list = self._roof_layer_info.layer_number_layer_area_polygon_ijs_list_pair[layer_number]
+      layer_area_polygon_ijs_list = layer_number_layer_area_polygon_ijs_list_pair[layer_number]
 
       # 領域（[self._origin_polygon_ijs]）と（layer_area_polygon_ijs_list）の共通部ポリゴン取得
       layer_area_intersection_polygon_ijs_list = self._get_intersection_polygon_ijs_list(
@@ -305,7 +306,7 @@ class PolygonDevision:
       list[Polygon]: 交差している領域のポリゴンリスト
     """
 
-    height, width = self._roof_layer_info.dsm_grid_rgbs.shape[:2]
+    height, width = self._roof_layer_info.masked_dsm_grid_rgbs.shape[:2]
     image_layer_splited_polygons_image = np.full((height, width, 3), 255, dtype=np.uint8)
 
     # ポリゴンのエッジ
@@ -394,7 +395,7 @@ class PolygonDevision:
       dict[int, list[tuple[float, float]]]: レイヤー番号とそのポイント(i, j)のペアを含む辞書
     """
 
-    height, width = roof_layer_info.dsm_grid_rgbs.shape[:2]
+    height, width = roof_layer_info.masked_dsm_grid_rgbs.shape[:2]
     poly = Polygon(origin_polygon_ijs)
     layer_number_grid_ijs_pair: dict[int, list[tuple[float, float]]] = defaultdict(list)
     for i in range(height):

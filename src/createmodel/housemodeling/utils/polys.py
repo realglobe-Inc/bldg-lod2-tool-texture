@@ -2,7 +2,7 @@ from collections import defaultdict
 import itertools
 from typing import Union
 
-from shapely.geometry import Polygon, GeometryCollection
+from shapely.geometry import Polygon, GeometryCollection, Point as GeoPoint
 from shapely.ops import unary_union
 import numpy as np
 
@@ -222,3 +222,22 @@ def ensure_counter_clockwise(polygon_xyzs: list[Union[tuple[float, float, float]
     return polygon_xyzs[::-1]
 
   return polygon_xyzs
+
+
+def get_grid_point_ijs(poly: Polygon):
+  """ポリゴン内部に含まれる整数座標を探す
+
+  Args:
+    poly (Polygon): ポリゴン
+
+  Returns:
+    list[tuple[int, int]]: ポリゴン内部に含まれる整数座標
+  """
+  poly_min_i, poly_min_j, poly_max_i, poly_max_j = poly.bounds
+  grid_point_ijs: list[tuple[int, int]] = []
+  for i in range(int(poly_min_i), int(poly_max_i) + 1):
+    for j in range(int(poly_min_j), int(poly_max_j) + 1):
+      if poly.contains(GeoPoint(i, j)):  # 点がポリゴン内にあるかを判定
+        grid_point_ijs.append((i, j))
+
+  return grid_point_ijs

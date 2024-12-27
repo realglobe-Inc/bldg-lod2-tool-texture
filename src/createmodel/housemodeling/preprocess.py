@@ -93,29 +93,29 @@ class Preprocess:
     inds = nn.kneighbors(xy, return_distance=False)[:, 0]
 
     origin_dsm_grid_xyzs = pc_xyz[inds]
-    dsm_grid_xyzs = pc_xyz[inds]
-    dsm_grid_rgbs = pc_rgb[inds] / 256
+    masked_dsm_grid_xyzs = pc_xyz[inds]
+    masked_dsm_grid_rgbs = pc_rgb[inds] / 256
 
     lower, upper = ground_height - 5, ground_height + 25
-    depth_image = (np.clip(pc_xyz[:, 2][inds], lower, upper) - lower) / (upper - lower) * 255
+    masked_depth_image = (np.clip(pc_xyz[:, 2][inds], lower, upper) - lower) / (upper - lower) * 255
 
     for i, (x, y) in enumerate(xy):
       p = Point(x, y)
       if not footprint.contains(p):
-        dsm_grid_xyzs[i] = 0
-        dsm_grid_rgbs[i] = 255
-        depth_image[i] = 255
+        masked_dsm_grid_xyzs[i] = 0
+        masked_dsm_grid_rgbs[i] = 255
+        masked_depth_image[i] = 255
 
     origin_dsm_grid_xyzs = origin_dsm_grid_xyzs.reshape(height, width, 3).astype(np.float_)
-    dsm_grid_xyzs = dsm_grid_xyzs.reshape(height, width, 3).astype(np.float_)
-    dsm_grid_rgbs = dsm_grid_rgbs.reshape(height, width, 3).astype(np.uint8)
-    depth_image = depth_image.reshape(height, width).astype(np.uint8)
+    masked_dsm_grid_xyzs = masked_dsm_grid_xyzs.reshape(height, width, 3).astype(np.float_)
+    masked_dsm_grid_rgbs = masked_dsm_grid_rgbs.reshape(height, width, 3).astype(np.uint8)
+    masked_depth_image = masked_depth_image.reshape(height, width).astype(np.uint8)
 
     debug_dir = os.path.join('debug', self._building_id)
     roof_layer_info = RoofLayerInfo(
         origin_dsm_grid_xyzs=origin_dsm_grid_xyzs,
-        dsm_grid_xyzs=dsm_grid_xyzs,
-        dsm_grid_rgbs=dsm_grid_rgbs,
+        masked_dsm_grid_xyzs=masked_dsm_grid_xyzs,
+        masked_dsm_grid_rgbs=masked_dsm_grid_rgbs,
         debug_dir=debug_dir,
         debug_mode=debug_mode,
     )
@@ -123,21 +123,23 @@ class Preprocess:
     # 画像を拡大
     if self._expand_rate != 1:
       expanded_size = (round(width * self._expand_rate), round(height * self._expand_rate))
-      dsm_grid_rgbs = np.array(Image.fromarray(dsm_grid_rgbs).resize(expanded_size), dtype=np.uint8)
-      depth_image = np.array(
-          Image.fromarray(depth_image, 'L').resize(expanded_size), dtype=np.uint8
-      )
-
-      width, height = expanded_size
+      heat_dsm_grid_rgbs = np.array(Image.fromarray(masked_dsm_grid_rgbs).resize(expanded_size), dtype=np.uint8)
+      heat_depth_image = np.array(Image.fromarray(masked_depth_image, 'L').resize(expanded_size), dtype=np.uint8)
+      expanded_width, expanded_height = expanded_size
+    else:
+      heat_dsm_grid_rgbs = masked_dsm_grid_rgbs
+      heat_depth_image = masked_depth_image
+      expanded_width = width
+      expanded_width = height
 
     # モデル入力用の正方形画像に変換(余白は白で埋める)
-    square_dsm_grid_rgbs = np.full((self._image_size, self._image_size, 3), 255, dtype=np.uint8)
-    square_depth_image = np.full((self._image_size, self._image_size), 255, dtype=np.uint8)
+    square_heat_dsm_grid_rgbs = np.full((self._image_size, self._image_size, 3), 255, dtype=np.uint8)
+    square_heat_depth_image = np.full((self._image_size, self._image_size), 255, dtype=np.uint8)
 
-    top = (self._image_size - height) // 2
-    left = (self._image_size - width) // 2
+    top = (self._image_size - expanded_height) // 2
+    left = (self._image_size - expanded_width) // 2
 
-    square_dsm_grid_rgbs[top:top + height, left:left + width] = dsm_grid_rgbs
-    square_depth_image[top:top + height, left:left + width] = depth_image
+    square_heat_dsm_grid_rgbs[top:top + expanded_height, left:left + expanded_width] = heat_dsm_grid_rgbs
+    square_heat_depth_image[top:top + expanded_height, left:left + expanded_width] = heat_depth_image
 
-    return square_dsm_grid_rgbs, square_depth_image, roof_layer_info
+    return square_heat_dsm_grid_rgbs, square_heat_depth_image, roof_layer_info

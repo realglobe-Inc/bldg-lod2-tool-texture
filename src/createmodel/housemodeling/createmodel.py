@@ -68,8 +68,11 @@ class CreateHouseModel:
 
     # 作成に使用するためのデータを作成
     preprocess = Preprocess(grid_size=grid_size, image_size=self._image_size, expand_rate=expand_rate, building_id=building_id)
-    result_preprocess = preprocess.preprocess(self._cloud, min_ground_height, shape, debug_mode)
-    self._square_dsm_grid_rgbs, self._depth_image, self._roof_layer_info = result_preprocess
+    (
+        self._square_dsm_grid_rgbs,
+        self._depth_image,
+        self._roof_layer_info,
+    ) = preprocess.preprocess(self._cloud, min_ground_height, shape, debug_mode)
 
     self._coord_converter_for_heat_image = self._get_coord_converter_for_heat_image()
     roof_edge_detection = RoofEdgeDetection(self._roof_edge_detection_checkpoint_path, self._use_gpu)
@@ -97,23 +100,32 @@ class CreateHouseModel:
 
     # HEATのポリゴンが不完全な場合、ポリゴン分割
     (
-        roof_polygon_vertex_xy_points, roof_polygon_vertex_ijs, outer_polygon, inner_polygons,
-    ) = self._might_get_extra_roof_line(
+        roof_polygon_vertex_xy_points,
+        roof_polygon_vertex_ijs,
+        outer_polygon,
+        inner_polygons,
+    ) = self._patch_for_heat_polygon(
         tmp_roof_polygon_vertex_xy_points, tmp_outer_polygon, tmp_inner_polygons,
     )
 
     # ポリゴンがバルコニーか
     polygon_balcony_flags = self._get_polygon_balcony_flags(roof_polygon_vertex_xy_points, inner_polygons)
 
+    # バルコニーの屋根レイヤーを追加
+    balcony_polygon_ijs_list = self._get_balcony_polygon_ijs_list(
+        polygon_balcony_flags, roof_polygon_vertex_ijs, inner_polygons,
+    )
+    self._roof_layer_info.add_balcony_layers(balcony_polygon_ijs_list)
+
+    # To Do : 中間点の追加(重要度🔽)
     model_edge_height_info = ModelEdgeHeightInfo(
         roof_layer_info=self._roof_layer_info,
         roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
         inner_polygons=inner_polygons,
         outer_polygon=outer_polygon,
+        polygon_balcony_flags=polygon_balcony_flags,
         ground_height=self._ground_height,
     )
-
-    # To Do : 中間点の追加(重要度🔽)
     twisted_edge_middle_point_rate_pair = model_edge_height_info.get_twisted_edge_middle_point_rate_pair()
 
     self._create_model(
@@ -152,13 +164,14 @@ class CreateHouseModel:
       roof_polygon_vertex_xy_points: list[Point],
       inner_polygons: list[list[int]],
   ):
-    """
+    """バルコニー領域を検出
+
     Args:
       roof_polygon_vertex_xy_points (list[Point]): 頂点のリスト
       inner_polygons (lit[list[int]]): 内部ポリゴンの頂点番号リスト
 
     Return:
-      list[bool]: ポリゴンのバルコニーフラグ
+      list[bool]: ポリゴンのバルコニーの場合 true
     """
 
     # 平面直角座標から画像座標への変換
@@ -178,6 +191,31 @@ class CreateHouseModel:
     )
 
     return balcony_flags
+
+  def _get_balcony_polygon_ijs_list(
+      self,
+      polygon_balcony_flags: list[bool],
+      roof_polygon_vertex_ijs: list[tuple[float, float]],
+      inner_polygons: list[int],
+  ):
+    """バルコニポリゴンの頂点リスト(i,j)を取得
+
+    Args:
+      polygon_balcony_flags (list[bool]): ポリゴンがバルコニーか
+      roof_polygon_vertex_ijs (list[tuple[float, float]]): 屋根面頂点の2次元座標(i,j)
+      inner_polygons (list[int]): 内部ポリゴンの頂点番号リスト
+
+    Returns:
+      list[list[tuple[float, float]]]: バルコニポリゴンの頂点リスト(i,j)
+    """
+    balcony_polygon_ijs_list: list[list[tuple[float, float]]] = []
+    for polygon_id, polygon_balcony_flag in enumerate(polygon_balcony_flags):
+      if polygon_balcony_flag:
+        balcony_polygon = inner_polygons[polygon_id]
+        balcony_polygon_ijs = [roof_polygon_vertex_ijs[point_id] for point_id in balcony_polygon]
+        balcony_polygon_ijs_list.append(balcony_polygon_ijs)
+
+    return balcony_polygon_ijs_list
 
   def _create_model(
       self,
@@ -210,28 +248,6 @@ class CreateHouseModel:
       debug_obj_path = os.path.join(debug_dir, file_name)
       model.output_obj(path=debug_obj_path)
 
-  def _get_delta_i_average_and_delta_j_average(
-      self,
-      tmp_roof_polygon_vertex_xy_points: list[Point],
-  ):
-    tmp_roof_polygon_vertex_from_heat_ijs: list[tuple[float, float]] = []
-    delta_i_sum = 0
-    delta_j_sum = 0
-    for point in tmp_roof_polygon_vertex_xy_points:
-      nearest_x, nearest_y = self._roof_layer_info.find_nearest_xy(point.x, point.y)
-      nearest_i, nearest_j = self._roof_layer_info.xy_to_ij(nearest_x, nearest_y)
-
-      left, upper = self._roof_layer_info.origin_dsm_grid_xyzs[0, 0][:2]
-      heat_vertex_i = (upper - point.y) / self._grid_size
-      heat_vertex_j = (point.x - left) / self._grid_size
-      tmp_roof_polygon_vertex_from_heat_ijs.append((heat_vertex_i, heat_vertex_j))
-      delta_i_sum += (heat_vertex_i - nearest_i)
-      delta_j_sum += (heat_vertex_j - nearest_j)
-
-    delta_i_average = delta_i_sum / len(tmp_roof_polygon_vertex_from_heat_ijs)
-    delta_j_average = delta_j_sum / len(tmp_roof_polygon_vertex_from_heat_ijs)
-    return (delta_i_average, delta_j_average, tmp_roof_polygon_vertex_from_heat_ijs)
-
   def _xy_to_ij(self, xy: tuple[float, float]) -> tuple[float, float]:
     """
     xy 座標(DSM 座標)を ij 座標(画像の Pixel 座標)に変換
@@ -254,7 +270,7 @@ class CreateHouseModel:
     # xy 座標と ij 座標の間隔比率
     x_width = x_max - x_min
     y_height = y_max - y_min
-    j_height, i_width = self._roof_layer_info.dsm_grid_rgbs.shape[:2]
+    j_height, i_width = self._roof_layer_info.masked_dsm_grid_rgbs.shape[:2]
     x_width_per_i_width = x_width / i_width
     y_height_per_j_height = y_height / j_height
 
@@ -284,13 +300,14 @@ class CreateHouseModel:
 
     return fixed_roof_polygon_vertex_ijs
 
-  def _might_get_extra_roof_line(
+  def _patch_for_heat_polygon(
       self,
       tmp_roof_polygon_vertex_xy_points: list[Point],
       tmp_outer_polygon: list[int],
       tmp_inner_polygons: list[list[int]],
   ):
-    """
+    """不完全なHEATの屋根ポリゴンのパッチ
+
     Args:
       tmp_roof_polygon_vertex_xy_points (list[Point]): 頂点のリスト
       tmp_outer_polygon (list[int]): 外周ポリゴンの頂点番号リスト

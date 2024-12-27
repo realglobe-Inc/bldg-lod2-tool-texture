@@ -1,17 +1,17 @@
 import itertools
-import math
 import os
 from pathlib import Path
 from collections import defaultdict, deque
+from typing import Union
 
+from PIL import Image
 import numpy as np
 import numpy.typing as npt
-from PIL import Image
 import cv2
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
-from src.createmodel.housemodeling.utils.polys import get_polygon_ijs_list
+from src.createmodel.housemodeling.utils.polys import get_grid_point_ijs, get_polygon_ijs_list
 
 
 class RoofLayerInfo:
@@ -34,7 +34,7 @@ class RoofLayerInfo:
   }
 
   @property
-  def dsm_grid_rgbs(self):
+  def masked_dsm_grid_rgbs(self):
     """
     DSM点群のRGB画像
 
@@ -42,7 +42,7 @@ class RoofLayerInfo:
       npt.NDArray[np.float_]: DSM点群のRGB画像
     """
 
-    return self._dsm_grid_rgbs
+    return self._masked_dsm_grid_rgbs
 
   @property
   def origin_dsm_grid_xyzs(self):
@@ -80,10 +80,10 @@ class RoofLayerInfo:
   @property
   def layer_number_layer_area_polygon_ijs_list_pair(self):
     """
-    クラスタリングされたレイヤー番号に対応するレイヤーのポリゴンリスト
+    屋根レイヤーの外形ポリゴンの頂点
 
     Returns:
-      dict[int, list[list[tuple[int, int]]]]: クラスタリングされたレイヤー番号に対応するレイヤーのポリゴンリスト
+      dict[int, list[list[tuple[int, int]]]]: 屋根レイヤーの外形ポリゴンの頂点
     """
 
     return self._layer_number_layer_area_polygon_ijs_list_pair
@@ -111,8 +111,8 @@ class RoofLayerInfo:
   def __init__(
       self,
       origin_dsm_grid_xyzs: npt.NDArray[np.float_],
-      dsm_grid_xyzs: npt.NDArray[np.float_],
-      dsm_grid_rgbs: npt.NDArray[np.int_],
+      masked_dsm_grid_xyzs: npt.NDArray[np.float_],
+      masked_dsm_grid_rgbs: npt.NDArray[np.int_],
       debug_dir: str,
       debug_mode: bool = False,
   ):
@@ -120,28 +120,29 @@ class RoofLayerInfo:
     屋根線をイメージとして保存（デバッグ用）
 
     Args:
-      origin_dsm_grid_xyzs (npt.NDArray[np.uint8]): DSM点群のRGB画像(i,j)のxyz座標
-      dsm_grid_xyzs (npt.NDArray[np.uint8]): DSM点群のRGB画像(i,j)のxyz座標
-      dsm_grid_rgbs (npt.NDArray[np.uint8]): DSM点群のRGB画像
+      origin_dsm_grid_xyzs (npt.NDArray[np.uint8]): DSM点群のRGB画像(i,j)のxyz座標(建築物領域以外も高さあり : 3D高さ検出用)
+      masked_dsm_grid_xyzs (npt.NDArray[np.uint8]): DSM点群のRGB画像(i,j)のxyz座標(建築物領域以外は高さ0 : 壁検出用)
+      masked_dsm_grid_rgbs (npt.NDArray[np.int_]): DSM点群のRGB画像(建築物領域以外は白色)
       debug_dir (str): 記録するファイル名
       debug_mode (bool): デバッグモード
     """
 
     self._origin_dsm_grid_xyzs = origin_dsm_grid_xyzs.copy()
-    self._dsm_grid_rgbs = dsm_grid_rgbs.copy()
-    self._dsm_grid_xyzs = dsm_grid_xyzs
+    self._masked_dsm_grid_xyzs = masked_dsm_grid_xyzs.copy()
+    self._masked_dsm_grid_rgbs = masked_dsm_grid_rgbs.copy()
     self._debug_mode = debug_mode
     self._debug_dir = debug_dir
-    self._height, self._width = dsm_grid_xyzs.shape[:2]
+    self._height, self._width = masked_dsm_grid_xyzs.shape[:2]
     self._layer_class = np.full((self._height, self._width), RoofLayerInfo.NO_POINT, dtype=np.int_)
     self._layer_class_length = 0
 
     self._color_palette = self.get_color_palette(RoofLayerInfo.RESERVED_COLOR.values())
-    self._wall_point_positions = self._get_wall_point_positions(self._dsm_grid_xyzs)
-    self._xy_ij = self._get_xy_ij_pair(self._dsm_grid_xyzs)
+    self._wall_point_positions = self._get_wall_point_positions()
+    self._xy_ij = self._get_xy_ij_pair()
     self._init_layer_class()
     self._detect_and_mark_noise()
-    self._init_layer_number_outline_ij_pair(self._layer_class)
+    self.get_layer_number_layer_area_polygon_ijs_list_pair()
+
     if self._debug_mode:
       Path(self._debug_dir).mkdir(parents=True, exist_ok=True)
 
@@ -149,52 +150,47 @@ class RoofLayerInfo:
       self._save_image_wall_line(self.wall_point_positions)
       self.save_layer_image(self._layer_class)
 
-  def find_nearest_xy(self, search_x: float, search_y: float):
-    """
-    点群画像の xy座標基準、一番近い点の(x,y)を返す
-
-    Args:
-      search_x (float): 選択した任意の点の x
-      search_y (float): 選択した任意の点の y
-    """
-
-    nearest_xy = None
-    min_distance = float('inf')
-
-    for (x, y) in self._xy_ij.keys():
-      distance = math.sqrt((search_x - x) ** 2 + (search_y - y) ** 2)
-      if distance < min_distance:
-        min_distance = distance
-        nearest_xy = (x, y)
-
-    return nearest_xy
-
   def xy_to_ij(self, x, y):
     """
-    DSM点群の (x, y) の座標をDSM点群の画像座標である (i, j) へ変換
+    DSM座標(x,y)に対応する画像座標(i,j)を取得
 
     Args:
-      x (float): 選択した任意の点の x
-      y (float): 選択した任意の点の y
+      x (float): 基準点のx
+      y (float): 基準点のy
+
+    Returns:
+      tuple[int, int]: DSM座標(x,y)に対応する画像座標(i,j)
     """
 
     return self._xy_ij[(x, y)]
 
-  def ij_to_z(self, i: float, j: float):
-    return float(self._dsm_grid_xyzs[int(round(i)), int(round(j)), 2])
+  def ij_to_z(self, i: Union[float, int], j: Union[float, int]):
+    """画像座標(i,j)に対応するDSM座標(x,y)からz値を取得
 
-  def find_nearest_z(self, x: float, y: float):
-    nearest_xy = self.find_nearest_xy(x, y)
-    nearest_i, nearest_j = self.xy_to_ij(*nearest_xy)
-    return float(self._dsm_grid_xyzs[nearest_i, nearest_j, 2])
+    Args:
+      i (float): 基準点のi
+      j (float): 基準点のj
 
-  def _get_wall_point_positions(self, dsm_grid_xyzs: npt.NDArray[np.float_]):
-    """壁の点を設定する"""
+    Returns:
+      float: 画像座標(i,j)に対応するDSM座標(x,y)のz値
+    """
 
-    height, width = dsm_grid_xyzs.shape[:2]
+    height, width = self._masked_dsm_grid_xyzs.shape[:2]
+    i_clipped = min(max(int(round(i)), 0), height - 1)
+    j_clipped = min(max(int(round(j)), 0), width - 1)
+    return float(self._masked_dsm_grid_xyzs[i_clipped, j_clipped, 2])
+
+  def _get_wall_point_positions(self):
+    """壁の点を設定する
+
+    Returns:
+      list[tuple[float, float]]: 壁の点の座標(i,j)リスト
+    """
+
+    height, width = self._masked_dsm_grid_xyzs.shape[:2]
     wall_point_positions: list[tuple[float, float]] = []
-    for i, dsm_grid_xyzs_j in enumerate(dsm_grid_xyzs):
-      for j, (x, y, z1) in enumerate(dsm_grid_xyzs_j):
+    for i, masked_dsm_grid_xyzs_j in enumerate(self._masked_dsm_grid_xyzs):
+      for j, (x, y, z1) in enumerate(masked_dsm_grid_xyzs_j):
         if (x == 0 and y == 0 and z1 == 0):
           continue
 
@@ -202,19 +198,23 @@ class RoofLayerInfo:
         for di, dj in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
           i2, j2 = i + di, j + dj
           if 0 <= i2 < height and 0 <= j2 < width:
-            z2s.append(dsm_grid_xyzs[i2, j2, 2])
+            z2s.append(self._masked_dsm_grid_xyzs[i2, j2, 2])
 
         if self._is_wall_index(z1, z2s):
           wall_point_positions.append((i, j))
 
     return wall_point_positions
 
-  def _get_xy_ij_pair(self, dsm_grid_xyzs: npt.NDArray[np.float_]):
-    """DSM点群の (x, y) の座標をDSM点群の画像座標である (i, j) へ変換できるようにインデクスを作る"""
+  def _get_xy_ij_pair(self):
+    """DSM点群座標(x, y)に対応する画像座標(i, j)の辞書を取得
+
+    Returns:
+      dict[tuple[float, float], tuple[int, int]]: DSM点群座標(x, y)に対応する画像座標(i, j)の辞書
+    """
 
     xy_ij: dict[tuple[float, float], tuple[int, int]] = {}
-    for i, dsm_grid_xyzs_j in enumerate(dsm_grid_xyzs):
-      for j, (x, y, _) in enumerate(dsm_grid_xyzs_j):
+    for i, masked_dsm_grid_xyzs_j in enumerate(self._masked_dsm_grid_xyzs):
+      for j, (x, y, _) in enumerate(masked_dsm_grid_xyzs_j):
         xy_ij[(x, y)] = (i, j)
 
     return xy_ij
@@ -226,6 +226,9 @@ class RoofLayerInfo:
     Args:
       z1 (float): DSM点群のある点(x, y, z) の z 座標
       z2s (list[float]): DSM点群のある点(x, y, z) の前後左右の点の z 座標（最大4個）
+
+    Returns:
+      bool: 壁の点の場合 True
     """
     return any((z1 - z2) > RoofLayerInfo.WALL_HEIGHT_THRESHOLD for z2 in z2s)
 
@@ -248,7 +251,7 @@ class RoofLayerInfo:
       i, j = queue.popleft()
 
       # 現在の点の z 座標
-      current_z = self._dsm_grid_xyzs[i, j, 2]
+      current_z = self._masked_dsm_grid_xyzs[i, j, 2]
 
       # 前後左右の点を探索
       for di, dj in directions:
@@ -257,7 +260,7 @@ class RoofLayerInfo:
         # 境界チェック
         if 0 <= i2 < self._height and 0 <= j2 < self._width:
           if self._layer_class[i2, j2] == RoofLayerInfo.NO_POINT:
-            neighbor_z = self._dsm_grid_xyzs[i2, j2, 2]
+            neighbor_z = self._masked_dsm_grid_xyzs[i2, j2, 2]
 
             # z 座標の差が RoofLayerInfo.WALL_HEIGHT_THRESHOLD 以下なら、同じレイヤーと見なす
             if abs(current_z - neighbor_z) <= RoofLayerInfo.WALL_HEIGHT_THRESHOLD:
@@ -265,7 +268,7 @@ class RoofLayerInfo:
               queue.append((i2, j2))  # 探索対象としてキューに追加
 
   def _init_layer_class(self):
-    """wall_point_positions を基にレイヤーを割り当てる処理"""
+    """画像頂点(i,j)の屋根レイヤーを決める"""
 
     # wall_point_positions から BFS を開始して各レイヤーを探索
     for i, j in self._wall_point_positions:
@@ -274,40 +277,43 @@ class RoofLayerInfo:
         self._layer_class_length += 1  # 次のレイヤー番号に進む
 
   def _detect_and_mark_noise(self):
-    """すべての壁領域クラスをループし、ノイズを検出してマークする"""
+    """屋根レイヤーのノイズ処理をする"""
     for layer_number in range(self._layer_class_length):
       # 現在の layer_number に属する (i, j) のリストを収集
-      layer_points = [(i, j) for i in range(self._height) for j in range(self._width)
-                      if self._layer_class[i, j] == layer_number]
+      layer_point_ijs = [(i, j) for i in range(self._height) for j in range(self._width)
+                         if self._layer_class[i, j] == layer_number]
 
-      if not layer_points:
+      if not layer_point_ijs:
         continue  # そのクラスに点がない場合はスキップ
 
       has_noise = True
       # ノイズの場合、そのクラス全体の点を RoofLayerInfo.NOISE_POINT にマーク
-      for i, j in layer_points:
-        if self._is_ok_point(i, j, layer_number):
+      for layer_point_ij in layer_point_ijs:
+        if self._is_ok_point(layer_point_ij, layer_number):
           has_noise = False
           break
 
       if has_noise:
-        for i, j in layer_points:
+        for i, j in layer_point_ijs:
           self._layer_class[i, j] = RoofLayerInfo.NOISE_POINT
 
-  def _is_ok_point(self, start_i: int, start_j: int, layer_number: int):
+  def _is_ok_point(self, layer_point_ij: tuple[int, int], layer_number: int):
     """
-    指定されたクラスの点を探索し、ノイズかどうかをチェックする
+    頂点(i,j)がノイズかどうかをチェックする
 
     Args:
-      start_i (int): DSM点群のRGB画像の位置(i,j) の i
-      start_j (int): DSM点群のRGB画像の位置(i,j) の j
+      layer_point_ij: 頂点(i,j)
       layer_number (int): 壁点を起点としてクラスタリングした屋根のレイヤー番号
+
+    Returns:
+      bool: ノイズの点は False
     """
     directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # 上下左右の方向
+    layer_point_i, layer_point_j = layer_point_ij
 
     ok_count = 0
     for di, dj in directions:
-      i2, j2 = start_i + di, start_j + dj
+      i2, j2 = layer_point_i + di, layer_point_j + dj
 
       # 境界チェック
       if 0 <= i2 < self._height and 0 <= j2 < self._width:
@@ -322,7 +328,7 @@ class RoofLayerInfo:
     """
     DSM点群のRGB画像原本をイメージとして保存（デバッグ用）
     """
-    image_origin = Image.fromarray(self._dsm_grid_rgbs, "RGB")
+    image_origin = Image.fromarray(self._masked_dsm_grid_rgbs, "RGB")
     image_origin_path = os.path.join(self._debug_dir, 'origin.png')
     image_origin.save(image_origin_path)
 
@@ -338,11 +344,11 @@ class RoofLayerInfo:
       wall_point_positions (list[tuple[int, int]]): DSM点群のRGB画像で壁の点の位置(i, j)
       file_name (str): 記録するファイル名
     """
-    dsm_grid_rgbs_wall_line = self._dsm_grid_rgbs.copy()
+    masked_dsm_grid_rgbs_wall_line = self._masked_dsm_grid_rgbs.copy()
     for i, j in wall_point_positions:
-      dsm_grid_rgbs_wall_line[i, j] = [255, 0, 0]
+      masked_dsm_grid_rgbs_wall_line[i, j] = [255, 0, 0]
 
-    image_wall_line = Image.fromarray(dsm_grid_rgbs_wall_line, "RGB")
+    image_wall_line = Image.fromarray(masked_dsm_grid_rgbs_wall_line, "RGB")
     image_wall_line_path = os.path.join(self._debug_dir, file_name)
     image_wall_line.save(image_wall_line_path)
 
@@ -371,7 +377,7 @@ class RoofLayerInfo:
 
   def save_roof_line_image(
       self,
-      dsm_grid_rgbs: npt.NDArray[np.uint8],
+      masked_dsm_grid_rgbs: npt.NDArray[np.uint8],
       roof_lines: set[tuple[tuple[int, int], tuple[int, int]]],
       file_name: str = 'roof_line.png',
   ):
@@ -379,13 +385,13 @@ class RoofLayerInfo:
     屋根線をイメージとして保存（デバッグ用）
 
     Args:
-      dsm_grid_rgbs (npt.NDArray[np.uint8]): DSM点群のRGB画像
+      masked_dsm_grid_rgbs (npt.NDArray[np.uint8]): DSM点群のRGB画像
       roof_lines (set[tuple[tuple[int, int], tuple[int, int]]]): 線のリスト
       file_name (str): 記録するファイル名
     """
 
     # RGB画像データをBGRに変換（OpenCVはBGRを使用）
-    image_roof_line = cv2.cvtColor(dsm_grid_rgbs.copy(), cv2.COLOR_RGB2BGR)
+    image_roof_line = cv2.cvtColor(masked_dsm_grid_rgbs.copy(), cv2.COLOR_RGB2BGR)
 
     # 線と点を一緒に描画
     for start_image_pos, end_image_pos in roof_lines:
@@ -425,6 +431,15 @@ class RoofLayerInfo:
     cv2.imwrite(image_roof_line_path, image_roof_line)
 
   def get_color_palette(self, reserved_colors: list[list[int]]):
+    """屋根レイヤーの色の定義する
+
+    Args:
+      reserved_colors (list[list[int]]): 予約済みの色
+
+    Return:
+      list[list[int]]: 屋根レイヤーの色を定義
+    """
+
     color_palette_all: list[tuple[int, int, int]] = []
     for color_variation_num in [255, 128, 64, 32, 16, 8]:
       # 0, 255 の組み合わせの色を先に出す
@@ -434,43 +449,53 @@ class RoofLayerInfo:
       color_palette_all += list(set(color_palette) - set(color_palette_all))
 
     # 予約された色は抜いておく
-    return [
+    color_palette_result = [
         list(color_palette) for color_palette in color_palette_all
         if (list(color_palette) not in reserved_colors)
     ]
 
-  def get_color(self, color_index: int):
-    # 4096 の色を作る
-    if color_index == RoofLayerInfo.NO_POINT:
-      return [255, 255, 255]
+    return color_palette_result
 
-    if color_index == RoofLayerInfo.NOISE_POINT:
-      return [0, 0, 0]
-
-    if color_index == RoofLayerInfo.ROOF_LINE_POINT:
-      return [0, 255, 0]
-
-    return self._color_palette[color_index]
-
-  def _init_layer_number_outline_ij_pair(self, layer_class: np.ndarray, file_name: str = 'layer_area.png'):
-    """
-    レイヤーの外形線を保存する
+  def get_color(self, layer_number: int):
+    """屋根レイヤーの色を出す
 
     Args:
-      layer_class (np.ndarray): DSM点群の画像座標 (i,j) 二次元アレイに壁点を起点としてクラスタリングした屋根のレイヤー番号を記録したもの
-      file_name (str): 記録するファイル名
+      layer_number (int): 屋根レイヤー
+
+    Return:
+      list[int]: RGB色
     """
 
-    self._layer_number_layer_area_polygon_ijs_list_pair: dict[int, list[list[tuple[int, int]]]] = {}
+    # 4096 の色を作る
+    if layer_number == RoofLayerInfo.NO_POINT:
+      return [255, 255, 255]
 
-    height, width = layer_class.shape
+    if layer_number == RoofLayerInfo.NOISE_POINT:
+      return [0, 0, 0]
+
+    if layer_number == RoofLayerInfo.ROOF_LINE_POINT:
+      return [0, 255, 0]
+
+    return self._color_palette[layer_number]
+
+  def get_layer_number_layer_area_polygon_ijs_list_pair(self):
+    """
+    屋根レイヤーの外形ポリゴンの頂点を取得
+
+    Returns:
+      dict[int, list[list[tuple[int, int]]]]
+    """
+
+    layer_number_layer_area_polygon_ijs_list_pair: dict[int, list[list[tuple[int, int]]]] = {}
+
+    height, width = self._layer_class.shape
 
     layer_number_point_ijs_pair: dict[int, list[tuple[int, int]]] = defaultdict(list)
 
     # i, j に基づいて各ピクセルに色を割り当て
     for i in range(height):
       for j in range(width):
-        layer_number = layer_class[i, j]
+        layer_number = self._layer_class[i, j]
         layer_number_point_ijs_pair[layer_number].append((i, j))
 
     # 空の RGB 画像を作成 (すべて白で初期化)
@@ -526,7 +551,7 @@ class RoofLayerInfo:
       difference = current_merged_polygon_ijs_list_union.difference(last_merged_polygon_ijs_union)
       current_polygon_ijs_list = get_polygon_ijs_list([difference])
 
-      self._layer_number_layer_area_polygon_ijs_list_pair[layer_number] = current_polygon_ijs_list
+      layer_number_layer_area_polygon_ijs_list_pair[layer_number] = current_polygon_ijs_list
 
       # 前回までマージしたのポリゴンリスト
       last_merged_polygon_ijs = current_merged_polygon_ijs_list
@@ -549,5 +574,49 @@ class RoofLayerInfo:
 
     if self._debug_mode:
       outline_all_image_rgb = cv2.cvtColor(outline_all_image_rgb, cv2.COLOR_BGR2RGB)
-      outline_all_image_path = os.path.join(self._debug_dir, file_name)
+      outline_all_image_path = os.path.join(self._debug_dir, 'layer_area.png')
       cv2.imwrite(outline_all_image_path, outline_all_image_rgb)
+
+    return layer_number_layer_area_polygon_ijs_list_pair
+
+  def add_balcony_layers(self, balcony_polygon_ijs_list: list[list[tuple[float, float]]]):
+    """
+    複数のバルコニーポリゴンに屋根レイヤーを付与
+
+    Args:
+      balcony_polygon_ijs_list (list[list[tuple[float, float]]]): バルコニポリゴンの頂点リスト(i,j)
+    """
+
+    balcony_point_ijzs: set[tuple[int, int, float]] = set()
+    for balcony_polygon_ijs in balcony_polygon_ijs_list:
+      balcony_poly = Polygon(balcony_polygon_ijs)
+      grid_point_ijs = get_grid_point_ijs(balcony_poly)
+      for i, j in grid_point_ijs:
+        height, width = self._layer_class.shape[:2]
+        i_clipped = min(max(int(round(i)), 0), height - 1)
+        j_clipped = min(max(int(round(j)), 0), width - 1)
+
+        z = self.ij_to_z(i_clipped, j_clipped)
+        balcony_point_ijzs.add((i_clipped, j_clipped, z))
+        self._layer_class[i_clipped, j_clipped] = self._layer_class_length
+
+      self._layer_class_length += 1
+
+    if self._debug_mode and balcony_point_ijzs:
+      # バルコニー領域を画像ファイルに保存
+      height, width = self._layer_class.shape
+
+      # 空のグレースケール画像を作成 (すべて白で初期化)
+      image_gray = np.full((height, width), 255, dtype=np.uint8)
+
+      max_z = np.max([z for _, _, z in balcony_point_ijzs])
+      min_z = np.min([z for _, _, z in balcony_point_ijzs])
+
+      # デバッグ用の色変更
+      for i, j, z in balcony_point_ijzs:
+        normalized_z = int(((z - min_z) / (max_z - min_z)) * 255)
+        image_gray[i, j] = normalized_z  # 高いほど黒
+
+      image_layer = Image.fromarray(image_gray, 'L')
+      image_layer_path = os.path.join(self._debug_dir, 'balcony_height.png')
+      image_layer.save(image_layer_path)

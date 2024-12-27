@@ -120,9 +120,9 @@ class MainManager:
         if result_info.status != StatusType.ERROR:
           self._check_solid(mesh, result_info, build)
 
-        # 非平面検査/三角形分割
-        if result_info.status != StatusType.ERROR:
-          self._check_non_plane(obj_info, result_info, build)
+        # # 非平面検査/三角形分割
+        # if result_info.status != StatusType.ERROR:
+        #   self._check_non_plane(obj_info, result_info, build)
 
         # 面積 0 ポリゴン検査
         if result_info.status != StatusType.ERROR:
