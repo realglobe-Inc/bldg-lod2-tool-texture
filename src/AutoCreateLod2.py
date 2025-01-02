@@ -101,11 +101,8 @@ def main():
         # モデル要素生成
         log.module_start_log(ModuleType.MODEL_ELEMENT_GENERATION, file_name)
 
-        create_model = ModelCreator(param_manager)
-        ret_model_element_generation = create_model.create(
-            buildings,
-            debug_mode=param_manager.debug_mode
-        )
+        model_creator = ModelCreator(param_manager)
+        ret_model_element_generation = model_creator.create(buildings, debug_mode=param_manager.debug_mode)
 
         log.module_result_log(ModuleType.MODEL_ELEMENT_GENERATION, ret_model_element_generation)
 

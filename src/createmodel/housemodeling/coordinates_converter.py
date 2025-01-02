@@ -1,8 +1,8 @@
 from typing import Final
 
 
-class CoordConverterForCartesianAndImagePos:
-  """画像座標と平面直角座標を変換するクラス
+class DsmCoordHeatImagePosConverter:
+  """HEAT入力画像の座標(i,j)とDSM座標(x,y)を変換する Converter
   """
 
   _grid_size: Final[float]

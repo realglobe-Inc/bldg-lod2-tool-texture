@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import numpy.typing as npt
 
-from ..createmodelexception import CreateModelException
+from ..createmodelexception import ModelingException
 
 # ./thirdparty/heat を読み込む
 heat_directory_path = os.path.join(os.path.dirname(__file__), 'roof_edge_detection_model', 'thirdparty', 'heat')  # noqa
@@ -12,7 +12,7 @@ from .roof_edge_detection_model.thirdparty.heat.model import HEAT
 del sys.path[sys.path.index(heat_directory_path)]  # noqa
 
 
-class RoofEdgeDetectionCheckpointReadException(CreateModelException):
+class RoofEdgeDetectionCheckpointReadException(ModelingException):
   """屋根線検出の学習済みモデル読み込みエラークラス
   """
 

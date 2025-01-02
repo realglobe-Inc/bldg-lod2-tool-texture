@@ -10,8 +10,8 @@ from numpy.typing import NDArray
 from pyproj import Transformer
 
 from ..thirdparty import plateaupy as plapy
-from .coordinateconverter import CoordinateConverter
-from .coordinateconverter import CoordinateConverterException
+from .coordinateconverter import DsmCoordCityGmlCoordConverter
+from .coordinateconverter import DsmCoordCityGmlCoordConverterException
 from .objinfo import BldElementType, ObjInfo
 from .parammanager import ParamManager
 from .config import Config
@@ -89,9 +89,11 @@ class CityGmlManager:
     self._bldg_ns = ''
     self._gml_ns = ''
 
-    self._face_type = {BldElementType.ROOF: ["RoofSurface", "roof_"],
-                       BldElementType.WALL: ["WallSurface", "wall_"],
-                       BldElementType.GROUND: ["GroundSurface", "ground_"]}
+    self._face_type = {
+        BldElementType.ROOF: ["RoofSurface", "roof_"],
+        BldElementType.WALL: ["WallSurface", "wall_"],
+        BldElementType.GROUND: ["GroundSurface", "ground_"],
+    }
 
   def read_file(
       self,
@@ -114,7 +116,7 @@ class CityGmlManager:
       restype = ResultType.SUCCESS
 
       # 平面直角座標系から経緯度座標系に変換
-      self._trans_coordsys = CoordinateConverter(self.param_manager.las_coordinate_system)
+      self._dsm_coord_city_gml_coord_converter = DsmCoordCityGmlCoordConverter(self.param_manager.las_coordinate_system)
 
       input_file_path = os.path.join(self.param_manager.citygml_folder_path, file_name)
       if not os.path.isfile(input_file_path):
@@ -131,10 +133,7 @@ class CityGmlManager:
         with open(city_gml_cache_file_path, "rb") as f:
           self.citygml_info = pickle.load(f)
 
-        return restype, self._filter_buildings_by_target_building_ids(
-            self.citygml_info,
-            target_building_ids,
-        )
+        return restype, self._filter_buildings_by_target_building_ids(self.citygml_info, target_building_ids)
 
       plbld = plapy.plbldg(self.lod1_file_path)
 
@@ -193,12 +192,12 @@ class CityGmlManager:
             binfo_lon_max = np.max(binfo.lod0_poslist[:, 1])
 
             # 建物の領域と検索領域が被っているか
-            if (target_geo_area_lat_max >= binfo_lat_min and
-                target_geo_area_lat_min <= binfo_lat_max and
-                target_geo_area_lon_max >= binfo_lon_min and
-                target_geo_area_lon_min <= binfo_lon_max
-                ):
-
+            if (
+                target_geo_area_lat_max >= binfo_lat_min
+                and target_geo_area_lat_min <= binfo_lat_max
+                and target_geo_area_lon_max >= binfo_lon_min
+                and target_geo_area_lon_min <= binfo_lon_max
+            ):
               self.citygml_info.append(binfo)
               break
 
@@ -210,16 +209,13 @@ class CityGmlManager:
         with open(city_gml_cache_file_path, "wb") as f:
           pickle.dump(self.citygml_info, f)
 
-      return restype, self._filter_buildings_by_target_building_ids(
-          self.citygml_info,
-          target_building_ids,
-      )
+      return restype, self._filter_buildings_by_target_building_ids(self.citygml_info, target_building_ids)
 
     except FileNotFoundError:
       Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.INPUT_CITYGML, 'File not found')
       return ResultType.ERROR, None
 
-    except CoordinateConverterException:
+    except DsmCoordCityGmlCoordConverterException:
       Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.INPUT_CITYGML, 'Las coordinate system error')
       return ResultType.ERROR, None
 
@@ -304,10 +300,8 @@ class CityGmlManager:
           # app:surfaceDataMemberのエレメント作成
           if target_cgml.tex_img_uri is not None:
             surf_ret.append(
-                self._create_surfacedata_elem(
-                    tex_app_elem,
-                    target_cgml.tex_img_uri,
-                    target_cgml.lod2_info))
+                self._create_surfacedata_elem(tex_app_elem, target_cgml.tex_img_uri, target_cgml.lod2_info)
+            )
 
         # app:surfaceDataMemberエレメント追加
         if any(surf_ret):
@@ -315,13 +309,9 @@ class CityGmlManager:
 
         # LoD2 CityGML書き出し
         lxml.etree.indent(root, space="\t")  # tab区切り
-        tree.write(output_file_path,
-                   pretty_print=True,
-                   xml_declaration=True,
-                   encoding="utf-8")
+        tree.write(output_file_path, pretty_print=True, xml_declaration=True, encoding="utf-8")
       else:
-        shutil.copy(
-            self.lod1_file_path, self.param_manager.output_folder_path)
+        shutil.copy(self.lod1_file_path, self.param_manager.output_folder_path)
 
       # LoD1 テクスチャデータがある場合は出力先にコピー
       in_dir = self.param_manager.citygml_folder_path
@@ -351,10 +341,8 @@ class CityGmlManager:
       return ret
 
     except Exception as e:
-      shutil.copy(
-          self.lod1_file_path, self.param_manager.output_folder_path)
-      Log.output_log_write(LogLevel.MODEL_ERROR,
-                           ModuleType.OUTPUT_CITYGML, e)
+      shutil.copy(self.lod1_file_path, self.param_manager.output_folder_path)
+      Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.OUTPUT_CITYGML, e)
       return False
 
   def _copy_objdata(self, obj_dir):
@@ -450,33 +438,25 @@ class CityGmlManager:
     elem2 = lxml.etree.SubElement(
         elem1,
         self._bldg_ns + self._face_type[info.face_type][0],
-        {f"{self._gml_ns}id": self._face_type[info.face_type][1] + info.id_base}
+        {f"{self._gml_ns}id": self._face_type[info.face_type][1] + info.id_base},
     )
     elem3 = lxml.etree.SubElement(elem2, f"{self._bldg_ns}lod2MultiSurface")
     elem4 = lxml.etree.SubElement(elem3, f"{self._gml_ns}MultiSurface")
     elem5 = lxml.etree.SubElement(elem4, f"{self._gml_ns}surfaceMember")
-    elem6 = lxml.etree.SubElement(
-        elem5,
-        f"{self._gml_ns}Polygon",
-        {f"{self._gml_ns}id": f"texture_{info.id_base}"}
-    )
+    elem6 = lxml.etree.SubElement(elem5, f"{self._gml_ns}Polygon", {f"{self._gml_ns}id": f"texture_{info.id_base}"})
     elem7 = lxml.etree.SubElement(elem6, f"{self._gml_ns}exterior")
-    elem8 = lxml.etree.SubElement(
-        elem7,
-        f"{self._gml_ns}LinearRing",
-        {f"{self._gml_ns}id": f"shape_{info.id_base}"}
-    )
+    elem8 = lxml.etree.SubElement(elem7, f"{self._gml_ns}LinearRing", {f"{self._gml_ns}id": f"shape_{info.id_base}"})
     elem9 = lxml.etree.SubElement(elem8, f"{self._gml_ns}posList")
 
     for pos in info.poslist:
-      lat, lon = self._trans_coordsys.to_polar(pos.x, pos.y)
+      lat, lon = self._dsm_coord_city_gml_coord_converter.to_polar(pos.x, pos.y)
 
       str_list.append(str(lat))
       str_list.append(str(lon))
       str_list.append(str(pos.z))
 
     # 先頭座標を末尾に追加する
-    lat, lon = self._trans_coordsys.to_polar(info.poslist[0].x, info.poslist[0].y)
+    lat, lon = self._dsm_coord_city_gml_coord_converter.to_polar(info.poslist[0].x, info.poslist[0].y)
     str_list.append(str(lat))
     str_list.append(str(lon))
     str_list.append(str(info.poslist[0].z))
@@ -516,13 +496,9 @@ class CityGmlManager:
         str_list.append(str(info.tex_coordlist[0].y))
 
       if str_list:
-        elem5 = lxml.etree.SubElement(
-            elem2, f"{self._app_ns}target", {'uri': f"#texture_{info.id_base}"}
-        )
+        elem5 = lxml.etree.SubElement(elem2, f"{self._app_ns}target", {'uri': f"#texture_{info.id_base}"})
         elem6 = lxml.etree.SubElement(elem5, f"{self._app_ns}TexCoordList")
-        elem7 = lxml.etree.SubElement(
-            elem6, f"{self._app_ns}textureCoordinates", {'ring': f"#shape_{info.id_base}"}
-        )
+        elem7 = lxml.etree.SubElement(elem6, f"{self._app_ns}textureCoordinates", {'ring': f"#shape_{info.id_base}"})
         elem7.text = ' '.join(str_list)
 
     # 一つでも座標配列が見つかれば成功
@@ -564,7 +540,4 @@ class CityGmlManager:
     if target_building_ids is None:
       return buildings
 
-    return [
-        building for building in buildings
-        if building.build_id in target_building_ids
-    ]
+    return [building for building in buildings if building.build_id in target_building_ids]

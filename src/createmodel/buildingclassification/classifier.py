@@ -4,11 +4,11 @@ import numpy as np
 import numpy.typing as npt
 import torch
 
-from ..createmodelexception import CreateModelException
+from ..createmodelexception import ModelingException
 from .classifier_model import ClassifierModel
 
 
-class ClassifierCheckpointReadException(CreateModelException):
+class ClassifierCheckpointReadException(ModelingException):
   """建物分類の学習済みモデル読み込みエラークラス
   """
 

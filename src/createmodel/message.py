@@ -1,4 +1,4 @@
-class CreateModelMessage:
+class ModelingMessage:
   """メッセージ定数クラス"""
 
   # ##### 入力データに関するメッセージ #####

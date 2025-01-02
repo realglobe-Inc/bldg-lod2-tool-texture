@@ -9,8 +9,8 @@ from numpy.typing import NDArray
 import shapely.geometry as geo
 import laspy
 
-from .message import CreateModelMessage
-from .createmodelexception import CreateModelException
+from .message import ModelingMessage
+from .createmodelexception import ModelingException
 from ..util.log import Log, LogLevel, ModuleType
 
 
@@ -289,9 +289,9 @@ class LasManager:
         polygon (shapely.geometry.Polygon): 読込対象範囲(平面直角座標系)
 
     Raises:
-        CreateModelException: LASフォルダが存在しない
-        CreateModelException: LASファイルが存在しない
-        CreateModelException: 読込対象範囲の点群データがない
+        ModelingException: LASフォルダが存在しない
+        ModelingException: LASファイルが存在しない
+        ModelingException: 読込対象範囲の点群データがない
     """
     class_name = self.__class__.__name__
     func_name = sys._getframe().f_code.co_name
@@ -301,16 +301,16 @@ class LasManager:
       # フォルダが存在しない場合
       msg = '{}.{}, {}'.format(
           class_name, func_name,
-          CreateModelMessage.ERR_MSG_LAS_MNG_LAS_FOLDER_NOT_FOUND)
-      raise CreateModelException(msg)
+          ModelingMessage.ERR_MSG_LAS_MNG_LAS_FOLDER_NOT_FOUND)
+      raise ModelingException(msg)
 
     files = glob.glob(os.path.join(folder_path, '*.las'))
     if len(files) == 0:
       # lasファイルが存在しない場合
       msg = '{}.{}, {}'.format(
           class_name, func_name,
-          CreateModelMessage.ERR_MSG_LAS_MNG_LAS_NOT_FOUND)
-      raise CreateModelException(msg)
+          ModelingMessage.ERR_MSG_LAS_MNG_LAS_NOT_FOUND)
+      raise ModelingException(msg)
 
     min_pos = np.array([sys.float_info.max, sys.float_info.max])
     max_pos = np.array([-sys.float_info.max, -sys.float_info.max])
@@ -356,7 +356,7 @@ class LasManager:
         # ヘッダ情報取得時のエラー
         msg = '{}.{}, {} ({})'.format(
             class_name, func_name,
-            CreateModelMessage.ERR_MSG_FAILED_TO_READ_LAS_FILE,
+            ModelingMessage.ERR_MSG_FAILED_TO_READ_LAS_FILE,
             os.path.basename(file))
         Log.output_log_write(
             LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION,
@@ -366,8 +366,8 @@ class LasManager:
       # 点群データ取得対象のデータがない場合
       msg = '{}.{}, {}'.format(
           class_name, func_name,
-          CreateModelMessage.ERR_MSG_LAS_MNG_NO_LAS_FILE)
-      raise CreateModelException(msg)
+          ModelingMessage.ERR_MSG_LAS_MNG_NO_LAS_FILE)
+      raise ModelingException(msg)
 
     self._min_pos = min_pos
     self._max_pos = max_pos
@@ -440,8 +440,8 @@ class LasManager:
         else:
           msg = '{}.{}, {}'.format(
               class_name, func_name,
-              CreateModelMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT)
-          raise CreateModelException(msg)
+              ModelingMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT)
+          raise ModelingException(msg)
 
         # polygonの最小外接長方形でpointをfilterする
         polygon_mbr: tuple[float, float, float, float] = (
@@ -472,8 +472,8 @@ class LasManager:
           else:
             msg = '{}.{}, {}'.format(
                 class_name, func_name,
-                CreateModelMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT)
-            raise CreateModelException(msg)
+                ModelingMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT)
+            raise ModelingException(msg)
 
           if self._is_search_ground:
             # 地面探索範囲内の点のみ取得
@@ -505,8 +505,8 @@ class LasManager:
       # 建物点群がない場合
       msg = '{}.{}, {}'.format(
           class_name, func_name,
-          CreateModelMessage.ERR_MSG_LAS_MNG_NO_POINTS)
-      raise CreateModelException(msg)
+          ModelingMessage.ERR_MSG_LAS_MNG_NO_POINTS)
+      raise ModelingException(msg)
 
     ground_height = None
     if self._is_search_ground:
@@ -515,8 +515,8 @@ class LasManager:
         # 地面点群がない場合
         msg = '{}.{}, {}'.format(
             class_name, func_name,
-            CreateModelMessage.ERR_MSG_LAS_MNG_NO_GROUOND_POINTS)
-        raise CreateModelException(msg)
+            ModelingMessage.ERR_MSG_LAS_MNG_NO_GROUOND_POINTS)
+        raise ModelingException(msg)
 
       zs = points_xyz[:, 2]
       z_min = np.min(zs)

@@ -1,7 +1,8 @@
-class CreateModelException(Exception):
-    """モデル生成の例外クラス
+class ModelingException(Exception):
+  """モデル生成の例外クラス
+  """
+
+  def __init__(self, *args: object) -> None:
+    """コンストラクタ
     """
-    def __init__(self, *args: object) -> None:
-        """コンストラクタ
-        """
-        super().__init__(*args)
+    super().__init__(*args)

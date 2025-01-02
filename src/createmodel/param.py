@@ -4,10 +4,10 @@ import os
 from os.path import join, dirname
 
 from src.createmodel.buildingclassification.classifier import BuildingClass
-from .createmodelexception import CreateModelException
+from .createmodelexception import ModelingException
 
 
-class CreateModelParam():
+class ModelingParam():
   """モデル要素生成モジュールのパラメータクラス(シングルトンクラス)
 
   Note:
@@ -131,15 +131,15 @@ class CreateModelParam():
       debug_mode (bool, optional): デバッグモード (Default: False)
 
     Raises:
-      CreateModelException:
+      ModelingException:
         2回目以降のコンストラクタ呼び出し時(シングルトンのため)
     """
-    if CreateModelParam._instance is not None:
-      raise CreateModelException(
-          'CreateModelParam Class is Singleton class. \
+    if ModelingParam._instance is not None:
+      raise ModelingException(
+          'ModelingParam Class is Singleton class. \
                 If you get instance, you shoud use get_instance() method.')
     else:
-      CreateModelParam._instance = self
+      ModelingParam._instance = self
       self._set_init_param(debug_mode)  # 初期パラメータ設定
 
   @staticmethod
@@ -147,12 +147,12 @@ class CreateModelParam():
     """インスタンス取得
 
     Returns:
-        CreateModelParam: インスタンス
+        ModelingParam: インスタンス
     """
-    if CreateModelParam._instance is None:
-      CreateModelParam()
+    if ModelingParam._instance is None:
+      ModelingParam()
 
-    return CreateModelParam._instance
+    return ModelingParam._instance
 
   # プロパティ
   @property

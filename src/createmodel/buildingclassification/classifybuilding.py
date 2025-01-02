@@ -7,7 +7,7 @@ import cv2 as cv
 import os
 
 
-def ClassifyBuilding(
+def classify_building(
     building_id: str,
     cloud: PointCloud,
     shape: geo.Polygon,

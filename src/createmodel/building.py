@@ -7,15 +7,15 @@ import pickle
 from shapely.geometry import Polygon
 from shapely.geometry import JOIN_STYLE
 
+from .buildingclassification.classifier import BuildingClass
+from .buildingclassification.classifybuilding import classify_building
 
+from .buildingmodeling.createmodel import BuildingModelBuilder
 from .lasmanager import LasManager
-from .message import CreateModelMessage
-from .param import CreateModelParam
-from .createmodelexception import CreateModelException
-from .buildingmodeling import CreateModel as CreateBuildingModel
-from .housemodeling.createmodel import CreateHouseModel
-
-from .buildingclassification import BuildingClass, ClassifyBuilding
+from .message import ModelingMessage
+from .param import ModelingParam
+from .createmodelexception import ModelingException
+from .housemodeling.createmodel import HouseModelBuilder
 
 
 class Building:
@@ -23,22 +23,23 @@ class Building:
   """
 
   def __init__(
-          self, id: str, shape: list,
-          dsm_folder_path: str,
-          grid_size: float,
-          output_folder_path: str) -> None:
+      self, id: str, shape: list,
+      dsm_folder_path: str,
+      grid_size: float,
+      output_folder_path: str,
+  ) -> None:
     """コンストラクタ
 
     Args:
-        id (str): 建物id
-        shape (list): 建物外形形状
-        dsm_folder_path (str): dsm画像フォルダパス
-        grid_size (float): 解像度m
-        output_folder_path (str): 出力フォルダパス
+      id (str): 建物id
+      shape (list): 建物外形形状
+      dsm_folder_path (str): dsm画像フォルダパス
+      grid_size (float): 解像度m
+      output_folder_path (str): 出力フォルダパス
 
     Raises:
-        CreateModelException: 頂点列が4点未満の場合
-        CreateModelException: 建物外形形状の面積が0の場合
+      ModelingException: 頂点列が4点未満の場合
+      ModelingException: 建物外形形状の面積が0の場合
     """
     class_name = self.__class__.__name__
     func_name = sys._getframe().f_code.co_name
@@ -47,16 +48,16 @@ class Building:
       # 頂点列が4点未満の場合
       msg = '{}.{}, {}'.format(
           class_name, func_name,
-          CreateModelMessage.ERR_MSG_CITY_GML_POLYGON_DATA)
-      raise CreateModelException(msg)
+          ModelingMessage.ERR_MSG_CITY_GML_POLYGON_DATA)
+      raise ModelingException(msg)
 
     polygon = Polygon(shape)
     if (polygon.area == 0):
       # 建物外形形状の面積が0の場合
       msg = '{}.{}, {}'.format(
           class_name, func_name,
-          CreateModelMessage.ERR_MSG_CITY_GML_POLYGON_NO_AREA)
-      raise CreateModelException(msg)
+          ModelingMessage.ERR_MSG_CITY_GML_POLYGON_NO_AREA)
+      raise ModelingException(msg)
 
     # 建物外形形状の保持
     self._id = id
@@ -64,7 +65,7 @@ class Building:
 
     # 点群探索範囲の設定
     # 建物外形形状の外側のみを膨張して、地面範囲を追加する
-    param = CreateModelParam.get_instance()
+    param = ModelingParam.get_instance()
     self._points_search_area = self._shape.buffer(
         param.ground_search_dist, join_style=JOIN_STYLE.mitre,
         single_sided=True)
@@ -86,10 +87,10 @@ class Building:
     """モデル生成, obj出力
 
     Args:
-        las_swap_xy (bool, optional): lasのxyを入れ替えフラグ. Defaults to False.
-        debug_mode (bool, optional): デバッグモード Defaults to False.
+      las_swap_xy (bool, optional): lasのxyを入れ替えフラグ. Defaults to False.
+      debug_mode (bool, optional): デバッグモード Defaults to False.
     """
-    param = CreateModelParam.get_instance()
+    param = ModelingParam.get_instance()
 
     # デバッグ : CityGMLファイル読み込みを早くするため、pickle でキャッシュ化
     # 建物検索範囲を変更する場合、キャッシュされているファイルの削除が必要
@@ -116,7 +117,7 @@ class Building:
     # 建物分類の推論をキャッシュ化
     building_class = param.building_class_cache.get(self._id)
     if building_class is None:
-      building_class = ClassifyBuilding(
+      building_class = classify_building(
           building_id=self._id,
           cloud=cloud,
           shape=self._shape,
@@ -132,17 +133,18 @@ class Building:
 
     if building_class == BuildingClass.FLAT:
       # 陸屋根の場合
-      CreateBuildingModel(
+      BuildingModelBuilder(
           cloud=cloud, shape=self._shape,
           graphcut_height=graphcut_height,
           grid_size=self._grid_size,
           building_id=self._id,
           min_ground_height=min_ground_height,
-          output_folder_path=self._output_folder_path)
+          output_folder_path=self._output_folder_path
+      )
 
     elif building_class == BuildingClass.NON_FLAT:
       # 非陸屋根の場合
-      CreateHouseModel(
+      HouseModelBuilder(
           cloud=cloud,
           shape=self._shape,
           building_id=self._id,

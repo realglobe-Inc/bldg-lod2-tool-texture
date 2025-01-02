@@ -4,13 +4,13 @@ import numpy as np
 import numpy.typing as npt
 from PIL import Image, ImageDraw
 
-from ..createmodelexception import CreateModelException
+from ..createmodelexception import ModelingException
 
 from .model_surface_creation.utils.geometry import Point
 from .balcony_segmentation_model.model import SegmentationModel
 
 
-class BalconySegmentationCheckpointReadException(CreateModelException):
+class BalconySegmentationCheckpointReadException(ModelingException):
   """バルコニーセグメンテーションの学習済みモデル読み込みエラークラス
   """
 

@@ -11,8 +11,8 @@ from ..extra_roof_line.utils.line_group import LineGroup
 from ..utils.polys import ensure_counter_clockwise, get_polys_from_polygon_ijs_list, validate_polygon_ijs_list
 from ..roof_layer_info import RoofLayerInfo
 from ....util.objinfo import BldElementType, ObjInfo
-from ....createmodel.createmodelexception import CreateModelException
-from ....createmodel.message import CreateModelMessage
+from ....createmodel.createmodelexception import ModelingException
+from ....createmodel.message import ModelingMessage
 
 
 class ExtraRoofLine:
@@ -374,7 +374,7 @@ class ExtraRoofLine:
     new_polys_area = unary_union(new_polys)
     assert len(new_polys_area.interiors) == 0, "分割されたポリゴンに隙間があります"
     if not len(new_polys_area.interiors) == 0:
-      raise CreateModelException(CreateModelMessage.ERR_POLYGON_DIVISION_FAIL)
+      raise ModelingException(ModelingMessage.ERR_POLYGON_DIVISION_FAIL)
 
     merged_inner_polygon_ijs_list_after = merge_close_vertices(inner_polygon_ijs_list_after)
 
@@ -418,7 +418,7 @@ class ExtraRoofLine:
 
     assert isinstance(xy_polys_area, Polygon), 'ポリゴン分割に失敗しました'
     if not isinstance(xy_polys_area, Polygon):
-      raise CreateModelException(CreateModelMessage.ERR_POLYGON_DIVISION_FAIL)
+      raise ModelingException(ModelingMessage.ERR_POLYGON_DIVISION_FAIL)
 
     after_outer_polygon_xys = list(xy_polys_area.exterior.coords[:-1])
 

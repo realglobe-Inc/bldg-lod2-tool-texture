@@ -9,7 +9,7 @@ from .model_edge_height_info import ModelEdgeHeightInfo
 from .utils.polys import validate_polygon_ijs_list
 from .extra_roof_line import ExtraRoofLine
 from .house_model import HouseModel
-from .coordinates_converter import CoordConverterForCartesianAndImagePos
+from .coordinates_converter import DsmCoordHeatImagePosConverter
 from .model_surface_creation.extract_roof_surface import extract_roof_surface
 from .model_surface_creation.optimize_roof_edge import optimize_roof_edge
 from .model_surface_creation.utils.geometry import Point
@@ -19,7 +19,7 @@ from .preprocess import Preprocess
 from ..lasmanager import PointCloud
 
 
-class CreateHouseModel:
+class HouseModelBuilder:
   """複雑形状家屋の3Dモデルを作成"""
 
   def __init__(
@@ -74,7 +74,7 @@ class CreateHouseModel:
         self._roof_layer_info,
     ) = preprocess.preprocess(self._cloud, min_ground_height, shape, debug_mode)
 
-    self._coord_converter_for_heat_image = self._get_coord_converter_for_heat_image()
+    self._dsm_coord_heat_image_pos_converter = self._get_dsm_coord_heat_image_pos_converter()
     roof_edge_detection = RoofEdgeDetection(self._roof_edge_detection_checkpoint_path, self._use_gpu)
     tmp_roof_edge_vertice_ijs, tmp_roof_edges = roof_edge_detection.infer(self._square_dsm_grid_rgbs)
 
@@ -85,7 +85,7 @@ class CreateHouseModel:
 
     # 画像座標から平面直角座標への変換
     tmp_roof_vertex_xys = np.array([
-        self._coord_converter_for_heat_image.image_point_to_cartesian_point(i, j)
+        self._dsm_coord_heat_image_pos_converter.image_point_to_cartesian_point(i, j)
         for i, j in tmp_roof_edge_vertice_ijs
     ])
 
@@ -137,12 +137,12 @@ class CreateHouseModel:
         polygon_balcony_flags=polygon_balcony_flags,
     )
 
-  def _get_coord_converter_for_heat_image(self):
+  def _get_dsm_coord_heat_image_pos_converter(self):
     """
     HEAT入力画像の座標(i,j)とDSM座標(x,y)を変換する Converter を生成
 
     Returns:
-      CoordConverterForCartesianAndImagePos: HEAT入力画像の座標(i,j)とDSM座標(x,y)を変換する Converter
+      DsmCoordHeatImagePosConverter: HEAT入力画像の座標(i,j)とDSM座標(x,y)を変換する Converter
     """
     min_x, min_y = self._cloud.get_points()[:, :2].min(axis=0)
     max_x, max_y = self._cloud.get_points()[:, :2].max(axis=0)
@@ -153,12 +153,12 @@ class CreateHouseModel:
         min_x - (self._image_size - width) / 2 * expanded_grid_size,
         max_y + (self._image_size - height) / 2 * expanded_grid_size,
     )
-    coord_converter_for_heat_image = CoordConverterForCartesianAndImagePos(
+    dsm_coord_heat_image_pos_converter = DsmCoordHeatImagePosConverter(
         grid_size=expanded_grid_size,
         cartesian_coord_upper_left=cartesian_coord_upper_left,
     )
 
-    return coord_converter_for_heat_image
+    return dsm_coord_heat_image_pos_converter
 
   def _get_polygon_balcony_flags(
       self,
@@ -177,7 +177,7 @@ class CreateHouseModel:
 
     # 平面直角座標から画像座標への変換
     image_points = [
-        Point(*self._coord_converter_for_heat_image.cartesian_point_to_image_point(cartesian_point.x, cartesian_point.y))
+        Point(*self._dsm_coord_heat_image_pos_converter.cartesian_point_to_image_point(cartesian_point.x, cartesian_point.y))
         for cartesian_point in roof_polygon_vertex_xy_points
     ]
 
