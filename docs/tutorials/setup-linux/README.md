@@ -113,7 +113,7 @@ unzip ~/Auto-Create-bldg-lod2-tool-tutorial.zip -d ~/Auto-Create-bldg-lod2-tool-
   "OutputFolderPath": "~/AutoCreateLod2_tutorial/output",
   "OutputOBJ": true,
   "OutputTexture": true,
-  "OutputCityGml": true,
+  "OutputCityGML": true,
   "OutputLogFolderPath": "~/AutoCreateLod2_tutorial/output",
   "DebugLogOutput": false,
   "PhaseConsistency": {
@@ -159,7 +159,7 @@ python3 AutoCreateLod2.py ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/param.j
 | -- | -- | -- | -- | -- |
 |1| OutputOBJ | `Boolean` | `true` | 生成モデルをCityGMLファイルとは別にOBJファイルとして出力するか否かを設定するフラグです。
 |2| OutputTexture | `Boolean` | `true` | CityGMLファイルにテクスチャー情報を出力するか否かを設定するフラグです。
-|3| OutputCityGml | `Boolean` | `true` | CityGMLファイル出力するか否かを設定するフラグです。
+|3| OutputCityGML | `Boolean` | `true` | CityGMLファイル出力するか否かを設定するフラグです。
 |4| DebugMode | `Boolean` | `false` | デバッグモード : キャッシュ化して実行速度改善、中間処理段階の結果をイメージとして保存して問題を追跡
 |5| TargetCoordAreas | `Array<Array<Array<number>>> \| null` | `null` | 緯度経度の領域を指定して建築物の対象を絞ります。<br /> 緯度経度の領域 : [[x1, y1, epsg_code1], [x2, y2, epsg_code2]]<br />ex)<br />[[-13985, -51597, 6677], [-13963, -51576, 6677]]
 |6| TargetBuildingIds | `Array<string> \| null` | `null` | 建築IDを指定して建築物の対象を絞ります。入力しない場合、全ての建築物を対象とします

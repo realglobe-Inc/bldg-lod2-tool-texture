@@ -11,7 +11,7 @@ from .buildingclassification.classifier import BuildingClass
 from .buildingclassification.classifybuilding import classify_building
 
 from .buildingmodeling.createmodel import BuildingModelBuilder
-from .lasmanager import LasManager
+from .lasmanager import LasManager, PointCloud
 from .message import ModelingMessage
 from .param import ModelingParam
 from .createmodelexception import ModelingException
@@ -97,7 +97,8 @@ class Building:
     cache_file_path = os.path.join(self._dsm_folder_path, f"{self._id}.pkl")
     if os.path.exists(cache_file_path) and debug_mode is True:
       with open(cache_file_path, "rb") as f:
-        cloud, min_ground_height, graphcut_height = pickle.load(f)
+        cached_dsm: tuple[PointCloud, float | None, float | None] = pickle.load(f)
+        cloud, min_ground_height, graphcut_height = cached_dsm
     else:
       # 点群データの取得
       # lasファイルの座標値をそのまま使用する
@@ -134,7 +135,8 @@ class Building:
     if building_class == BuildingClass.FLAT:
       # 陸屋根の場合
       BuildingModelBuilder(
-          cloud=cloud, shape=self._shape,
+          cloud=cloud,
+          shape=self._shape,
           graphcut_height=graphcut_height,
           grid_size=self._grid_size,
           building_id=self._id,
