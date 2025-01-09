@@ -10,6 +10,7 @@ class BuildingModelBuilder():
   """陸屋根モデルの作成"""
 
   def __init__(
+      self,
       cloud: PointCloud,
       shape: Polygon,
       graphcut_height: float,
@@ -32,14 +33,11 @@ class BuildingModelBuilder():
     """
     # 屋根形状の作成
     preprocess = Preprocess()   # 前処理クラス
-    clusters = preprocess.preprocess(
-        cloud=cloud, shape=shape, ground_height=graphcut_height,
-        grid_size=grid_size)
+    clusters = preprocess.preprocess(cloud=cloud, shape=shape, ground_height=graphcut_height, grid_size=grid_size)
 
     # LoD2モデルデータの作成
     model = Model(id=building_id, shape=shape, use_hier_classify=True)
-    model.create_model_surface(
-        clusters=clusters, ground_height=min_ground_height)
+    model.create_model_surface(clusters=clusters, ground_height=min_ground_height)
     # objファイルの作成
     file_name = building_id + ".obj"
     obj_path = os.path.join(output_folder_path, file_name)
