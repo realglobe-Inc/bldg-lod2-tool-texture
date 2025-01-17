@@ -1,11 +1,18 @@
 # ModelEdgeHeightInfo-屋根ポリゴンの高さ情報を取得
-- [屋根ポリゴン内部で占有率が一番高い屋根レイヤークラスをその屋根ポリゴンの屋根レイヤーとする](#屋根ポリゴン内部で占有率が一番高い屋根レイヤークラスをその屋根ポリゴンの屋根レイヤーとする)
-- [屋根ポリゴン頂点に複数の高さを記録](#屋根ポリゴン頂点に複数の高さを記録)
-- [壁面高さ](#壁面高さ)
+- 屋根ポリゴン毎にポリゴン内部領域に入っている頂点(i,j)の屋根レイヤークラス番号を出す
+  - ![roof_line_with_layer_class_step_6_splited_roof_layers.png](../bldg-1f5bfdcd-534e-48ab-9d1e-224dd2c6baf4/roof_line_with_layer_class_step_6_splited_roof_layers.png)
+- 屋根ポリゴン内部で占有率が一番高い屋根レイヤークラスをその屋根ポリゴンの屋根レイヤーとする
+  - ![roof_line_with_layer_class_step_7_filled_splited_polygons.png](../bldg-1f5bfdcd-534e-48ab-9d1e-224dd2c6baf4/roof_line_with_layer_class_step_7_filled_splited_polygons.png)
+  - ![RoofLayerNumber.png](./RoofLayerNumber.png)
+- 屋根ポリゴン頂点に複数の高さを記録
+  - ![GettingHeightOnVertices.png](./GettingHeightOnVertices.png)
+- 壁面高さ
+  - ![GettingHeightOnEdges.png](./GettingHeightOnEdges.png)
+
 ```mermaid
 
 flowchart TB
-  node_1["屋根ポリゴン毎にポリゴン内部領域に入っている頂点(i,j)の屋根レイヤークラス番号を出す"]
+  node_1[["屋根ポリゴン毎にポリゴン内部領域に入っている頂点(i,j)の屋根レイヤークラス番号を出す"]]
   node_2[["屋根ポリゴン内部で占有率が一番高い屋根レイヤークラスをその屋根ポリゴンの屋根レイヤーとする"]]
   node_3[["屋根ポリゴン頂点に複数の高さを記録 : <br /><br />頂点(i1,j1)から、屋根ポリゴン内部にある頂点と屋根レイヤーが同じ頂点(i2,j2)の中、<br />一番近い頂点を探し、その頂点の高さを屋根ポリゴンの頂点(i1,j1)の高さとする"]]
   node_4["外周ポリゴンのエッジを取得"]
@@ -20,12 +27,3 @@ flowchart TB
   node_5 --> node_6
   node_6 --> node_7
 ```
-
-### 屋根ポリゴン内部で占有率が一番高い屋根レイヤークラスをその屋根ポリゴンの屋根レイヤーとする
-![RoofLayerNumber.png](./RoofLayerNumber.png)
-
-### 屋根ポリゴン頂点に複数の高さを記録
-![GettingHeightOnVertices.png](./GettingHeightOnVertices.png)
-
-### 壁面高さ
-![GettingHeightOnEdges.png](./GettingHeightOnEdges.png)

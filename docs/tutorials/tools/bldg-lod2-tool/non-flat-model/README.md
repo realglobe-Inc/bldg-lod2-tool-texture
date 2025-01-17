@@ -1,10 +1,12 @@
 # HouseModelBuilder-非陸屋根のモデルを生成
+- Preprocess-建築物LOD0の範囲内のDSM点群で画像座標(i,j)に対応するDSM色(r,g,b)で画像を色情報を用意
+  - ![origin.png](./bldg-1f5bfdcd-534e-48ab-9d1e-224dd2c6baf4/origin.png)
 - [RoofLayerInfo-画像を色情報と位置情報で屋根レイヤー情報を取得](./roof-layer-info/README.md)
 - [ModelEdgeHeightInfo-屋根ポリゴンの高さ情報を取得](./model-edge-height-info/README.md)
 
 ```mermaid
 flowchart TB
-  node_1["Preprocess-建築物LOD0の範囲内のDSM点群で画像座標(i,j)に対応するDSM色(r,g,b)で画像を色情報を用意"]
+  node_1[["Preprocess-建築物LOD0の範囲内のDSM点群で画像座標(i,j)に対応するDSM色(r,g,b)で画像を色情報を用意"]]
   node_2["Preprocess-建築物LOD0の範囲内のDSM点群で画像座標(i,j)に対応するDSM座標(x,y,z)で画像の位置情報を用意"]
   node_3[["RoofLayerInfo-画像を色情報と位置情報で屋根レイヤー情報を取得"]]
   node_4["Preprocess-画像を色情報を持って屋根線検出モデル(HEAT)に入れる画像を用意"]
