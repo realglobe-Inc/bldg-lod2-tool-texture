@@ -51,7 +51,7 @@
   - <img width="500" alt="SCR-20230502-nedr" src="./images/mesh-viewer-tutorial-01.png">
 
 
-## 平面直角座標(DSM 座標) <-> 緯度経度座標(CityGML 座標) 座標変換ツール
+## 座標変換 : 平面直角座標(DSM 座標) <-> 緯度経度座標(CityGML 座標) 
 | 実行ファイル位置 | `./debuggers/coord.py` |
 |-|-|
 | 説明 | 平面直角座標と緯度経度座標を変換 |
@@ -65,22 +65,7 @@ python ./debuggers/coord.py 6668 6677 35.91760209932579 139.27930937708183
 python ./debuggers/coord.py 6677 6668 -9000 -50000
 ```
 
-
-## DSM 画像保存ツール
-| 実行ファイル位置 | `./debuggers/save_dsm_area_as_png.py` |
-|-|-|
-| 説明 | 平面直角座標の座標範囲ないに入っている DSM の画像を保存する |
-| 用途 | 平面直角座標の領域内の建物を肉眼で確認したい場合 |
-
-```
-# 座標範囲 : -21146, -34454 〜 -21132, -34440
-# DSMフォルダーパス : ~/DSM/DSM/
-activate
-python3 ./debuggers/search_dsm_file_by_pos.py -21146 -34454 -21132 -34440 ~/DSM/DSM/
-```
-
-
-## CityGML ファイル検索ツール
+## CityGMLファイル検索
 | 実行ファイル位置 | `./debuggers/search_city_gml_file_by_pos.py` |
 |-|-|
 | 説明 | 領域内（平面直角座標・緯度経度座標）の入っている CityGML ファイルを探す |
@@ -90,28 +75,28 @@ python3 ./debuggers/search_dsm_file_by_pos.py -21146 -34454 -21132 -34440 ~/DSM/
 # 座標範囲 : -9000, -51000 〜 -10000, -52000
 # CityGMLフォルダー : ~/lod2_data/kawazaki/08_CityGML
 # 座標系番号 : 6677
-activate
+
 python3 ./debuggers/search_city_gml_file_by_pos.py -9000 -51000 -10000 -52000 \
   ~/lod2_data/kawazaki/08_CityGML 6677
 ```
 
-
-## CityGML の座標で DSM ファイルが検索するツール
+## DSMファイル検索(CityGMLファイル)
 | 実行ファイル位置 | `./debuggers/search_dsm_file_by_city_gml.py` |
 |-|-|
-| 説明 | CityGML の座標で DSM ファイルを探す |
+| 説明 | CityGML の座標範囲で DSM ファイルを探す |
 | 用途 | 建築物LOD2自動生成ツールのデーター集めで、CityGML ファイルに必要な DSM ファイルだけを探す |
 
 ```
 # CityGMLファイル ~/lod2_data/kawazaki/08_CityGML/53392535_bldg_6697_op.gml
 # DSM フォルダー /lod2_data/kawazaki/04_DSM_RGB
 # DSM ファイルの座標系番号 6677
+
 python ./debuggers/search_dsm_file_by_city_gml.py \
   ~/lod2_data/kawazaki/08_CityGML/53392535_bldg_6697_op.gml \
   /lod2_data/kawazaki/04_DSM_RGB 6677
 ```
 
-## 平面直角座標で DSM ファイルが検索するツール
+## DSMファイルが検索(平面直角座標)
 | 実行ファイル位置 | `./debuggers/search_dsm_file_by_pos.py` |
 |-|-|
 | 説明 | 領域内（平面直角座標）に入っている DSM ファイルを探す |
@@ -120,11 +105,24 @@ python ./debuggers/search_dsm_file_by_city_gml.py \
 ```
 # 座標範囲 : -21146, -34454 〜 -21132, -34440
 # DSM フォルダー : ~/DSM/DSM/
-activate
+
 python3 ./debuggers/search_dsm_file_by_pos.py -21146 -34454 -21132 -34440 ~/DSM/DSM/
 ```
 
-## 壁線確認ツール
+## DSM画像保存
+| 実行ファイル位置 | `./debuggers/save_dsm_area_as_png.py` |
+|-|-|
+| 説明 | 平面直角座標の座標範囲ないに入っている DSM の画像を保存する |
+| 用途 | 平面直角座標の領域内の建物を肉眼で確認したい場合 |
+
+```
+# 座標範囲 : -21146, -34454 〜 -21132, -34440
+# DSMフォルダーパス : ~/DSM/DSM/
+
+python3 ./debuggers/save_dsm_area_as_png.py -21146 -34454 -21132 -34440 ~/DSM/DSM/
+```
+
+## DSM壁線確認
 | 実行ファイル位置 | `./debuggers/show_wall_point_as_png.py` |
 |-|-|
 | 説明 | 領域内（平面直角座標）に入っている DSM ファイルの RGB 画像に壁線を上書きした画像を出力 |
@@ -136,12 +134,12 @@ python3 ./debuggers/search_dsm_file_by_pos.py -21146 -34454 -21132 -34440 ~/DSM/
 # イメージ生成パス : ~/DSM/DSM/
 # DSM点群xy間隔
 # 壁認識基準(m) : 0.2
-activate
+
 python3 ./debuggers/show_wall_point_as_png.py -21330 -34630 -21030 -34330 \
   ~/DSM/DSM/ -o ~/DSM/DSM/ -g 0.25 -w 0.2
 ```
 
-## HEAT屋根線テストツール
+## HEAT屋根線テスト
 | 実行ファイル位置 | `/test_roof_edge.py` |
 |-|-|
 | 説明 | HEAT屋根線の問題を確認するためのプロトタイプ |
@@ -151,10 +149,11 @@ python3 ./debuggers/show_wall_point_as_png.py -21330 -34630 -21030 -34330 \
 ```
 # 建築物イメージファイル : ~/bldg-lod2-tool/tools/Real-ESRGAN/output/DSM_-214_-347_out.jpg
 # 屋根線を書いたイメージを出力するパス : .
+
 python3 ./test_roof_edge.py ~/bldg-lod2-tool/tools/Real-ESRGAN/output/DSM_-214_-347_out.jpg -o .
 ```
 
-## 3D形状生成テストツール
+## 3D形状生成テスト
 | 実行ファイル位置 | `/test_roof_for_house_model.py` |
 |-|-|
 | 説明 | 3D形状生成の仕組みを理解する |
