@@ -204,13 +204,11 @@ class HouseModel:
         roof_polygon = roof_polygon[::-1]
 
       for index, point_id in enumerate(roof_polygon):
+        # 反時計回りに屋根の辺を選んで、その辺を上辺とする壁面を作る
         next_index = (index + 1) % len(roof_polygon)
         next_point_id = roof_polygon[next_index]
         before_edge = [point_id, next_point_id]
         sorted_edge = tuple(sorted(before_edge))
-
-        # if sorted_edge in created_wall_edges:
-        #   continue
 
         # 壁だけ作る
         wall_bottom_top = sorted_edge_wall_bottom_top_pair.get(sorted_edge)
@@ -228,6 +226,7 @@ class HouseModel:
         z = polygon_zs_list[polygon_id][index]
         next_z = polygon_zs_list[polygon_id][next_index]
         if sorted([top_z, next_top_z]) != sorted([z, next_z]):
+          # 二重屋根等で、選んだ屋根辺が壁面の上辺でなく下辺にあたる場合はスキップ
           continue
 
         # 反時計回りになるように座標(x,y,z)配置
