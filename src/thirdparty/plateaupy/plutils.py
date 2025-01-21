@@ -14,7 +14,7 @@ def randomname(n):
 	return ''.join(randlst)
 
 def str2floats(x):
-	return np.array([float(i) for i in x.text.split(' ')])
+	return np.array([float(i) for i in x.text.split()])
 
 # convert (longitude[rad],latitude[rad],height[meter]) into (X,Y,Z[meter])
 #
