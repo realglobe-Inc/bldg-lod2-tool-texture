@@ -105,7 +105,10 @@ class HouseModel:
     )
 
     # 壁面を作る
-    self._create_wall_faces(model_edge_height_info.sorted_edge_wall_bottom_top_pair)
+    self._create_wall_faces(
+        model_edge_height_info.sorted_edge_wall_bottom_top_pair,
+        model_edge_height_info.polygon_zs_list,
+    )
 
     # 屋根面を作る
     self._create_roof_faces(model_edge_height_info.polygon_zs_list)
@@ -184,13 +187,14 @@ class HouseModel:
           tuple[tuple[int, int]],
           tuple[tuple[float, float], tuple[float, float]]
       ],
+      polygon_zs_list: list[list[float]]
   ):
     """壁面を作る
     """
 
     created_wall_edges: list[tuple[int, int]] = []
 
-    for polygon in self._inner_polygons:
+    for polygon_id, polygon in enumerate(self._inner_polygons):
       polygon_xys_before = [self._roof_polygon_vertex_xys[point_id] for point_id in polygon]
       polygon_xys_after = ensure_counter_clockwise(polygon_xys_before)
 
@@ -205,8 +209,8 @@ class HouseModel:
         before_edge = [point_id, next_point_id]
         sorted_edge = tuple(sorted(before_edge))
 
-        if sorted_edge in created_wall_edges:
-          continue
+        # if sorted_edge in created_wall_edges:
+        #   continue
 
         # 壁だけ作る
         wall_bottom_top = sorted_edge_wall_bottom_top_pair.get(sorted_edge)
@@ -221,17 +225,17 @@ class HouseModel:
         else:
           (bottom_z, top_z), (next_bottom_z, next_top_z) = wall_bottom_top
 
+        z = polygon_zs_list[polygon_id][index]
+        next_z = polygon_zs_list[polygon_id][next_index]
+        if sorted([top_z, next_top_z]) != sorted([z, next_z]):
+          continue
+
         # 反時計回りになるように座標(x,y,z)配置
         wall_model_points = [
             ModelPoint(
-                position_id_2d=point_id,
-                position_id_3d=self._add_point((x, y, bottom_z)),
-                order_id=index,
-            ),
-            ModelPoint(
-                position_id_2d=point_id,
-                position_id_3d=self._add_point((x, y, top_z)),
-                order_id=index,
+                position_id_2d=next_point_id,
+                position_id_3d=self._add_point((next_x, next_y, next_bottom_z)),
+                order_id=next_index,
             ),
             ModelPoint(
                 position_id_2d=next_point_id,
@@ -239,9 +243,14 @@ class HouseModel:
                 order_id=next_index,
             ),
             ModelPoint(
-                position_id_2d=next_point_id,
-                position_id_3d=self._add_point((next_x, next_y, next_bottom_z)),
-                order_id=next_index,
+                position_id_2d=point_id,
+                position_id_3d=self._add_point((x, y, top_z)),
+                order_id=index,
+            ),
+            ModelPoint(
+                position_id_2d=point_id,
+                position_id_3d=self._add_point((x, y, bottom_z)),
+                order_id=index,
             ),
         ]
 
