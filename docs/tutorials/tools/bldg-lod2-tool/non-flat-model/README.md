@@ -3,6 +3,7 @@
   - ![origin.png](./bldg-1f5bfdcd-534e-48ab-9d1e-224dd2c6baf4/origin.png)
 - [RoofLayerInfo-画像を色情報と位置情報で屋根レイヤー情報を取得](./roof-layer-info/README.md)
 - [ModelEdgeHeightInfo-屋根ポリゴンの高さ情報を取得](./model-edge-height-info/README.md)
+- [壁面を作る](./wall-surface/README.md)
 
 ```mermaid
 flowchart TB
@@ -17,7 +18,7 @@ flowchart TB
   node_9["RoofLayerInfo-バルコニー領域の点群の高さを全てその点群の最低に変更し、屋根レイヤーを追加"]
   node_10["ToDo-X型交差屋根に中間点の追加"]
   node_11[["ModelEdgeHeightInfo-屋根ポリゴンの高さ情報を取得"]]
-  node_12["壁面を作る"]
+  node_12[["壁面を作る"]]
   node_13["屋根面を作る"]
   node_14["床面を作る"]
   node_15["objファイルに保存"]
