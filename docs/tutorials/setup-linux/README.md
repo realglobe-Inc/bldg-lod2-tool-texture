@@ -43,323 +43,359 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
 - pip 仮想環境の作成するパス(`create_env` コマンドで pip 仮装環境を作成)
   |pip 仮想環境作成するパス|ツールめ|備考|
   |-|-|-|
-  |`./tools/SuperResolution/RoofSurface`  |屋根面視認性向上ツール|不要になった|
-  |`./`                                   |LOD2建築物モデル自動作成ツール||
-  |`./tools/SuperResolution/WallSurface`  |壁面視認性向上ツール||
-  |`./tools/DeblurGANv2`                  |テクスチャ鮮明化ツール||
-  |`./tools/UnsharpMask`                  |テクスチャシャープ化ツール||
-  |`./tools/Real-ESRGAN`                  |テクスチャ解像度向上ツール||
-  |`./tools/Atlas_Prot`                   |テクスチャアトラス化ツール| バグが多すぎて、使用中止 |
-
+  |`./tools/SuperResolution/RoofSurface`  |[屋根面視認性向上ツール](#屋根面視認性向上ツール)|不要になった|
+  |`./`                                   |[LOD2建築物モデル自動作成ツール](#LOD2建築物モデル自動作成ツール)||
+  |`./tools/SuperResolution/WallSurface`  |[壁面視認性向上ツール](#壁面視認性向上ツール)||
+  |`./tools/DeblurGANv2`                  |[テクスチャ鮮明化ツール](#テクスチャ鮮明化ツール)||
+  |`./tools/UnsharpMask`                  |[テクスチャシャープ化ツール](#テクスチャシャープ化ツール)||
+  |`./tools/Real-ESRGAN`                  |[テクスチャ解像度向上ツール](#テクスチャ解像度向上ツール)||
+  |`./tools/Atlas_Prot`                   |[テクスチャアトラス化ツール](#テクスチャアトラス化ツール)| バグが多すぎて、使用中止 |
 
 - 仮想環境の開始
-```
-activate # requirements.txt のあるフォルダーに移動して実行
-```
-
+    ```
+    activate # requirements.txt のあるフォルダーに移動して実行
+    ```
 - 仮想環境の終了
-```
-deactivate # requirements.txt のあるフォルダーに移動して実行
-```
+    ```
+    deactivate # requirements.txt のあるフォルダーに移動して実行
+    ```
 
 ## LOD2建築物モデル自動作成ツール
+- プロジェクト内相対パスへ移動 : ./
+- 依存ライブラリのインストール
+    ```
+    pip install –r requirements.txt # 仮想環境の開始後
+    ```
+- 建物分類用モデルの学習済みパラメーターをダウンロード
+    ```
+    wget -O src/createmodel/data/classifier_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl
+    ```
+- 屋根線検出用モデルの学習済みパラメーターをダウンロード
+    ```
+    wget -O src/createmodel/data/roof_edge_detection_parameter.pth https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth
+    ```
+- バルコニー検出用モデルの学習済みパラメーターをダウンロード
+    ```
+    wget -O src/createmodel/data/balcony_segmentation_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl
+    ```
 
-### プロジェクト内相対パスへ移動 : ./
+- LOD2建築物モデル自動作成のテスト用の入力データーのダウンロード
+  - [ブラウザからダウンロード(ファイル大きいから wget 不可)](https://drive.google.com/file/d/1UnxBL2MrDZaQ5EF44TXCFc-ZnVbp9Gf6/view)
+  - scp でインスタンスに転送
+      ```
+      scp ~/Download/Auto-Create-bldg-lod2-tool-tutorial.zip ubuntu@xxx.xxx.xxx.xxx:~/
+      ```
+  - インスタンス内部で圧縮解除
+      ```
+      mkdir -p ~/Auto-Create-bldg-lod2-tool-tutorial
+      unzip ~/Auto-Create-bldg-lod2-tool-tutorial.zip -d ~/Auto-Create-bldg-lod2-tool-tutorial
+      ```
+- param.json必須パラメーター
+  |	キー名 |	値形式 | 説明 |
+  | -- | -- | -- | 
+  |	LasCoordinateSystem| `number`	|航空写真DSM点群の平面直角座標系の番号です。1～19の数値にて指定します。未記入および1～19以外の値が入力された場合は無効とし、エラーメッセージを表示し、処理を中止します。
+  |	DsmFolderPath| `string` |航空写真DSM点群のフォルダパスを指定します。指定されたフォルダパスが存在しない場合は無効とし、エラーメッセージを表示し、処理を中止します。
+  |	LasSwapXY | `boolean` |	LASファイルのXY座標を入れ替えて使用するか否かを切り替えるフラグです。設定値がtrueの場合は、LASファイルのXY座標を入れ替えます。システム内部座標系が、xが東方向、yが北方向の値のため、LASファイル座標系が同一座標系となるようにユーザーがフラグを切り替える必要があります。未記入、または、真偽値以外の値が入力された場合は、エラーメッセージを表示し、処理を中止します。
+  |	CityGMLFolderPath	| `string` | 入力CityGMLフォルダパスを指定します。未記入および指定されたフォルダが存在しない場合、フォルダ内にCityGMLファイルがない場合は無効とし、エラーメッセージを表示し、処理を中止します。
+  | TextureFolderPath	| `string` | 航空写真（原画像）の格納フォルダパスです。未記入および指定されたファイルが存在しない場合は無効とし、警告メッセージを表示し、テクスチャ貼付け処理を実施しません。
+  |	ExternalCalibElementPath | `string` |	外部標定パラメータのファイルパスです。未記入および指定されたファイルが存在しない場合は無効とし、警告メッセージを表示し、テクスチャ貼付け処理を実施しません。
+  |	RotateMatrixMode | `number` | テクスチャ貼付け処理において、ワールド座標からカメラ座標に変換する際に使用する回転行列Rの種類を切り替える設定値です。<br />モードの種類は以下2種類とします。<br />0:R=R_x (ω) R_y (ϕ) R_z (κ)<br />1:R=R_z (κ)R_y (ϕ)R_x (ω)<br/>未記入、または、0,1以外の値が入力された場合は、エラーメッセージを表示し、処理を中止します。
+  |	CameraInfoPath | `string` |	内部標定パラメータのファイルパスです。未記入および指定されたファイルが存在しない場合は無効とし、警告メッセージを表示し、テクスチャ貼付け処理を実施しません。
+  |	OutputFolderPath | `string` | 生成モデルの出力先フォルダパスです。指定されたフォルダ内に出力フォルダを作成し、作成したフォルダ内にCityGMLファイルとテクスチャ情報を出力します。テクスチャ情報は、入力CityGMLファイル名称(拡張子は除く)_appearanceフォルダに格納されます。
+  | OutputLogFolderPath | `string` | ログのフォルダパスです。未記入または、存在しない場合は、本システムのPythonコードと同階層のログフォルダ“output_log”にログファイルを作成し、処理を中止します。
+  | DebugLogOutput | `boolean` | デバッグレベルのログを出力するかどうかのフラグです。trueまたはfalseで値を指定します。未記入または、真偽値以外の値が入力された場合は、エラーメッセージを表示し、処理を中止します。
+  | PhaseConsistency	| `{`</br>`DeleteErrorObject: boolean,`</br>`NonPlaneThickness: number,`</br>`NonPlaneAngle: number`</br>`}` |	位相一貫性検査/補正処理用パラメータです。項目は位相一貫性検査/補正用設定パラメータ一覧を参照してください。
+- param.json選択パラメーター
+    | キー名 |	値形式 | 基本値 | 説明 |
+    | -- | -- | -- | -- |
+    | OutputOBJ | `boolean` | `true` | 生成モデルをCityGMLファイルとは別にOBJファイルとして出力するか否かを設定するフラグです。
+    | OutputTexture | `boolean` | `true` | CityGMLファイルにテクスチャー情報を出力するか否かを設定するフラグです。
+    | OutputCityGML | `boolean` | `true` | CityGMLファイル出力するか否かを設定するフラグです。
+    | DebugMode | `boolean` | `false` | デバッグモード : キャッシュ化して実行速度改善、中間処理段階の結果をイメージとして保存して問題を追跡
+    | TargetCoordAreas | `Array<Array<Array<number>>> \| null` | `null` | 緯度経度の領域を指定して建築物の対象を絞ります。<br /> 緯度経度の領域 : [[x1, y1, epsg_code1], [x2, y2, epsg_code2]]<br />ex)<br />[[-13985, -51597, 6677], [-13963, -51576, 6677]]
+    | TargetBuildingIds | `Array<string> \| null` | `null` | 建築IDを指定して建築物の対象を絞ります。入力しない場合、全ての建築物を対象とします
+    | TextureOutputWidthMax | `number` | `1024` | テクスチャー幅サイズ最大値制限
+    | TextureOutputHeightMax | `number` | `1024` | テクスチャー縦サイズ最大値制限
+- param.jsonパラメーター修正
 
-### 依存ライブラリのインストール
-```
-pip install –r requirements.txt # 仮想環境の開始後
-```
-
-### 建物分類用モデルの学習済みパラメーターをダウンロード
-```
-wget -O src/createmodel/data/classifier_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl
-```
-
-### 屋根線検出用モデルの学習済みパラメーターをダウンロード
-```
-wget -O src/createmodel/data/roof_edge_detection_parameter.pth https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth
-```
-
-### バルコニー検出用モデルの学習済みパラメーターをダウンロード
-```
-wget -O src/createmodel/data/balcony_segmentation_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl
-```
-
-### LOD2建築物モデル自動作成のテスト用の入力データーのダウンロード
-- [ブラウザからダウンロード(ファイル大きいから wget 不可)](https://drive.google.com/file/d/1UnxBL2MrDZaQ5EF44TXCFc-ZnVbp9Gf6/view)
-- scp でインスタンスに転送
-```
-scp ~/Download/Auto-Create-bldg-lod2-tool-tutorial.zip ubuntu@xxx.xxx.xxx.xxx:~/
-```
-- インスタンス内部で圧縮解除
-```
-mkdir -p ~/Auto-Create-bldg-lod2-tool-tutorial
-unzip ~/Auto-Create-bldg-lod2-tool-tutorial.zip -d ~/Auto-Create-bldg-lod2-tool-tutorial
-```
-
-### LOD2建築物モデル自動作成パラメーター修正
-~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/param.json
-```
-{
-  "LasCoordinateSystem": 9,
-  "DsmFolderPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/DSM",
-  "LasSwapXY": false,
-  "CityGMLFolderPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/CityGML",
-  "TextureFolderPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/RawImage",
-  "RotateMatrixMode": 0,
-  "ExternalCalibElementPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/ExCalib/ExCalib.txt",
-  "CameraInfoPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/CamInfo/CamInfo.txt",
-  "OutputFolderPath": "~/AutoCreateLod2_tutorial/output",
-  "OutputOBJ": true,
-  "OutputTexture": true,
-  "OutputCityGML": true,
-  "OutputLogFolderPath": "~/AutoCreateLod2_tutorial/output",
-  "DebugLogOutput": false,
-  "PhaseConsistency": {
-    "DeleteErrorObject": true,
-    "NonPlaneThickness": 0.05,
-    "NonPlaneAngle": 15
-  },
-  "DebugMode": true,
-  "TargetCoordAreas" : [
-    [[35, 139, 6668], [36, 140, 6668]],
-    [[35, 139, 6668], [-12516, -53774, 6677]],
-    [[-12516, -53774, 6677], [-12516, -53774, 6677]]
-  ],
-  "TextureOutputWidthMax": 4096,
-  "TextureOutputHeightMax": 4096
-}
-```
-
-### LOD2建築物モデル自動作成開始
-```
-python3 AutoCreateLod2.py ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/param.json
-```
-
-
-#### 必須パラメーター
-| No |	キー名 |	値形式 | 説明 |
-| -- | -- | -- | -- | 
-|1|	LasCoordinateSystem| `number`	|航空写真DSM点群の平面直角座標系の番号です。1～19の数値にて指定します。未記入および1～19以外の値が入力された場合は無効とし、エラーメッセージを表示し、処理を中止します。
-|2|	DsmFolderPath| `string` |航空写真DSM点群のフォルダパスを指定します。指定されたフォルダパスが存在しない場合は無効とし、エラーメッセージを表示し、処理を中止します。
-|3|	LasSwapXY | `Boolean` |	LASファイルのXY座標を入れ替えて使用するか否かを切り替えるフラグです。設定値がtrueの場合は、LASファイルのXY座標を入れ替えます。システム内部座標系が、xが東方向、yが北方向の値のため、LASファイル座標系が同一座標系となるようにユーザーがフラグを切り替える必要があります。未記入、または、真偽値以外の値が入力された場合は、エラーメッセージを表示し、処理を中止します。
-|4|	CityGMLFolderPath	| `string` | 入力CityGMLフォルダパスを指定します。未記入および指定されたフォルダが存在しない場合、フォルダ内にCityGMLファイルがない場合は無効とし、エラーメッセージを表示し、処理を中止します。
-|5| TextureFolderPath	| `string` | 航空写真（原画像）の格納フォルダパスです。未記入および指定されたファイルが存在しない場合は無効とし、警告メッセージを表示し、テクスチャ貼付け処理を実施しません。
-|6|	ExternalCalibElementPath | `string` |	外部標定パラメータのファイルパスです。未記入および指定されたファイルが存在しない場合は無効とし、警告メッセージを表示し、テクスチャ貼付け処理を実施しません。
-|7|	RotateMatrixMode | `number` | テクスチャ貼付け処理において、ワールド座標からカメラ座標に変換する際に使用する回転行列Rの種類を切り替える設定値です。<br />モードの種類は以下2種類とします。<br />0:R=R_x (ω) R_y (ϕ) R_z (κ)<br />1:R=R_z (κ)R_y (ϕ)R_x (ω)<br/>未記入、または、0,1以外の値が入力された場合は、エラーメッセージを表示し、処理を中止します。
-|8|	CameraInfoPath | `string` |	内部標定パラメータのファイルパスです。未記入および指定されたファイルが存在しない場合は無効とし、警告メッセージを表示し、テクスチャ貼付け処理を実施しません。
-|9|	OutputFolderPath | `string` | 生成モデルの出力先フォルダパスです。指定されたフォルダ内に出力フォルダを作成し、作成したフォルダ内にCityGMLファイルとテクスチャ情報を出力します。テクスチャ情報は、入力CityGMLファイル名称(拡張子は除く)_appearanceフォルダに格納されます。
-|10| OutputLogFolderPath | `string` | ログのフォルダパスです。未記入または、存在しない場合は、本システムのPythonコードと同階層のログフォルダ“output_log”にログファイルを作成し、処理を中止します。
-|11| DebugLogOutput | `Boolean` | デバッグレベルのログを出力するかどうかのフラグです。trueまたはfalseで値を指定します。未記入または、真偽値以外の値が入力された場合は、エラーメッセージを表示し、処理を中止します。
-|12| PhaseConsistency	| `{`</br>`DeleteErrorObject: Boolean,`</br>`NonPlaneThickness: number,`</br>`NonPlaneAngle: number`</br>`}` |	位相一貫性検査/補正処理用パラメータです。項目は位相一貫性検査/補正用設定パラメータ一覧を参照してください。
-
-#### 選択パラメーター
-| No | キー名 |	値形式 | 基本値 | 説明 |
-| -- | -- | -- | -- | -- |
-|1| OutputOBJ | `Boolean` | `true` | 生成モデルをCityGMLファイルとは別にOBJファイルとして出力するか否かを設定するフラグです。
-|2| OutputTexture | `Boolean` | `true` | CityGMLファイルにテクスチャー情報を出力するか否かを設定するフラグです。
-|3| OutputCityGML | `Boolean` | `true` | CityGMLファイル出力するか否かを設定するフラグです。
-|4| DebugMode | `Boolean` | `false` | デバッグモード : キャッシュ化して実行速度改善、中間処理段階の結果をイメージとして保存して問題を追跡
-|5| TargetCoordAreas | `Array<Array<Array<number>>> \| null` | `null` | 緯度経度の領域を指定して建築物の対象を絞ります。<br /> 緯度経度の領域 : [[x1, y1, epsg_code1], [x2, y2, epsg_code2]]<br />ex)<br />[[-13985, -51597, 6677], [-13963, -51576, 6677]]
-|6| TargetBuildingIds | `Array<string> \| null` | `null` | 建築IDを指定して建築物の対象を絞ります。入力しない場合、全ての建築物を対象とします
-|7| TextureOutputWidthMax | `number` | `4096` | テクスチャー幅サイズ最大値制限
-|8| TextureOutputHeightMax | `number` | `4096` | テクスチャー縦サイズ最大値制限
-
-### LOD2建築物モデル自動作成開始
-```
-python3 AutoCreateLod2.py param.json
-```
+    ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/param.json
+    ```
+    {
+      "LasCoordinateSystem": 9,
+      "DsmFolderPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/DSM",
+      "LasSwapXY": false,
+      "CityGMLFolderPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/CityGML",
+      "TextureFolderPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/RawImage",
+      "RotateMatrixMode": 0,
+      "ExternalCalibElementPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/ExCalib/ExCalib.txt",
+      "CameraInfoPath": "~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/CamInfo/CamInfo.txt",
+      "OutputFolderPath": "~/AutoCreateLod2_tutorial/output",
+      "OutputOBJ": true,
+      "OutputTexture": true,
+      "OutputCityGML": true,
+      "OutputLogFolderPath": "~/AutoCreateLod2_tutorial/output",
+      "DebugLogOutput": false,
+      "PhaseConsistency": {
+        "DeleteErrorObject": true,
+        "NonPlaneThickness": 0.05,
+        "NonPlaneAngle": 15
+      },
+      "DebugMode": true,
+      "TargetCoordAreas" : [
+        [[35, 139, 6668], [36, 140, 6668]],
+        [[35, 139, 6668], [-12516, -53774, 6677]],
+        [[-12516, -53774, 6677], [-12516, -53774, 6677]]
+      ],
+      "TargetBuildingIds": [
+        "bldg-31ea0b44-c974-4f17-8fb1-6fbcd7aae818",
+        "bldg-8325048f-44d3-4a52-9929-adcb8bdaaefa",
+        "bldg-cd60ec6e-36d1-44ae-a545-5a7bb6f850c3",
+        "bldg-7f2f966b-5ef4-4d97-959c-c420c9bbcec1",
+      ],
+      "TextureOutputWidthMax": 1024,
+      "TextureOutputHeightMax": 1024
+    }
+    ```
+- LOD2建築物モデル自動作成開始
+    ```
+    python3 AutoCreateLod2.py ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/param.json
+    ```
+- LOD2建築物モデル自動作成開始
+    ```
+    python3 AutoCreateLod2.py param.json
+    ```
 
 
 ## 屋根面視認性向上ツール
 <details>
   <summary>不要になったため一旦隠す（クリックしてオープン）</summary>
 
-  ### プロジェクト内相対パスへ移動 : ./tools/SuperResolution/RoofSurface
+  - プロジェクト内相対パスへ移動 : ./tools/SuperResolution/RoofSurface
+  - 依存ライブラリのインストール
+      ```
+      pip install –r requirements.txt # 仮想環境の開始後
+      ```
+  - 屋根面視認性向上用モデルの学習済みパラメーターをダウンロード
+      ```
+      wget -O checkpoint/iter_280000_conv.pth https://drive.google.com/file/d/1xBFAVgGeIGFsvMN6bG_Y9renLyNm46is/view?usp=drivesdk
+      ```
+  - param.json必須パラメーター
+      |	キー名 | 値形式 | 説明 |
+      | --- | --- | --- |
+      | InputDir | `string` | 航空写真が保存されているフォルダパス |
+      | OutputDir | `string` | 途中結果と最終結果を出力するフォルダパス |
+      | GSD | `number` | 航空写真の地上画素寸法。単位はメートル。 |
+      | OutputLogDir | `string` | ログのフォルダパス。未記入又は存在しない場合は、本システムのPythonコードと同階層にログファイルを作成する。 |
+  - param.json選択パラメーター
+      |	キー名 | 値形式 | 基本値 | 説明 |
+      | --- | --- | --- | --- |
+      | Device | `string` | `"cuda"` | LOD2建物モデルファイルのパス |
+      | DebugLogOutput | `boolean` | `false` | デバッグレベルのログを出力するかどうかのフラグ。true又はfalseで値を指定する。 |
+  - param.jsonパラメーター修正
 
-  ### 依存ライブラリのインストール
-  ```
-  pip install –r requirements.txt # 仮想環境の開始後
-  ```
-
-  ### 屋根面視認性向上用モデルの学習済みパラメーターをダウンロード
-  ```
-  wget -O checkpoint/iter_280000_conv.pth https://drive.google.com/file/d/1xBFAVgGeIGFsvMN6bG_Y9renLyNm46is/view?usp=drivesdk
-  ```
-
-  ### 屋根面視認性向上開始
-  ```
-  python3 CreateSuperResolution.py param.json
-  ```
+      ~/bldg-lod2-tool/tools/Atlas_Prot/param.json
+      ```
+      {
+          "InputDir": "./data",
+          "OutputDir": "./output/result",
+          "GSD": "0.25",
+          "Device": "cuda",
+          "OutputLogDir": "./output/log",
+          "DebugLogOutput": "true"
+      }
+      ```
+  - 屋根面視認性向上開始
+      ```
+      python3 CreateSuperResolution.py param.json
+      ```
 </details>
 
 ## 壁面視認性向上ツール
+- プロジェクト内相対パスへ移動 : ./tools/SuperResolution/WallSurface
+- 依存ライブラリのインストール
+    ```
+    pip install –r requirements.txt # 仮想環境の開始後
+    ```
+- 壁面視認性向上用モデルの学習済みパラメーターをダウンロード
+    ```
+    wget -O checkpoint/latest_net_G_A.pth https://github.com/realglobe-Inc/pytorch-CycleGAN-and-pix2pix/releases/download/bldg-lod2-tool-v2.0.0/latest_net_G_A.pth
+    ```
+- 壁面視認性向上開始
+    ```
+    python3 main.py param.json
+    ```
+- param.json必須パラメーター
+    |	キー名 | 値形式 | 説明 |
+    | --- | --- | --- |
+    | InputDir | `string` | LOD2建物モデルファイルのパス |
+    | OutputDir | `string` | 途中結果と最終結果を出力するフォルダパス |
+    | OutputLogDir | `string` | ログのフォルダパス。未記入又は存在しない場合は、本システムのPythonコードと同階層にログファイルを作成する。 |
+- param.json選択パラメーター
+    |	キー名 | 値形式 | 基本値 | 説明 |
+    | --- | --- | --- | --- |
+    | Device | `string` | `"cuda"` | LOD2建物モデルファイルのパス |
+    | DebugLogOutput | `boolean` | `false` | デバッグレベルのログを出力するかどうかのフラグ。true又はfalseで値を指定する。 |
 
-### プロジェクト内相対パスへ移動 : ./tools/SuperResolution/WallSurface
+- param.jsonパラメーター修正
 
-### 依存ライブラリのインストール
-```
-pip install –r requirements.txt # 仮想環境の開始後
-```
-
-### 壁面視認性向上用モデルの学習済みパラメーターをダウンロード
-```
-wget -O checkpoint/latest_net_G_A.pth https://github.com/realglobe-Inc/pytorch-CycleGAN-and-pix2pix/releases/download/bldg-lod2-tool-v2.0.0/latest_net_G_A.pth
-```
-
-### 壁面視認性向上開始
-```
-python3 main.py param.json
-```
+    ~/bldg-lod2-tool/tools/SuperResolution/WallSurface/param.json
+    ```
+    {
+      "InputDir": "./data",
+      "OutputDir": "./output/result",
+      "Device": "cuda",
+      "OutputLogDir": "./output/log",
+      "DebugLogOutput": "true"
+    }
+    ```
 
 
 ## テクスチャ鮮明化ツール
+- プロジェクト内相対パスへ移動 : ./tools/DeblurGANv2
+- 依存ライブラリのインストール
+    ```
+    pip install –r requirements.txt # 仮想環境の開始後
+    ```
+- 事前学習モデルの学習済みパラメーターをダウンロード
+  - `~/.cache/torch/hub/checkpoints` に `1inceptionresnetv2-520b38e4.pth`
+      ```
+      mkdir -p ~/.cache/torch/hub/checkpoints
+      wget -O ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth
+      ```
+  - `checkpoints/fpn_inception.h5` に `fpn_inception.h5`
+      ```
+      wget -O checkpoints/fpn_inception.h5 https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/fpn_inception.h5
+      ```
+- 画質向上開始
+    ```
+    # -i 入力画像
+    # -o 出力画像
+    # -c 事前学習モデル
 
-### プロジェクト内相対パスへ移動 : ./tools/DeblurGANv2
-
-### 依存ライブラリのインストール
-```
-pip install –r requirements.txt # 仮想環境の開始後
-```
-
-### 事前学習モデルの学習済みパラメーターをダウンロード
-- `~/.cache/torch/hub/checkpoints` に `1inceptionresnetv2-520b38e4.pth`
-```
-mkdir -p ~/.cache/torch/hub/checkpoints
-wget -O ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth
-```
-- `checkpoints/fpn_inception.h5` に fpn_inception.h5
-```
-wget -O checkpoints/fpn_inception.h5 https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/fpn_inception.h5
-```
-
-### 画質向上開始
-```
-python3 predict.py -i input -o output -c checkpoints/fpn_inception.h5
-```
+    python3 predict.py -i input -o output -c checkpoints/fpn_inception.h5
+    ```
 
 
 
 ## テクスチャシャープ化ツール
-
-### プロジェクト内相対パスへ移動 : ./tools/UnsharpMask
-
-### 依存ライブラリのインストール
-```
-pip install –r requirements.txt # 仮想環境の開始後
-```
-
-### テクスチャシャープ化ツール実行
-```
-python3 UnsharpMask.py -i input -o output
-```
-
+- プロジェクト内相対パスへ移動 : ./tools/UnsharpMask
+- 依存ライブラリのインストール
+    ```
+    pip install –r requirements.txt # 仮想環境の開始後
+    ```
+- テクスチャシャープ化ツール実行
+    ```
+    python3 UnsharpMask.py -i input -o output
+    ```
 
 
 ## テクスチャ解像度向上ツール
+- プロジェクト内相対パスへ移動 : ./tools/Real-ESRGAN
+- 依存ライブラリのインストール
+    ```
+    # 仮想環境の開始後
+    pip install -r requirements.txt
+    python setup.py
+    ```
+- 事前学習モデルの学習済みパラメーターをダウンロード
+    ```
+    wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth -P weights
+    wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth -P weights
+    ```
+- 解像度向上開始
+    ```
+    # -n 事前学習モデル
+    # -g gpu-id
+    # -s 解像度向上(n倍)
+    # -i 入力画像
+    # -o 出力画像
 
-### プロジェクト内相対パスへ移動 : ./tools/Real-ESRGAN
+    # 4倍解像度向上
+    python3 inference_realesrgan.py -n RealESRGAN_x4plus -g 0 -s 4 -i input -o output
 
-### 依存ライブラリのインストール
-```
-# 仮想環境の開始後
-pip install -r requirements.txt
-python setup.py
-```
-
-### 事前学習モデルの学習済みパラメーターをダウンロード
-```
-wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth -P weights
-wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth -P weights
-```
-
-### 解像度向上開始
-```
-# -g gpu-id
-# -s 解像度向上(n倍)
-# -n 事前学習モデル
-# -i 入力画像
-# -i 出力画像
-
-# 4倍解像度向上
-python3 inference_realesrgan.py -n RealESRGAN_x4plus -g 0 -s 4 -i input -o output
-
-# 2倍解像度向上
-python3 inference_realesrgan.py -n RealESRGAN_x2plus -g 0 -s 2 -i input -o output
-```
-
+    # 2倍解像度向上
+    python3 inference_realesrgan.py -n RealESRGAN_x2plus -g 0 -s 2 -i input -o output
+    ```
 
 
 ## テクスチャアトラス化ツール
+- プロジェクト内相対パスへ移動 : ./tools/Atlas_Prot
+- 依存ライブラリのインストール
+    ```
+    pip install –r requirements.txt # 仮想環境の開始後
+    ```
+- param.json必須パラメーター
+    |	キー名 | 値形式 | 説明 |
+    | --- | --- | --- |
+    | InputGMLFolderPath | `string` | CityGML2.0フォルダ構成の「INPUT」を示します。「INPUT」フォルダには、CityGMLファイルを格納してあるものとします。 |
+    | OutputGMLFolderPath | `string` | アトラス化したCityGMLファイルを保存するフォルダを設定します。パスを記載すると自動的に作成されます。 |
+    | OutputWidth | `number` | 出力する画像ファイルの幅（単位：ピクセル）を設定します。<br />2の累乗の数値を指定します。|
+    | OutputHeight | `number` | 出力する画像ファイルの高さ（単位：ピクセル）を設定します。<br />2の累乗の数値を指定します。 |
+    | BackGroundColor | `number` | 出力する画像の背景色を設定します。<br />0(黒)～255(白) の数値を指定します。 |
+    | Extentpixel | `number` | 元画像から画像を切り出す際、外側を余分に切り取る場合幅（単位：ピクセル）を設定します。<br />描画時にポリゴン境目がスムーズになるように、元画像を大きめに切り出す際に使用します。<br />不要な場合は0を指定します。 |
+- param.jsonパラメーター修正
 
-### プロジェクト内相対パスへ移動 : ./tools/Atlas_Prot
-
-### 依存ライブラリのインストール
-```
-pip install –r requirements.txt # 仮想環境の開始後
-```
-
-### アトラス化開始
-```
-python3 Atlas_Prot.py param.json
-```
+    ~/bldg-lod2-tool/tools/Atlas_Prot/param.json
+    ```
+    {
+      "FilePath": {
+        "InputGMLFolderPath": "./input",
+        "OutputGMLFolderPath": "./output"
+      },
+      "OutputWidth": 2048,
+      "OutputHeight": 2048,
+      "BackGroundColor": 255,
+      "Extentpixel": 1
+    }
+    ```
+- アトラス化開始
+    ```
+    python3 Atlas_Prot.py param.json
+    ```
 
 
 ## 壁面視認性向上用モデルの学習済みパラメーター latest_net_G_A.pth の学習手順
+- 壁面視認性向上ツールの学習コード clone
+    ```
+    cd ~
+    git clone https://github.com/realglobe-Inc/pytorch-CycleGAN-and-pix2pix
+    cd pytorch-CycleGAN-and-pix2pix
+    ```
+- [python 仮想環境/開始](#python-仮想環境の設定方法)
+- 学習データーダウンロード
+    ```
+    wget -O datasets/d10.zip https://github.com/realglobe-Inc/pytorch-CycleGAN-and-pix2pix/releases/download/bldg-lod2-tool-v2.0.0/d10.zip
+    unzip datasets/d10.zip -d datasets/d10/
+    rm datasets/d10.zip
+    ```
+- CycleGAN B画像を選択
+  - B画像として高画質化済みの画像を選択する場合
+      ```
+      cp -r datasets/d10/train_d10B_deblured/ datasets/d10/train_d10B/
+      ```
+  - B画像として元の画像を選択する場合
+      ```
+      cp -r datasets/d10/train_d10B_backup/ datasets/d10/train_d10B/
+      ```
+  - 学習するデーターを追加する場合
+    - datasets/d10/train_d10B_backup/ に B画像追加
+    - datasets/d10/train_d10A/ に A画像追加
+    - [テクスチャ鮮明化ツール](#テクスチャ鮮明化ツール)で `datasets/d10/train_d10B_backup/` の画質向上
+    - 画質向上された画像を [テクスチャシャープ化ツール](#テクスチャシャープ化ツール)で `datasets/d10/train_d10B_backup/` ジシャープ化
+    - ジシャープ化された画像を `datasets/d10/train_d10B/` にコピー
+- 依存ライブラリのインストール
+    ```
+    pip install –r requirements.txt # 仮想環境の開始後
+    ```
+- 学習開始
+    ```
+    python3 train.py --dataroot ./datasets/d10 --name CycleGAN_d10 --model cycle_gan --direction AtoB --phase train_d10 --save_epoch_freq 100 --n_epochs 500 --input_nc 3 --output_nc 3
 
-### 壁面視認性向上ツールの学習コード clone
-```
-cd ~
-git clone https://github.com/realglobe-Inc/pytorch-CycleGAN-and-pix2pix
-cd pytorch-CycleGAN-and-pix2pix
-```
+    # checkpoints/CycleGAN_d10_old/latest_net_G_A.pth が学習済みパラメーター
+    ```
+- テスト開始
+    ```
+    python3 test.py --dataroot ~/CycleGAN/datasets/d10 --name CycleGAN_d10 --model cycle_gan --direction AtoB --phase test_d10 --epoch  latest --input_nc 3 --output_nc 3
 
-### [python 仮想環境/開始](#python-仮想環境の設定方法)
-
-### 学習データーダウンロード
-```
-wget -O datasets/d10.zip https://github.com/realglobe-Inc/pytorch-CycleGAN-and-pix2pix/releases/download/bldg-lod2-tool-v2.0.0/d10.zip
-unzip datasets/d10.zip -d datasets/d10/
-rm datasets/d10.zip
-```
-
-### CycleGAN B画像を選択
-- B画像として高画質化済みの画像を選択する場合
-```
-cp -r datasets/d10/train_d10B_deblured/ datasets/d10/train_d10B/
-```
-
-- B画像として元の画像を選択する場合
-```
-cp -r datasets/d10/train_d10B_backup/ datasets/d10/train_d10B/
-```
-
-- 学習するデーターを追加する場合
-  - datasets/d10/train_d10B_backup/ に B画像追加
-  - datasets/d10/train_d10A/ に A画像追加
-  - [テクスチャ鮮明化ツール](#テクスチャ鮮明化ツール)で `datasets/d10/train_d10B_backup/` の画質向上
-  - 画質向上された画像を [テクスチャシャープ化ツール](#テクスチャシャープ化ツール)で `datasets/d10/train_d10B_backup/` ジシャープ化
-  - ジシャープ化された画像を `datasets/d10/train_d10B/` にコピー
-
-
-### 依存ライブラリのインストール
-```
-pip install –r requirements.txt # 仮想環境の開始後
-```
-
-### 学習開始
-- 実行
-```
-python3 train.py --dataroot ./datasets/d10 --name CycleGAN_d10 --model cycle_gan --direction AtoB --phase train_d10 --save_epoch_freq 100 --n_epochs 500 --input_nc 3 --output_nc 3
-```
-
-- `checkpoints/CycleGAN_d10_old/latest_net_G_A.pth` が学習済みパラメーター
-
-### テスト開始
-- 実行
-```
-python3 test.py --dataroot ~/CycleGAN/datasets/d10 --name CycleGAN_d10 --model cycle_gan --direction AtoB --phase test_d10 --epoch  latest --input_nc 3 --output_nc 3
-```
-
-- `results` から結果確認
+    # results から結果確認
+    ```
