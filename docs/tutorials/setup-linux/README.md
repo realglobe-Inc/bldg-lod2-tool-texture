@@ -64,7 +64,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
 - プロジェクト内相対パスへ移動 : ./
 - 依存ライブラリのインストール
     ```
-    pip install –r requirements.txt # 仮想環境の開始後
+    pip install -r requirements.txt # 仮想環境の開始後
     ```
 - 建物分類用モデルの学習済みパラメーターをダウンロード
     ```
@@ -173,7 +173,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
   - プロジェクト内相対パスへ移動 : ./tools/SuperResolution/RoofSurface
   - 依存ライブラリのインストール
       ```
-      pip install –r requirements.txt # 仮想環境の開始後
+      pip install -r requirements.txt # 仮想環境の開始後
       ```
   - 屋根面視認性向上用モデルの学習済みパラメーターをダウンロード
       ```
@@ -214,7 +214,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
 - プロジェクト内相対パスへ移動 : ./tools/SuperResolution/WallSurface
 - 依存ライブラリのインストール
     ```
-    pip install –r requirements.txt # 仮想環境の開始後
+    pip install -r requirements.txt # 仮想環境の開始後
     ```
 - 壁面視認性向上用モデルの学習済みパラメーターをダウンロード
     ```
@@ -254,7 +254,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
 - プロジェクト内相対パスへ移動 : ./tools/DeblurGANv2
 - 依存ライブラリのインストール
     ```
-    pip install –r requirements.txt # 仮想環境の開始後
+    pip install -r requirements.txt # 仮想環境の開始後
     ```
 - 事前学習モデルの学習済みパラメーターをダウンロード
   - `~/.cache/torch/hub/checkpoints` に `1inceptionresnetv2-520b38e4.pth`
@@ -281,7 +281,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
 - プロジェクト内相対パスへ移動 : ./tools/UnsharpMask
 - 依存ライブラリのインストール
     ```
-    pip install –r requirements.txt # 仮想環境の開始後
+    pip install -r requirements.txt # 仮想環境の開始後
     ```
 - テクスチャシャープ化ツール実行
     ```
@@ -322,7 +322,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
 - プロジェクト内相対パスへ移動 : ./tools/Atlas_Prot
 - 依存ライブラリのインストール
     ```
-    pip install –r requirements.txt # 仮想環境の開始後
+    pip install -r requirements.txt # 仮想環境の開始後
     ```
 - param.json必須パラメーター
     |	キー名 | 値形式 | 説明 |
@@ -385,7 +385,7 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
     - ジシャープ化された画像を `datasets/d10/train_d10B/` にコピー
 - 依存ライブラリのインストール
     ```
-    pip install –r requirements.txt # 仮想環境の開始後
+    pip install -r requirements.txt # 仮想環境の開始後
     ```
 - 学習開始
     ```
