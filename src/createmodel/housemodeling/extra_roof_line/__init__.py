@@ -301,7 +301,7 @@ class ExtraRoofLine:
 
     tmp_outer_polygon_edges: list[tuple[tuple[float, float], tuple[float, float]]] = []
     for index, coord in enumerate(tmp_polys_area.exterior.coords):
-      next_coord = tmp_polys_area.exterior.coords[index]
+      next_coord = tmp_polys_area.exterior.coords[(index + 1) % len(tmp_polys_area.exterior.coords)]
       sorted_edge: tuple[tuple[float, float], tuple[float, float]] = tuple(sorted([coord, next_coord]))
       tmp_outer_polygon_edges.append(sorted_edge)
 

@@ -41,7 +41,7 @@ class HouseModelBuilder:
     Args:
       cloud(PointCloud): 建物点群
       shape(Polygon): 建物外形ポリゴン
-      bulding_id(str): 建物ID
+      building_id(str): 建物ID
       min_ground_height(float): 最低地面の高さ
       output_folder_path(str): 出力先フォルダ
       balcony_segmentation_checkpoint_path(str): バルコニーのセグメンテーションの学習済みモデルファイルパス
