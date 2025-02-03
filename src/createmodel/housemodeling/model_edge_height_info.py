@@ -133,7 +133,7 @@ class ModelEdgeHeightInfo:
       # ポリゴンの中にある頂点(ノイズを除いて)
       polygon_layer_number = self._polygon_layer_numbers[polygon_id]
       layer_number_point_ijs_pair = self._layer_number_point_ijs_pairs[polygon_id]
-      avaliable_polygon_ijs = layer_number_point_ijs_pair[polygon_layer_number]
+      available_polygon_ijs = layer_number_point_ijs_pair[polygon_layer_number]
       for point_id in inner_polygon:
         is_balcony_polygon = self._polygon_balcony_flags[polygon_id]
         if is_balcony_polygon:
@@ -143,7 +143,7 @@ class ModelEdgeHeightInfo:
         else:
           # 頂点と一番近い頂点をの座標(i,j)をポリゴン内部から検索
           point_ij = self._roof_polygon_vertex_ijs[point_id]
-          nearest_layer_number_point_ij = find_closest_point(point_ij, avaliable_polygon_ijs)
+          nearest_layer_number_point_ij = find_closest_point(point_ij, available_polygon_ijs)
           # ポリゴンの頂点での壁の高さを取得
           nearest_z = self._roof_layer_info.ij_to_z(*nearest_layer_number_point_ij)
           # 高さが取得できてなくて nearest_z が 0 の場合、地面高さ + 0.1 とする。
