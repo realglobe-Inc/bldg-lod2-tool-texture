@@ -121,6 +121,7 @@ class ExtraRoofLine:
         self._inner_polygon_ijs_list_after,
     )
 
+    # _new_polygon_vertex_xysと_new_polygon_vertex_ijsで対応する頂点の順番は同じにする
     self._new_polygon_vertex_xys = [self._ij_to_xy(ij) for ij in self._new_polygon_vertex_ijs]
 
     vertex_xy_point_id_pair = {
