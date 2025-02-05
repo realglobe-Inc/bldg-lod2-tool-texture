@@ -681,7 +681,7 @@ class MBR:
 
     if len(contours) > 1:
       # 最大面積の領域で上書き
-      areas = [geo.Polygon(np.squeeze(con)).area for con in contours]
+      areas = [geo.Polygon(np.squeeze(con)).area if np.squeeze(con).shape[0] >= 4 else -1 for con in contours]
       index = np.argmax(areas)
       contours = [contours[index]]
 
