@@ -145,7 +145,7 @@ class ModelEdgeHeightInfo:
           point_ij = self._roof_polygon_vertex_ijs[point_id]
           nearest_layer_number_point_ij = find_closest_point(point_ij, available_polygon_ijs)
           # ポリゴンの頂点での壁の高さを取得
-          nearest_z = self._roof_layer_info.ij_to_z(*nearest_layer_number_point_ij)
+          nearest_z = self._roof_layer_info.ij_to_z(*nearest_layer_number_point_ij) if nearest_layer_number_point_ij is not None else 0
           # 高さが取得できてなくて nearest_z が 0 の場合、地面高さ + 0.1 とする。
           point_z = max(nearest_z, self._min_roof_height)
           # 頂点(i,j)周辺の高さを保存(屋根レイヤー毎に)
