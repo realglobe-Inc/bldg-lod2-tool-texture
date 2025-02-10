@@ -39,6 +39,8 @@ class Preprocess:
     """
     # 高さでクラスタリング(MeanShift)
     zs = cloud.get_points()[:, 2]
+    if zs.size == 0:
+        return []
     z_min = np.min(zs)
     zs = zs - z_min
 
