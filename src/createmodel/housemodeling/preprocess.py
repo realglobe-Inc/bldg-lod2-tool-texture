@@ -11,6 +11,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from .roof_layer_info import RoofLayerInfo
 from ..lasmanager import PointCloud
+from ...util.log import Log, LogLevel, ModuleType
 
 
 class Preprocess:
@@ -130,16 +131,41 @@ class Preprocess:
       heat_dsm_grid_rgbs = masked_dsm_grid_rgbs
       heat_depth_image = masked_depth_image
       expanded_width = width
-      expanded_width = height
+      expanded_height = height
 
     # モデル入力用の正方形画像に変換(余白は白で埋める)
     square_heat_dsm_grid_rgbs = np.full((self._image_size, self._image_size, 3), 255, dtype=np.uint8)
     square_heat_depth_image = np.full((self._image_size, self._image_size), 255, dtype=np.uint8)
 
     top = (self._image_size - expanded_height) // 2
-    left = (self._image_size - expanded_width) // 2
+    if top >= 0:
+      s_top = 0
+      s_top_end = expanded_height
+      top_end = top + expanded_height
+    else:
+      # 上下にはみ出す
+      # はみ出す時点で続ける意味があるかわからない
+      Log.output_log_write(LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION, f'建物の上下幅({expanded_height})が屋根線取得処理の入力サイズ({self._image_size})を超えています: {self._building_id}')
+      s_top = -top
+      s_top_end = s_top + self._image_size
+      top = 0
+      top_end = self._image_size
 
-    square_heat_dsm_grid_rgbs[top:top + expanded_height, left:left + expanded_width] = heat_dsm_grid_rgbs
-    square_heat_depth_image[top:top + expanded_height, left:left + expanded_width] = heat_depth_image
+    left = (self._image_size - expanded_width) // 2
+    if left >= 0:
+      s_left = 0
+      s_left_end = expanded_width
+      left_end = left + expanded_width
+    else:
+      # 左右にはみ出す
+      # はみ出す時点で続ける意味があるかわからない
+      Log.output_log_write(LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION, f'建物の左右幅({expanded_width})が屋根線取得処理の入力サイズ({self._image_size})を超えています: {self._building_id}')
+      s_left = -left
+      s_left_end = s_left + self._image_size
+      left = 0
+      left_end = self._image_size
+
+    square_heat_dsm_grid_rgbs[top:top_end, left:left_end] = heat_dsm_grid_rgbs[s_top:s_top_end, s_left:s_left_end]
+    square_heat_depth_image[top:top_end, left:left_end] = heat_depth_image[s_top:s_top_end, s_left:s_left_end]
 
     return square_heat_dsm_grid_rgbs, square_heat_depth_image, roof_layer_info

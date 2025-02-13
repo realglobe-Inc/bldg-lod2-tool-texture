@@ -96,6 +96,9 @@ class Point:
     """
     return f'({self.x}, {self.y})'
 
+  def __repr__(self) -> str:
+    return f'{self.__class__.__name__}({self.x}, {self.y})'
+
   def __eq__(self, p: Point) -> bool:
     """点が完全に一致しているか調べる
 

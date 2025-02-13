@@ -121,11 +121,8 @@ class ExtraRoofLine:
         self._inner_polygon_ijs_list_after,
     )
 
-    self._new_polygon_vertex_xys = list(set([
-        polygon_xy
-        for polygon_xys in [*self._inner_polygon_xys_list, self._outer_polygon_xys]
-        for polygon_xy in polygon_xys
-    ]))
+    # _new_polygon_vertex_xysと_new_polygon_vertex_ijsで対応する頂点の順番は同じにする
+    self._new_polygon_vertex_xys = [self._ij_to_xy(ij) for ij in self._new_polygon_vertex_ijs]
 
     vertex_xy_point_id_pair = {
         vertex_ij: index for index, vertex_ij in enumerate(self._new_polygon_vertex_xys)

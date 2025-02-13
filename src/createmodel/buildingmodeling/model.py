@@ -669,7 +669,7 @@ class Model:
 
     # 辺の角度でグルーピング
     angle_clusters = self._angle_clustering(
-        rotate_edges, angle_th=angle_th)
+        rotate_edges, angle_th=angle_th) if len(rotate_edges) > 0 else []
 
     # 辺の距離でグルーピング
     edge_clusters = []
@@ -714,6 +714,8 @@ class Model:
     # 外壁用の形状作成
     self._outlines = []     # 外壁用
     for group in self._group_list:
+      if len(group) == 0:
+        continue
       base_idx = clusters[group[0]].parent
 
       roof_polygon_list = list()
@@ -729,7 +731,15 @@ class Model:
       if base_idx == self._NO_PARENT_IDX:
         # 最外壁の場合
         # 後段の壁面の法線方向判定で使用する
-        self._shape = geo.Polygon(base_polygon.exterior)
+        if isinstance(base_polygon, geo.multipolygon.MultiPolygon):
+          max_area = -1
+          for poly in base_polygon.geoms:
+            area = poly.area
+            if area > max_area:
+              max_area = area
+              self._shape = geo.Polygon(poly.exterior)
+        else:
+          self._shape = geo.Polygon(base_polygon.exterior)
 
       geoms = GeoUtil.separate_geometry(base_polygon)
       for geom in geoms:
@@ -1615,6 +1625,7 @@ class Model:
     indexes = [i for i, cluster in enumerate(clusters)
                if cluster._roof_line is not None]
 
+    tmp_points = None
     for i, index in enumerate(indexes):
       points = copy.deepcopy(clusters[index].roof_line)
 
@@ -1631,6 +1642,9 @@ class Model:
         tmp_points = points
       else:
         tmp_points = np.vstack([tmp_points, points])
+
+    if tmp_points is None:
+      return
 
     db = DBSCAN(eps=dist, min_samples=1).fit(tmp_points[:, 0:2])
     labels = db.labels_

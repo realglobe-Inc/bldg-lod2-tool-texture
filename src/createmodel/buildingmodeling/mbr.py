@@ -4,7 +4,7 @@ import cv2 as cv
 import copy
 import sys
 from numpy.typing import NDArray
-from typing import Tuple
+from typing import Tuple, Optional
 from anytree import PostOrderIter, AnyNode
 from .clusterinfo import ClusterInfo
 from .geoutil import GeoUtil
@@ -666,7 +666,7 @@ class MBR:
                        + [min_x - 1, min_y - 1])
     return exterior_points
 
-  def _get_contour(self, mask: NDArray) -> NDArray:
+  def _get_contour(self, mask: NDArray) -> Optional[NDArray]:
     """外形線作成
 
     Args:
@@ -681,11 +681,13 @@ class MBR:
 
     if len(contours) > 1:
       # 最大面積の領域で上書き
-      areas = [geo.Polygon(np.squeeze(con)).area for con in contours]
+      areas = [geo.Polygon(np.squeeze(con)).area if np.squeeze(con).shape[0] >= 4 else -1 for con in contours]
       index = np.argmax(areas)
       contours = [contours[index]]
 
     # assert len(contours) == 1, "# of contours is not one"
+    if len(contours) < 1:
+      return None
     contour_points = contours[0].reshape(-1, 2)
 
     # コーナー点を抽出
@@ -711,7 +713,7 @@ class MBR:
   def _mbr(
           self, points: NDArray, angle: float,
           rect_area_th=10, width_th=0.0, slim_rate_th=-1.0,
-          max_hiers=10) -> NDArray:
+          max_hiers=10) -> Optional[NDArray]:
     """mbr処理
 
     Args:
@@ -782,7 +784,7 @@ class MBR:
 
     corner_points = self._get_contour(mask=mask_simplified)
     # assert len(corner_points) > 3, "# of corner_points is less than 3"
-    if len(corner_points) <= 3:
+    if corner_points is None or len(corner_points) <= 3:
       return None
 
     # 屋根外形点の逆回転
@@ -852,7 +854,7 @@ class MBR:
       for j, roofplane_j in enumerate(self._roofplanes):
         if ((roofplane_j.type != RoofPlaneType.ONE_NEIGHBOR_LINE
             and roofplane_j.type != RoofPlaneType.ORTHOGONAL_CROSSING)
-                or roofplane_j.poly is None):
+                or roofplane_j.poly is None or roofplane_j.poly.area == 0):
           continue
 
         roof_type = roofplane_i.get_relation_with_other(roofplane_j)
@@ -875,7 +877,7 @@ class MBR:
         if ((roofplane_j.type != RoofPlaneType.ONE_NEIGHBOR_LINE
                 and roofplane_j.type
                 != RoofPlaneType.ORTHOGONAL_CROSSING)
-                or roofplane_j.poly is None):
+                or roofplane_j.poly is None or roofplane_j.poly.area == 0):
           continue
 
         # 屋根面jは屋根面iより整形されたか確認
@@ -1193,6 +1195,8 @@ class MBR:
             merge_id = i
 
       # assert merge_id is not None
+      if merge_id is None:
+        continue
 
       if is_merge_dilation:
         self._roofplanes[merge_id].poly = \
