@@ -361,7 +361,10 @@ if __name__ == "__main__":
           try:
             result = postprocessing.main_step(preprocess_log, sub_processC_dir)
           except Exception:
-            logger.info(f"Failed PostProcessing: {obj_file}")
+            if logger is not None:
+              logger.info(f"Failed PostProcessing:", obj_file)
+            else:
+              print(f"Failed PostProcessing:", obj_file)
             result = cv2.imread(str(original_texture_path))
 
           # Saving output results
