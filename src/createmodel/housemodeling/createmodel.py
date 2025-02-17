@@ -5,7 +5,6 @@ from typing import Optional
 from shapely.geometry import Polygon
 import numpy as np
 
-from .model_edge_height_info import ModelEdgeHeightInfo
 from .utils.polys import validate_polygon_ijs_list
 from .extra_roof_line import ExtraRoofLine
 from .house_model import HouseModel
@@ -117,17 +116,6 @@ class HouseModelBuilder:
         polygon_balcony_flags, roof_polygon_vertex_ijs, inner_polygons,
     )
     self._roof_layer_info.add_balcony_layers(balcony_polygon_ijs_list)
-
-    # To Do : X型交差屋根に中間点の追加
-    model_edge_height_info = ModelEdgeHeightInfo(
-        roof_layer_info=self._roof_layer_info,
-        roof_polygon_vertex_ijs=roof_polygon_vertex_ijs,
-        inner_polygons=inner_polygons,
-        outer_polygon=outer_polygon,
-        polygon_balcony_flags=polygon_balcony_flags,
-        ground_height=self._ground_height,
-    )
-    twisted_edge_middle_point_rate_pair = model_edge_height_info.get_twisted_edge_middle_point_rate_pair()
 
     self._create_model(
         roof_polygon_vertex_xys=[(point.x, point.y) for point in roof_polygon_vertex_xy_points],
