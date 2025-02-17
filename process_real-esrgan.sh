@@ -16,7 +16,7 @@ cd "${project_dir}/tools/Real-ESRGAN"
 rm -rf "${output_dir}/*"
 
 . "./$(basename $PWD)/bin/activate"
-python inference_realesrgan.py -n RealESRGAN_x4plus -g 0 -s 4 -i "${input_dir}" -o "${output_dir}"
+python inference_realesrgan.py -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 -i "${input_dir}" -o "${output_dir}"
 deactivate
 
 for appearance_dir in "${output_dir}/"*_appearance; do
