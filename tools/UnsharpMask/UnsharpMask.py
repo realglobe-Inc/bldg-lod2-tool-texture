@@ -26,6 +26,7 @@ def main(input_dir: str, out_dir: str, input_format: str, output_format: str):
   imgs = sorted_glob(img_patterns)
   os.makedirs(out_dir, exist_ok=True)
 
+  Image.MAX_IMAGE_PIXELS = 933120000
   pbar = tqdm(total=len(imgs), desc="UnsharpMask Processing", unit="item")
   for img_path in imgs:
     image = Image.open(img_path)
