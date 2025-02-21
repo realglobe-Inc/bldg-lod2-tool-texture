@@ -111,6 +111,5 @@ class Synthesis:
         """合成した画像を保存"""
         assert self.result_image is not None
 
-        output_path = self.output_dir.joinpath(f"syn_{i}.jpg")
+        output_path = self.output_dir.joinpath(f"syn_{i}.png")
         cv2.imwrite(str(output_path), self.result_image)
- 

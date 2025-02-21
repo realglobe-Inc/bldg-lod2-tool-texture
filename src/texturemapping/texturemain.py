@@ -32,12 +32,13 @@ class TextureMain():
     # オプション出力のOBJフォルダパス
     self.optional_output_objdir = ''
 
-  def texture_main(self, buildings: list[CityGmlManager.BuildInfo], file_name: str) -> None:
+  def texture_main(self, buildings: list[CityGmlManager.BuildInfo], file_name: str, image_format: str) -> None:
     """テクスチャ張付け開始
 
     Args:
       buildings (list[CityGmlManager.BuildInfo]): 建物外形情報リスト
       file_name (str): 入力CityGMLファイル名(拡張子付き)
+      image_format (str): 出力画像形式
 
     Raises:
       FileNotFoundError: OBJファイル入力先フォルダなし
@@ -185,7 +186,7 @@ class TextureMain():
             )
             ver.select_rooftexture()
             ver.select_walltexture()
-            ret = ver.output_texture(self.output_objdir, texturedir, mtl_file_name)
+            ret = ver.output_texture(self.output_objdir, texturedir, mtl_file_name, image_format)
             if self.param_manager.output_obj:
               # マテリアルファイル名はCityGMLファイル名とする
               ver.output_optional_obj(

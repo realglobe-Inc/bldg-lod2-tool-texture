@@ -69,7 +69,7 @@ class Cut:
         self.residual_h = 0  # 縦方向に黒埋めする余白のサイズ
         self.residual_w = 0  # 横方向に黒埋めする余白のサイズ
         self.output_dir = output_dir  # 出力フォルダ
-        self.output_image_name_format = "output_{i}_{iw}_{ih}.jpg"  # 整形画像の名称
+        self.output_image_name_format = "output_{i}_{iw}_{ih}.png"  # 整形画像の名称
         self.result_images = []
 
         self.input_path = seitaika_fig['path']

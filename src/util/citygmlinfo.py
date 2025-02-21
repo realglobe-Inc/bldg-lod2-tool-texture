@@ -465,13 +465,14 @@ class CityGmlManager:
 
     return elem1
 
-  def _create_surfacedata_elem(self, app_elem, uri, lod2_info):
+  def _create_surfacedata_elem(self, app_elem, uri, lod2_info, image_format):
     """surfaceDataMemberエレメント(テクスチャ情報)作成
 
     Args:
         app_elem (Element): Appearanceエレメント
         uri (string): テクスチャ画像URI
         lod2_info (Lod2Info[]): 建物形状座標オブジェクトリスト
+        image_format (str): 画像形式
 
     Returns:
         bool: テクスチャ座標あり(True)/テクスチャ座標なし(False)
@@ -482,7 +483,7 @@ class CityGmlManager:
     elem3 = lxml.etree.SubElement(elem2, f"{self._app_ns}imageURI")
     elem3.text = uri  # URI
     elem4 = lxml.etree.SubElement(elem2, f"{self._app_ns}mimeType")
-    elem4.text = "image/jpg"
+    elem4.text = f"image/{image_format}"
 
     for info in lod2_info:
       str_list = []

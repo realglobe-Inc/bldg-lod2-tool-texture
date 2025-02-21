@@ -1,3 +1,4 @@
+import argparse
 import sys
 import shutil
 import os
@@ -30,11 +31,15 @@ def _delete_module_tmp_folder() -> None:
 def main():
   """メイン関数
   """
-  args = sys.argv
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+    'param', help='パラメータ'
+  )
+  parser.add_argument(
+    '--texture-image-format', type=str, default='png', help='テクスチャ画像の形式'
+  )
 
-  if len(args) != 2:
-    print('usage: python AutoCreateLod2.py param.json')
-    sys.exit()
+  args = parser.parse_args()
 
   # 中間フォルダがある場合は削除
   if os.path.isdir(Config.OUTPUT_OBJDIR):
@@ -45,11 +50,11 @@ def main():
 
   try:
     param_manager = ParamManager()
-    change_params = param_manager.read(args[1])
+    change_params = param_manager.read(args.param)
 
   except Exception as e:
     param_manager.debug_log_output = False
-    log = Log(param_manager, args[1])
+    log = Log(param_manager, args.param)
     log.output_log_write(LogLevel.ERROR, ModuleType.NONE, e)
     log.log_footer()
     sys.exit()
@@ -140,7 +145,7 @@ def main():
           log.module_start_log(ModuleType.PASTE_TEXTURE, file_name)
 
           texture_main = TextureMain(param_manager)
-          ret_paste_texture = texture_main.texture_main(buildings, file_name)
+          ret_paste_texture = texture_main.texture_main(buildings, file_name, args.texture_image_format)
 
           log.module_result_log(ModuleType.PASTE_TEXTURE, ret_paste_texture)
 

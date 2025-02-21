@@ -327,19 +327,20 @@ class VerticalObject():
 
     return False
 
-  def output_texture(self, objdir: str, outputdir: str, mtl_file_name: str):
+  def output_texture(self, objdir: str, outputdir: str, mtl_file_name: str, image_format: str):
     """テクスチャ画像・情報の出力
 
     Args:
       objdir (string): OBJファイル出力先フォルダパス
       outputdir (string): テクスチャ情報出力先のフォルダパス
       mtl_file_name (string): マテリアルファイルパス
+      image_format (str): 出力形式
 
     Returns:
       bool: テクスチャ画像出力結果
     """
     # テクスチャ画像の出力
-    ret = self._texcollection.output_texture(os.path.join(outputdir, self._obj_filename))
+    ret = self._texcollection.output_texture(os.path.join(outputdir, self._obj_filename), image_format)
 
     if ret:
       for num, roof in enumerate(self._rooftexture):
@@ -360,9 +361,9 @@ class VerticalObject():
 
       # マテリアル情報設定
       mtl_info = MaterialInfo(self._obj_filename)
-      jpg_path = os.path.join(pathlib.Path(outputdir).name, self._obj_filename + ".jpg")
+      img_path = os.path.join(pathlib.Path(outputdir).name, self._obj_filename + "." + image_format)
       # テクスチャ画像パスの区切り文字は/固定とする
-      mtl_info.map_kd = jpg_path.replace(os.path.sep, '/')
+      mtl_info.map_kd = img_path.replace(os.path.sep, '/')
 
       self._obj_info.mtl_file_name = mtl_file_name
       self._obj_info.set_mtl_info(mtl_info)
@@ -372,13 +373,14 @@ class VerticalObject():
 
     return ret
 
-  def output_optional_obj(self, objdir: str, texture_dir: str, mtl_file_name: str):
+  def output_optional_obj(self, objdir: str, texture_dir: str, mtl_file_name: str, image_format: str):
     """オプションのOBJ出力処理(最終結果にOBJファイルを出力する場合の処理)
 
     Args:
       objdir (str): OBJファイル出力先フォルダパス
       texture_dir (str): テクスチャ画像フォルダパス
       mtl_file_name (str): マテリアルファイルパス
+      image_format (str): 画像形式
 
     Note:
       output_texture()を先に呼び出す必要がある\n
@@ -406,9 +408,9 @@ class VerticalObject():
 
     # マテリアル情報設定
     mtl_info = MaterialInfo(self._obj_filename)
-    jpg_path = os.path.join(relpath, self._obj_filename + ".jpg")
+    image_path = os.path.join(relpath, self._obj_filename + "." + image_format)
     # テクスチャ画像パスの区切り文字は/固定とする
-    mtl_info.map_kd = jpg_path.replace(os.path.sep, '/')
+    mtl_info.map_kd = image_path.replace(os.path.sep, '/')
 
     self._obj_info.mtl_file_name = mtl_file_name
     self._obj_info.set_mtl_info(mtl_info)
@@ -504,11 +506,12 @@ class DstTextureFile():
     self.num_srctex += 1
     return tex_info
 
-  def output_texture(self, outputpath):
+  def output_texture(self, outputpath: str, image_format: str):
     """テクスチャ画像出力
 
     Args:
       outputpath (string): テクスチャ情報出力先のフォルダパス
+      image_format (str): 画像出力形式
 
     Returns:
       bool: テクスチャ出力成功(True)/テクスチャ出力画像なし(False)
@@ -634,8 +637,8 @@ class DstTextureFile():
       h, w = output.shape[:2]
       output_w = round(w * (self.texture_output_height_max / h))
       output_rs = cv2.resize(output, dsize=(output_w, self.texture_output_height_max))
-      ret = Cv2Japanese.imwrite(outputpath + '.jpg', output_rs)
+      ret = Cv2Japanese.imwrite(outputpath + '.' + image_format, output_rs)
     else:
-      ret = Cv2Japanese.imwrite(outputpath + '.jpg', output)
+      ret = Cv2Japanese.imwrite(outputpath + '.' + image_format, output)
 
     return ret

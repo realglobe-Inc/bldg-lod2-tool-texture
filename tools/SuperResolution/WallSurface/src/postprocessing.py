@@ -41,7 +41,7 @@ class PostProcessing:
 
       if self.logger is not None:
         self.logger.info(f"Enter CalcInvProj {i+1}")
-        output_path = intermediate_dir.joinpath("invProj_{i}.jpg".format(i=i + 1))
+        output_path = intermediate_dir.joinpath("invProj_{i}.png".format(i=i + 1))
         cv2.imwrite(str(output_path), im_proj)
 
     if self.logger is not None:

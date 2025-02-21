@@ -173,7 +173,7 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
         min_z = new_vs[:, 2].min()
         new_vs -= np.array([min_x, min_y, min_z])
 
-        output_face_name = obj_path.stem + f"_{face_index-1}.jpg"
+        output_face_name = obj_path.stem + f"_{face_index-1}.png"
         assert texture_filepath is not None
         image = cv2.imread(str(texture_filepath))
 

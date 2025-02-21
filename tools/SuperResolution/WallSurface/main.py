@@ -217,6 +217,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("param_file", type=Path)
   parser.add_argument("--cfg_file", type=Path, default="config.yml")
+  parser.add_argument("--output-format", type=str, default="png")
   args = parser.parse_args()
 
   # Load parameter information from JSON file
@@ -370,7 +371,7 @@ if __name__ == "__main__":
           # Saving output results
           resolve_path_img = Path(original_texture_path)
           relative_path_img = resolve_path_img.relative_to(Path(param['InputDir']).resolve())
-          output_path = Path(param['OutputDir']).joinpath(relative_path_img)
+          output_path = Path(param['OutputDir']).joinpath(os.path.splitext(relative_path_img)[0] + f'.{args.output_format}')
           output_path.parent.mkdir(exist_ok=True, parents=True)
           cv2.imwrite(str(output_path), result)
 
@@ -389,7 +390,7 @@ if __name__ == "__main__":
           original_texture_path = Path(param['InputDir']).joinpath(texture_path)
           not_processed_texture = cv2.imread(str(original_texture_path))
 
-          output_path = Path(param['OutputDir']).joinpath(texture_path)
+          output_path = Path(param['OutputDir']).joinpath(os.path.splitext(texture_path)[0] + f'.{args.output_format}')
           output_path.parent.mkdir(exist_ok=True, parents=True)
           cv2.imwrite(str(output_path), not_processed_texture)
 

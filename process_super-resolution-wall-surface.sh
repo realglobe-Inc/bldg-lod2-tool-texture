@@ -4,27 +4,25 @@ set -e
 
 ########## 壁面視認性向上ツール ##########
 
-project_dir=${PROJECT_DIR:-${PWD}}
-base_output_dir=${BASE_OUTPUT_DIR:-${project_dir}/output}
+input_dir="${INPUT_DIR:?}"
+output_dir="${OUTPUT_DIR:?}"
+output_log_dir="${OUTPUT_LOG_DIR:-${output_dir}/log}"
+debug_log_output=${DEBUG_LOG_OUTPUT:-true}
 
-input_dir=$(realpath -m "${INPUT_DIR:-${base_output_dir}/output_bldg_lod2_tool}")
-output_dir=$(realpath -m "${OUTPUT_DIR:-${base_output_dir}/output_wall_surface}")
-output_log_dir=$(realpath -m "${OUTPUT_LOG_DIR:-${output_dir}/log_output_wall_surface}")
-debug_log_output=${DEBUG_LOG_OUTPUT:-false}
+output_format="${OUTPUT_FORMAT:-"png"}"
 
-# 壁面視認性向上ツールのフォルダーに移動
-cd "${project_dir}/tools/SuperResolution/WallSurface"
+cd "$(dirname "$0")/tools/SuperResolution/WallSurface"
+. "./$(basename $PWD)/bin/activate"
 
+param_file=$(mktemp --suffix .json)
 echo "{
   \"InputDir\": \"${input_dir}\",
   \"OutputDir\": \"${output_dir}\",
   \"Device\": \"cuda\",
   \"OutputLogDir\": \"${output_log_dir}\",
   \"DebugLogOutput\": \"${debug_log_output}\"
-}" > param.json
-
+}" > ${param_file}
 rm -rf "${output_dir}/"*
+python main.py param.json --output-format "${output_format}"
 
-. "./$(basename $PWD)/bin/activate"
-python main.py param.json
 deactivate
