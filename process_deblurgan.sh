@@ -15,7 +15,7 @@ cd "$(dirname "$0")/tools/DeblurGANv2"
 . "./$(basename $PWD)/bin/activate"
 
 rm -rf "${output_dir}/*"
-python predict.py -c checkpoints/fpn_inception.h5 -i "${input_dir}" -o "${output_dir}"
+python predict.py -c checkpoints/fpn_inception.h5 -i "${input_dir}" -o "${output_dir}" --input-format "${input_format}" --output-format "${output_format}"
 
 deactivate
 

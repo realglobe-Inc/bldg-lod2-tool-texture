@@ -30,3 +30,14 @@ for appearance_dir in "${output_dir}/"*_appearance; do
     printf '%s\n\n%s\n\n' "newmtl ${bldg_id}" "map_Kd ../../${grp}_appearance/${texture_file}" >> "${output_dir}/obj/${grp}_op/${grp}_op.mtl"
   done
 done
+
+if [ "${input_format}" != "${output_format}" ]; then
+  abs_output_dir=$(realpath "${output_dir}")
+
+  cd "$(dirname "$0")/tools/misc"
+  . "./$(basename $PWD)/bin/activate"
+
+  python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --format "${output_format}"
+
+  deactivate
+fi
