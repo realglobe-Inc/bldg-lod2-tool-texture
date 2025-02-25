@@ -4,8 +4,8 @@ set -e
 
 ########## objファイル等をコピーする ##########
 
-input_dir="${INPUT_DIR:?}"
-output_dir="${OUTPUT_DIR:?}"
+input_dir=$(realpath -m "${INPUT_DIR:?}")
+output_dir=$(realpath -m "${OUTPUT_DIR:?}")
 
 input_format="${INPUT_FORMAT:-"png"}"
 output_format="${OUTPUT_FORMAT:-"png"}"
@@ -32,12 +32,12 @@ for appearance_dir in "${output_dir}/"*_appearance; do
 done
 
 if [ "${input_format}" != "${output_format}" ]; then
-  abs_output_dir=$(realpath "${output_dir}")
-
   cd "$(dirname "$0")/tools/misc"
   . "./$(basename $PWD)/bin/activate"
 
-  python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --format "${output_format}"
+  for gml_file in "${output_dir}/**/*.gml"; do
+    python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
+  done
 
   deactivate
 fi

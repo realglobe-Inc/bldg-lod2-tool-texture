@@ -4,8 +4,8 @@ set -e
 
 ########## テクスチャ解像度向上ツール ##########
 
-input_dir="${INPUT_DIR:?}"
-output_dir="${OUTPUT_DIR:?}"
+input_dir=$(realpath -m "${INPUT_DIR:?}")
+output_dir=$(realpath -m "${OUTPUT_DIR:?}")
 
 input_format="${INPUT_FORMAT:-"png"}"
 output_format="${OUTPUT_FORMAT:-"png"}"
