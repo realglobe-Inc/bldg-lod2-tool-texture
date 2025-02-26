@@ -80,7 +80,9 @@ def read_mtl(mtl_path: str):
         name = None
         for line in mtl_file:
             tokens = line.strip().split()
-            if tokens[0].lower() == "newmtl":
+            if len(tokens) < 2:
+                continue
+            elif tokens[0].lower() == "newmtl":
                 name = tokens[1]
             elif tokens[0].lower() == "map_kd":
                 if name is not None:
@@ -131,7 +133,7 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
     texture_width: int = 2 ** math.ceil(math.log2(max(widths)))
     texture_height: int = 2 ** math.ceil(math.log2(sum(heights)))
 
-    offsets: list[tuple[int, int]] = [(-1, -1)] * n_row
+    offsets: list[tuple[int, int]] = [(-1, -1)] * len(indices)
     ws = [0] * n_row
     for index in indices:
         min_index = ws.index(min(ws))
@@ -145,7 +147,8 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
     return (texture_width, texture_height), offsets
 
 
-def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_format: str, temp_dir: str):
+def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_format: str, temp_dir: str,
+                   z_threshold: float):
     if temp_dir is None:
         temp_dir = tempfile.mkdtemp()
 
@@ -163,7 +166,7 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
 
     # 面ごとに正対化画像をつくる
     new_lines = []
-    with os.open(obj_path, os.O_RDONLY) as obj_text:
+    with open(obj_path, "r") as obj_text:
         geo_vs = []
         tex_vs = []
 
@@ -173,26 +176,32 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
         for line in obj_text:
             new_line = line
             elems = line.strip().split()
-            command = elems.pop(0)
-            if command == "mtllib":
+            command = elems.pop(0) if len(elems) > 0 else None
+            if command is None:
+                pass
+            elif command.lower() == "mtllib":
                 mtl_path = os.path.abspath(os.path.join(os.path.dirname(obj_path), elems[0]))
                 mtl = read_mtl(mtl_path)
-            elif command == "usemtl":
+            elif command.lower() == "usemtl":
                 assert mtl_path is not None
                 texture_name = elems[0]
                 texture_rel_path = mtl[texture_name]
                 texture_path = os.path.abspath(os.path.join(os.path.dirname(mtl_path), texture_rel_path))
-            elif command == "v":
+            elif command.lower() == "v":
                 geo_vs.append([float(elems[0]), float(elems[1]), float(elems[2])])
-            elif command == "vt":
+            elif command.lower() == "vt":
                 tex_vs.append([float(elems[0]), float(elems[1])])
                 # 正対化すると座標は変わる
                 new_line = None
-            elif command == "f":
+            elif command.lower() == "f":
                 assert texture_path is not None
 
-                if len(elems) < 4 or len(elems[0].split("/")) < 2:
+                if len(elems) < 3 or len(elems[0].split("/")) < 2:
                     continue
+
+                face_file_name = f"{os.path.splitext(os.path.basename(obj_path))[0]}_{face_index}.png"
+                face_index += 1
+                face_file_path = os.path.join(temp_dir, os.path.dirname(rel_obj_path), face_file_name)
 
                 vs = np.empty(0)
                 us = np.empty(0)
@@ -205,78 +214,90 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
                 vs = vs.reshape(len(elems), 3)
                 us = us.reshape(len(elems), 2)
                 height_max = np.abs(vs[:, 2].max() - vs[:, 2].min())
-                # texture_height = np.abs(us[:, 1].max() - us[:, 1].min())
-                texture_width = np.abs(us[:, 0].max() - us[:, 0].min())
 
-                min_x = vs[:, 0].min()
-                min_y = vs[:, 1].min()
-                min_z = vs[:, 2].min()
-                vs -= np.array([min_x, min_y, min_z])
-                new_vs, normal = rotateToXZ(vs)
+                if height_max < z_threshold:
+                    # TODO そのまま
+                    pass
+                else:
+                    # texture_height = np.abs(us[:, 1].max() - us[:, 1].min())
+                    texture_width = np.abs(us[:, 0].max() - us[:, 0].min())
 
-                min_x = new_vs[:, 0].min()
-                min_y = new_vs[:, 1].min()
-                min_z = new_vs[:, 2].min()
-                new_vs -= np.array([min_x, min_y, min_z])
+                    min_x = vs[:, 0].min()
+                    min_y = vs[:, 1].min()
+                    min_z = vs[:, 2].min()
+                    vs -= np.array([min_x, min_y, min_z])
+                    new_vs, normal = rotateToXZ(vs)
 
-                face_file_name = f"{os.path.splitext(os.path.basename(obj_path))[0]}_{face_index}.png"
-                image = cv2.imread(texture_path)
+                    min_x = new_vs[:, 0].min()
+                    min_y = new_vs[:, 1].min()
+                    min_z = new_vs[:, 2].min()
+                    new_vs -= np.array([min_x, min_y, min_z])
 
-                h, w, _ = image.shape
-                min_x = new_vs[:, 0].min()
-                min_y = new_vs[:, 2].min()
-                max_x = new_vs[:, 0].max()
-                max_y = new_vs[:, 2].max()
+                    image = cv2.imread(texture_path)
 
-                pixel_per_meter = math.ceil(texture_width * w / height_max)
-                new_w = math.ceil((max_x - min_x) * pixel_per_meter)
-                new_h = math.ceil((max_y - min_y) * pixel_per_meter)
+                    h, w, _ = image.shape
+                    min_x = new_vs[:, 0].min()
+                    min_y = new_vs[:, 2].min()
+                    max_x = new_vs[:, 0].max()
+                    max_y = new_vs[:, 2].max()
 
-                src_points = np.empty(0)
-                reverse_x = False
-                # reverse_y = False
-                for i in range(len(new_vs)):
-                    src_x = us[i][0] * w
-                    src_y = (1 - us[i][1]) * h
-                    src_points = np.append(src_points, [src_x, src_y])
-                src_points = src_points.reshape(len(vs), 2)
+                    # TODO なんかおかしい。小さい領域が大きくなる
+                    pixel_per_meter = math.ceil(texture_width * w / height_max)
+                    new_w = math.ceil((max_x - min_x) * pixel_per_meter)
+                    new_h = math.ceil((max_y - min_y) * pixel_per_meter)
+                    print("DEBUDEBU 1", face_index, texture_width, w, height_max, pixel_per_meter)
 
-                for i in range(len(us)):
-                    ni = (i + 1) % len(us)
-                    if (src_points[i][0] - src_points[ni][0]) * (new_vs[i][0] - new_vs[ni][0]) < 0:
-                        reverse_x = True
-                    # if (src_points[i][1] - src_points[ni][1]) * (new_vs[i][1] - new_vs[ni][1]) < 0:
-                    #   reverse_y = True
+                    src_points = np.empty(0)
+                    reverse_x = False
+                    # reverse_y = False
+                    for i in range(len(new_vs)):
+                        src_x = us[i][0] * w
+                        src_y = (1 - us[i][1]) * h
+                        src_points = np.append(src_points, [src_x, src_y])
+                    src_points = src_points.reshape(len(vs), 2)
 
-                dst_points = np.empty(0)
-                for i in range(len(new_vs)):
-                    if reverse_x:
-                        dx = ((max_x - min_x) - new_vs[i][0]) * pixel_per_meter
+                    for i in range(len(us)):
+                        ni = (i + 1) % len(us)
+                        if (src_points[i][0] - src_points[ni][0]) * (new_vs[i][0] - new_vs[ni][0]) < 0:
+                            reverse_x = True
+                        # if (src_points[i][1] - src_points[ni][1]) * (new_vs[i][1] - new_vs[ni][1]) < 0:
+                        #   reverse_y = True
+
+                    dst_points = np.empty(0)
+                    for i in range(len(new_vs)):
+                        if reverse_x:
+                            dx = ((max_x - min_x) - new_vs[i][0]) * pixel_per_meter
+                        else:
+                            dx = new_vs[i][0] * pixel_per_meter
+                        if reverse_x:
+                            dy = ((max_y - min_y) - new_vs[i][2]) * pixel_per_meter
+                        else:
+                            dy = new_vs[i][2] * pixel_per_meter
+                        dst_points = np.append(dst_points, [dx, dy])
+                    dst_points = dst_points.reshape(len(vs), 2)
+
+                    if len(src_points) == 3:
+                        af = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
+                                                    dst_points[:, :2].astype(np.float32))
+                        dst_image = cv2.warpAffine(image, af, (new_w, new_h))
                     else:
-                        dx = new_vs[i][0] * pixel_per_meter
-                    if reverse_x:
-                        dy = ((max_y - min_y) - new_vs[i][2]) * pixel_per_meter
-                    else:
-                        dy = new_vs[i][2] * pixel_per_meter
-                    dst_points = np.append(dst_points, [dx, dy])
-                dst_points = dst_points.reshape(len(vs), 2)
+                        homo, _ = cv2.findHomography(src_points, dst_points)
+                        dst_image = cv2.warpPerspective(image, homo, (new_w, new_h))
+                    mask = np.zeros_like(dst_image)
+                    # cv2.fillPoly(mask, [dst_points.reshape((-1, 1, 2)).astype(np.int32)], (255, 255, 255))
+                    # dst_image = cv2.bitwise_and(dst_image, mask)
+                    h_dst, w_dst, _ = dst_image.shape
 
-                homo, _ = cv2.findHomography(src_points, dst_points)
-                dst_image = cv2.warpPerspective(image, homo, (new_w, new_h))
-                mask = np.zeros_like(dst_image)
-                cv2.fillPoly(mask, [dst_points.reshape((-1, 1, 2)).astype(np.int32)], (255, 255, 255))
-                dst_image = cv2.bitwise_and(dst_image, mask)
-                h_dst, w_dst, _ = dst_image.shape
+                    print("WRITE:", face_file_path, elems)
+                    os.makedirs(os.path.dirname(face_file_path), exist_ok=True)
+                    cv2.imwrite(face_file_path, dst_image)
 
-                face_file_path = os.path.join(temp_dir, os.path.dirname(rel_obj_path), face_file_name)
-                cv2.imwrite(face_file_path, dst_image)
+                    rectified_image_paths.append(face_file_path)
+                    rectified_image_sizes.append((w_dst, h_dst))
+                    rectified_texture_vertices.append(tuple(dst_points))
 
-                rectified_image_paths.append(face_file_path)
-                rectified_image_sizes.append((w_dst, h_dst))
-                rectified_texture_vertices.append(tuple(dst_points))
-
-        if new_line is not None:
-            new_lines.append(new_line)
+            if new_line is not None:
+                new_lines.append(new_line)
 
     # 面画像の配置を計算
     (texture_width, texture_height), offsets = calc_offsets(rectified_image_sizes)
@@ -287,22 +308,26 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
         rectified_image = cv2.imread(image_path)
         combined_image[offset_y:offset_y + h, offset_x:offset_x + w] = rectified_image
 
-    texture_rel_path = os.path.relpath(os.path.splitext(texture_rel_path)[0] + f".{output_format}", start=input_dir)
-    texture_path = os.path.join(output_dir, texture_rel_path)
-    os.makedirs(os.path.dirname(texture_path), exist_ok=True)
-    cv2.imwrite(texture_path, combined_image)
+    output_rel_path = os.path.relpath(os.path.splitext(texture_path)[0] + f".{output_format}", start=input_dir)
+    output_path = os.path.join(output_dir, output_rel_path)
+    print("BAKABAKA 1", texture_path)
+    print("BAKABAKA 2", output_rel_path)
+    print("WRITE:", output_path)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    cv2.imwrite(output_path, combined_image)
 
     mtl_rel_path = os.path.relpath(mtl_path, start=input_dir)
-    return mtl_rel_path, texture_rel_path
+    return mtl_rel_path, output_rel_path
 
 
 def process(input_dir: str, output_dir: str, output_format="png", temp_dir: Optional[str] = None):
     obj_paths = glob(f"{input_dir}/**/*.obj", recursive=True)
     mtl_contents = {}
     for obj_path in obj_paths:
+        print("PROCESSING:", obj_path)
         rel_obj_path = os.path.relpath(obj_path, start=input_dir)
         mtl_rel_path, texture_rel_path = rectify_images(input_dir, rel_obj_path, output_dir, output_format,
-                                                        temp_dir=temp_dir)
+                                                        temp_dir=temp_dir, z_threshold=0.2)
         if mtl_rel_path in mtl_contents:
             mtl_contents[mtl_rel_path].append(texture_rel_path)
         else:
@@ -325,12 +350,10 @@ def main():
     parser.add_argument("-i", "--input", required=True, help="入力ディレクトリのパス")
     parser.add_argument("-o", "--output", required=True, help="出力ディレクトリのパス")
     parser.add_argument("--temp-dir", help="一時ディレクトリのパス")
-    parser.add_argument(
-        '--output-format', type=str, default='png', help='Output image extension'
-    )
+    parser.add_argument('--format', type=str, default='png', help='Output image extension')
     args = parser.parse_args()
 
-    process(args.input_dir, args.output_dir, args.output_format, temp_dir=args.temp_dir)
+    process(args.input, args.output, args.format, temp_dir=args.temp_dir)
 
 
 if __name__ == "__main__":
