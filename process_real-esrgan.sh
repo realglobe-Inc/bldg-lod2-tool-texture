@@ -13,7 +13,7 @@ output_format="${OUTPUT_FORMAT:-"png"}"
 cd "$(dirname "$0")/tools/Real-ESRGAN"
 . "./$(basename $PWD)/bin/activate"
 
-rm -rf "${output_dir}/*"
+rm -rf "${output_dir}/"*
 python inference_realesrgan.py -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 -i "${input_dir}" -o "${output_dir}" --input-ext "${input_format}" --ext "${output_format}"
 
 deactivate

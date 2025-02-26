@@ -13,7 +13,7 @@ output_format="${OUTPUT_FORMAT:-"png"}"
 cd "$(dirname "$0")/tools/UnsharpMask"
 . "./$(basename $PWD)/bin/activate"
 
-rm -rf "${output_dir}/*"
+rm -rf "${output_dir}/"*
 python UnsharpMask.py -i "${input_dir}" -o "${output_dir}" --input-format "${input_format}" --output-format "${output_format}"
 
 deactivate

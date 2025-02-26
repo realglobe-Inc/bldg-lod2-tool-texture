@@ -12,7 +12,7 @@ output_format="${OUTPUT_FORMAT:-"png"}"
 cd "$(dirname "$0")/tools/misc/"
 . "./$(basename $PWD)/bin/activate"
 
-rm -rf "${output_dir}/*"
+rm -rf "${output_dir}/"*
 python rectify_texture_image.py -i "${input_dir}" -o "${output_dir}" --temp-dir "${TEMP_DIR}" --format "${output_format}"
 
 deactivate
