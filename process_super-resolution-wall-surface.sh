@@ -11,6 +11,7 @@ debug_log_output=${DEBUG_LOG_OUTPUT:-true}
 
 output_format="${OUTPUT_FORMAT:-"png"}"
 
+(
 cd "$(dirname "$0")/tools/SuperResolution/WallSurface"
 . "./$(basename $PWD)/bin/activate"
 
@@ -23,6 +24,7 @@ echo "{
   \"DebugLogOutput\": \"${debug_log_output}\"
 }" > "${param_file}"
 rm -rf "${output_dir}/"*
-python main.py param.json --output-format "${output_format}"
+python main.py "${param_file}" --output-format "${output_format}"
 
 deactivate
+)

@@ -27,11 +27,12 @@ for appearance_dir in "${output_dir}/"*_appearance; do
   rm -f "${output_dir}/obj/${grp}_op/${grp}_op.mtl"
   for texture_file in "${appearance_dir}/"*".${output_format}"; do
     bldg_id=$(basename -s ".${output_format}" "${texture_file}")
-    printf '%s\n\n%s\n\n' "newmtl ${bldg_id}" "map_Kd ../../${grp}_appearance/${texture_file}" >> "${output_dir}/obj/${grp}_op/${grp}_op.mtl"
+    printf '%s\n\n%s\n\n' "newmtl ${bldg_id}" "map_Kd $(realpath --relative-to "${output_dir}/obj/${grp}_op" "${texture_file}")" >> "${output_dir}/obj/${grp}_op/${grp}_op.mtl"
   done
 done
 
 if [ "${input_format}" != "${output_format}" ]; then
+  (
   cd "$(dirname "$0")/tools/misc"
   . "./$(basename $PWD)/bin/activate"
 
@@ -40,4 +41,5 @@ if [ "${input_format}" != "${output_format}" ]; then
   done
 
   deactivate
+  )
 fi
