@@ -7,7 +7,7 @@ set -e
 input_dir=$(realpath -m "${INPUT_DIR:?}")
 output_dir=$(realpath -m "${OUTPUT_DIR:?}")
 output_log_dir=$(realpath -m "${OUTPUT_LOG_DIR:-${output_dir}/log}")
-debug_log_output=${DEBUG_LOG_OUTPUT:-true}
+debug_log_output=${DEBUG_LOG_OUTPUT:-false}
 
 output_format="${OUTPUT_FORMAT:-"png"}"
 
