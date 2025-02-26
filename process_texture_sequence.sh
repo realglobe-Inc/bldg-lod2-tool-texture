@@ -5,6 +5,9 @@ set -e
 input_dir=${INPUT_DIR:?}
 output_dir=${OUTPUT_DIR:?}
 
+input_format="${INPUT_FORMAT:-"png"}"
+output_format="${OUTPUT_FORMAT:-"png"}"
+
 processes=${@:?}
 
 short_name() {
@@ -65,7 +68,12 @@ for proc in ${processes}; do
     echo "SKIP: [${stack}] ${process}"
   else
     echo "RUN: [${stack}] ${process}"
-    INPUT_DIR="${current_input_dir}" OUTPUT_DIR="${current_output_dir}" "./process_${process}.sh"
+    if [ -z "${stack}" ]; then
+      _input_format="${input_format}"
+    else
+      _input_format="${output_format}"
+    fi
+    INPUT_DIR="${current_input_dir}" OUTPUT_DIR="${current_output_dir}" INPUT_FORMAT="${_input_format}" OUTPUT_FORMAT="${output_format}" "./process_${process}.sh"
   fi
 
   if [ -z "${stack}" ]; then
