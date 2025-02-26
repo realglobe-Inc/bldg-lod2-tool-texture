@@ -1,7 +1,7 @@
+import argparse
 from pathlib import Path
 
 from lxml import etree
-import argparse
 
 
 def change(input: str, output: str, ext: str) -> None:
@@ -34,6 +34,9 @@ def change(input: str, output: str, ext: str) -> None:
                 image_uri = parameterized_texture.find('app:imageURI', namespaces)
                 if image_uri is not None and image_uri.text:
                     image_uri.text = str(Path(image_uri.text).with_suffix(f'.{ext}'))
+                mime_type = parameterized_texture.find('app:mimeType', namespaces)
+                if mime_type is not None and mime_type.text:
+                    mime_type.text = f'image/{ext}'
 
     # 結果を新しいファイルに保存 (XML宣言を含む)
     tree.write(output, encoding='utf-8', xml_declaration=True, pretty_print=True)
@@ -45,7 +48,7 @@ def main():
     parser.add_argument("-i", "--input", help="Input GML file")
     parser.add_argument("-o", "--output", help="Output GML file")
     parser.add_argument(
-      '--ext', type=str, default='png', help='Converted image extension'
+        '--ext', type=str, default='png', help='Converted image extension'
     )
 
     args = parser.parse_args()
