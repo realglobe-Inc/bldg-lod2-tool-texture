@@ -160,7 +160,9 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
     usemtl_value: Optional[str] = None
     f_values: list[list[tuple[int, int]]] = []
 
-    vt_line_map: dict[int, int] = {}
+    # vtの行番号
+    vt_line_indices: set[int] = set()
+    # fの行番号から何番目のfか
     f_line_map: dict[int, int] = {}
 
     lines: list[str] = []
@@ -181,13 +183,13 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
                 value = (float(elems[0]), float(elems[1]), float(elems[2]))
                 v_values.append(value)
             elif command.lower() == "vt":
-                vt_line_map[len(vt_values)] = line_index
+                vt_line_indices.add(line_index)
                 value = (float(elems[0]), float(elems[1]))
                 vt_values.append(value)
             elif command.lower() == "f":
                 if len(elems[0].split("/")) < 2:
                     continue
-                f_line_map[len(f_values)] = line_index
+                f_line_map[line_index] = len(f_values)
                 value = [tuple(map(int, elem.split("/")[:2])) for elem in elems]
                 f_values.append(value)
 
@@ -204,7 +206,7 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
     # 正対化した面画像
     rectified_images: list[np.ndarray] = []
     # 正対化した面画像でポリゴンに対応する点の位置
-    rectified_vts: list[np.ndarray] = []
+    rectified_texture_points: list[np.ndarray] = []
     if texture_path is not None:
         orig_image = cv2.imread(texture_path)
         orig_h, orig_w, _ = orig_image.shape
@@ -295,10 +297,8 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
 
             cropped_image = dst_image[min_y: max_y, min_x:max_x]
             rectified_images.append(cropped_image)
-
-            dst_points[:, 1] = orig_h - dst_points[:, 1]
-            rel_p = (dst_points - np.array([min_x, min_y])) / np.array([max_x - min_x, max_y - min_y])
-            rectified_vts.append(rel_p)
+            dst_points -= np.array([min_x, min_y])
+            rectified_texture_points.append(dst_points)
 
     # 面画像の配置を計算
     image_sizes = [image.shape[:2][::-1] for image in rectified_images]
@@ -306,10 +306,24 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
 
     combined_image = np.full((texture_height, texture_width, 3), 255, dtype=np.uint8)
 
-    for orig_image, (offset_x, offset_y) in zip(rectified_images, offsets):
-        orig_h, orig_w, _ = orig_image.shape
-        combined_image[offset_y:offset_y + orig_h, offset_x:offset_x + orig_w] = orig_image
-        # TODO 新しいvtを計算
+    new_vt_values: list[tuple[float, float]] = []
+    new_f_values: list[list[tuple[int, int]]] = []
+    for i in range(len(f_values)):
+        image = rectified_images[i]
+        (offset_x, offset_y) = offsets[i]
+        rel_texture_points = rectified_texture_points[i]
+        f_value = f_values[i]
+
+        h, w, _ = image.shape
+        combined_image[offset_y:offset_y + h, offset_x:offset_x + w] = image
+        # 新しいvtを計算
+        new_vt_index = len(new_vt_values)
+        texture_points = rel_texture_points + np.array([offset_x, offset_y])
+        texture_points[:, 1] = texture_height - texture_points[:, 1]
+        new_vt_value = texture_points / np.array([texture_width, texture_height])
+        new_vt_values.extend(new_vt_value)
+        new_f_value = [(f_value[j][0], 1 + new_vt_index + j) for j in range(len(f_value))]
+        new_f_values.append(new_f_value)
 
     output_rel_path = os.path.relpath(os.path.splitext(texture_path)[0] + f".{output_format}", start=input_dir)
     output_path = os.path.join(output_dir, output_rel_path)
@@ -317,8 +331,24 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cv2.imwrite(output_path, combined_image)
 
-    new_lines: list[str] = lines.copy()
-    # TODO new_linesを更新する
+    vt_done = False
+    new_lines: list[str] = []
+    for i in range(len(lines)):
+        if i in vt_line_indices:
+            # vtは全部置き換え
+            if vt_done:
+                continue
+            for vt in new_vt_values:
+                new_lines.append(f"vt {vt[0]} {vt[1]}")
+            vt_done = True
+        elif i in f_line_map:
+            # fも置き換え
+            f_index = f_line_map[i]
+            f_value = new_f_values[f_index]
+
+            new_lines.append(f"f {' '.join([f'{v}/{vt}' for (v, vt) in f_value])}")
+        else:
+            new_lines.append(lines[i])
 
     obj_path = os.path.join(output_dir, rel_obj_path)
     os.makedirs(os.path.dirname(obj_path), exist_ok=True)
