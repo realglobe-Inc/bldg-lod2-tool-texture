@@ -36,7 +36,7 @@ if [ "${input_format}" != "${output_format}" ]; then
   cd "$(dirname "$0")/tools/misc"
   . "./$(basename $PWD)/bin/activate"
 
-  for gml_file in "${output_dir}/"**/*".gml"; do
+  for gml_file in $(find "${output_dir}" -name '*.gml'); do
     python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
   done
 
