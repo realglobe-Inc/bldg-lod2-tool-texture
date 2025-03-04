@@ -326,12 +326,13 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
                     dst_image = cv2.warpPerspective(orig_image, homo, (dst_w, dst_h), borderMode=cv2.BORDER_CONSTANT,
                                                     borderValue=(255, 255, 255))
 
+            image_h, image_w, _ = dst_image.shape
             x_coords = dst_points[:, 0]
             y_coords = dst_points[:, 1]
             min_x = max(int(np.floor(x_coords.min())) - 2 * margin_px, 0)
             min_y = max(int(np.floor(y_coords.min())) - 2 * margin_px, 0)
-            max_x = min(int(np.ceil(x_coords.max())) + 2 * margin_px, orig_w)
-            max_y = min(int(np.ceil(y_coords.max())) + 2 * margin_px, orig_h)
+            max_x = min(int(np.ceil(x_coords.max())) + 2 * margin_px, image_w)
+            max_y = min(int(np.ceil(y_coords.max())) + 2 * margin_px, image_h)
 
             cropped_image = dst_image[min_y: max_y, min_x:max_x]
             rectified_images.append(cropped_image)
