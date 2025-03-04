@@ -187,8 +187,9 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
     return (texture_width, texture_height), offsets
 
 
-def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str, z_threshold: float,
-                   margin_px: int = 3) -> list[list[tuple[float, float]]]:
+def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str,
+                   z_threshold: float = 0.2, margin_px: int = 3, max_pixel_per_meter: float = 8) -> list[
+    list[tuple[float, float]]]:
     output_obj_path: str = os.path.join(input_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
 
     mtllib_value: Optional[str] = None
@@ -254,9 +255,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             vts = np.array([np.array(vt_values[vt_index - 1]) for _, vt_index in v_vt_indices])
 
             height_max = np.abs(vs[:, 2].max() - vs[:, 2].min())
-            x_distance = np.abs(vs[:, 0].max() - vs[:, 0].min())
-            y_distance = np.abs(vs[:, 1].max() - vs[:, 1].min())
-            distance = math.sqrt(x_distance ** 2 + y_distance ** 2)
+            distance = max(np.abs(vs[:, 0].max() - vs[:, 0].min()), np.abs(vs[:, 1].max() - vs[:, 1].min()))
 
             src_points = vts * np.array([orig_w, orig_h])
             # objファイルは左下が始点だが、OpenCVは左上が始点
@@ -272,9 +271,6 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
                 dst_points = src_points.copy()
                 dst_image = src_image.copy()
             else:
-                x_width = np.abs(vts[:, 0].max() - vts[:, 0].min())
-                y_width = np.abs(vts[:, 1].max() - vts[:, 1].min())
-
                 min_x = vs[:, 0].min()
                 min_y = vs[:, 1].min()
                 min_z = vs[:, 2].min()
@@ -291,7 +287,9 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
                 max_x = new_vs[:, 0].max()
                 max_y = new_vs[:, 2].max()
 
-                pixel_per_meter = math.ceil(math.sqrt((x_width * orig_w) ** 2 + (y_width * orig_h) ** 2) / distance)
+                x_width = np.abs(vts[:, 0].max() - vts[:, 0].min())
+                y_width = np.abs(vts[:, 1].max() - vts[:, 1].min())
+                pixel_per_meter = min(max_pixel_per_meter, max(x_width * orig_w, y_width * orig_h) / distance)
 
                 reverse_x = False
 
@@ -428,7 +426,7 @@ def process(input_dir: str, output_dir: str, output_format="png", temp_dir: Opti
                     bldg_id = obj_name.removesuffix(".obj")
                     bldg_ids.append(bldg_id)
                     face_vertices_list_map[bldg_id] = rectify_images(input_dir, area_id, bldg_id, output_dir,
-                                                                     output_format, z_threshold=0.2)
+                                                                     output_format)
 
             mtl_output_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{area_id}_op.mtl")
             mtl_output_dir = os.path.dirname(mtl_output_path)
