@@ -132,8 +132,10 @@ def read_mtl(mtl_path: str):
 
 
 def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[tuple[int, int]]]:
-    # 横に長い順
-    indices = sorted(range(len(image_sizes)), key=lambda i: image_sizes[i][0], reverse=True)
+    # # 横に長い順
+    # indices = sorted(range(len(image_sizes)), key=lambda i: image_sizes[i][0], reverse=True)
+    # そのまま
+    indices = list(range(len(image_sizes)))
 
     # 縦と横の比率が極端にならないように横に並べる
     n_row = 1
