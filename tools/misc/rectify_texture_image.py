@@ -1,17 +1,56 @@
 import argparse
 import math
 import os
-import tempfile
-from glob import glob
 from typing import Optional
 
 import cv2
 import numpy as np
+from lxml import etree
 
 
-def copy_gml(input_dir: str, rel_obj_path: str, output_dir: str):
-    # TODO
-    pass
+def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
+             face_vertices_list_map: dict[str, list[list[tuple[float, float]]]]):
+    input_path = os.path.join(input_dir, f"{area_id}_op.gml")
+
+    # GMLファイルを解析
+    tree = etree.parse(input_path)
+    root = tree.getroot()
+
+    # app:surfaceDataMemberのnamespaceを取得
+    namespaces = {'app': 'http://www.opengis.net/citygml/appearance/2.0'}
+
+    # app:Appearance要素を取得
+    for appearance in root.findall(".//app:Appearance", namespaces):
+        for surface_data_member in appearance.findall("app:surfaceDataMember", namespaces):
+            parameterized_texture = surface_data_member.find('app:ParameterizedTexture', namespaces)
+            if parameterized_texture is not None:
+                image_uri = parameterized_texture.find('app:imageURI', namespaces)
+                if image_uri is None or image_uri.text is None:
+                    continue
+                bldg_id = os.path.splitext(os.path.basename(image_uri.text))[0]
+                if bldg_id not in face_vertices_list_map or os.path.dirname(image_uri.text) != f"{area_id}_appearance":
+                    continue
+
+                face_vertices_list = face_vertices_list_map[bldg_id]
+
+                mime_type = parameterized_texture.find('app:mimeType', namespaces)
+                if mime_type is not None:
+                    mime_type.text = f'image/{output_format}'
+
+                targets = parameterized_texture.findall('app:target', namespaces)
+                for i, target in enumerate(targets):
+                    if i >= len(face_vertices_list):
+                        break
+                    face_vertices = face_vertices_list[i]
+                    texture_coordinates = target.find('.//app:textureCoordinates', namespaces)
+                    if texture_coordinates is not None:
+                        texture_coordinates.text = " ".join(
+                            [f"{x} {y}" for (x, y) in face_vertices + face_vertices[0:1]])
+
+    output_path = os.path.join(output_dir, f"{area_id}_op.gml")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    print("WRITE:", output_path)
+    tree.write(output_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
 
 
 def rotateToXZ(vs):
@@ -147,12 +186,9 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
     return (texture_width, texture_height), offsets
 
 
-def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_format: str, temp_dir: str,
-                   z_threshold: float, margin_px: int = 3) -> tuple[str, str]:
-    if temp_dir is None:
-        temp_dir = tempfile.mkdtemp()
-
-    obj_path: str = os.path.join(input_dir, rel_obj_path)
+def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str, z_threshold: float,
+                   margin_px: int = 3) -> list[list[tuple[float, float]]]:
+    output_obj_path: str = os.path.join(input_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
 
     mtllib_value: Optional[str] = None
     v_values: list[tuple[float, float, float]] = []
@@ -166,7 +202,7 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
     f_line_map: dict[int, int] = {}
 
     lines: list[str] = []
-    with open(obj_path, "r") as obj_text:
+    with open(output_obj_path, "r") as obj_text:
         for line in obj_text:
             line_index = len(lines)
             lines.append(line.rstrip())
@@ -197,7 +233,7 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
     mtl: {str, str} = {}
     texture_path: Optional[str] = None
     if mtllib_value is not None:
-        mtl_path = os.path.abspath(os.path.join(os.path.dirname(obj_path), mtllib_value))
+        mtl_path = os.path.abspath(os.path.join(os.path.dirname(output_obj_path), mtllib_value))
         mtl: {str, str} = read_mtl(mtl_path)
     if usemtl_value is not None and usemtl_value in mtl:
         texture_rel_path = mtl[usemtl_value]
@@ -222,6 +258,7 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
             distance = math.sqrt(x_distance ** 2 + y_distance ** 2)
 
             src_points = vts * np.array([orig_w, orig_h])
+            # objファイルは左下が始点だが、OpenCVは左上が始点
             src_points[:, 1] = orig_h - src_points[:, 1]
             mask = np.zeros((orig_h, orig_w), dtype=np.uint8)
             cv2.fillPoly(mask, [src_points.astype(np.int32)], 255)
@@ -308,6 +345,7 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
 
     new_vt_values: list[tuple[float, float]] = []
     new_f_values: list[list[tuple[int, int]]] = []
+    face_vertices_list: list[list[tuple[float, float]]] = []
     for i in range(len(f_values)):
         image = rectified_images[i]
         (offset_x, offset_y) = offsets[i]
@@ -319,17 +357,18 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
         # 新しいvtを計算
         new_vt_index = len(new_vt_values)
         texture_points = rel_texture_points + np.array([offset_x, offset_y])
+        # OpenCVは左上が始点だが、objファイルは左下が始点
         texture_points[:, 1] = texture_height - texture_points[:, 1]
         new_vt_value = texture_points / np.array([texture_width, texture_height])
         new_vt_values.extend(new_vt_value)
         new_f_value = [(f_value[j][0], 1 + new_vt_index + j) for j in range(len(f_value))]
         new_f_values.append(new_f_value)
+        face_vertices_list.append(new_vt_value.tolist())
 
-    output_rel_path = os.path.relpath(os.path.splitext(texture_path)[0] + f".{output_format}", start=input_dir)
-    output_path = os.path.join(output_dir, output_rel_path)
-    print("WRITE:", output_path)
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    cv2.imwrite(output_path, combined_image)
+    output_image_path = os.path.join(output_dir, f"{area_id}_appearance", f"{bldg_id}.{output_format}")
+    print("WRITE:", output_image_path)
+    os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
+    cv2.imwrite(output_image_path, combined_image)
 
     vt_done = False
     new_lines: list[str] = []
@@ -350,50 +389,57 @@ def rectify_images(input_dir: str, rel_obj_path: str, output_dir: str, output_fo
         else:
             new_lines.append(lines[i])
 
-    obj_path = os.path.join(output_dir, rel_obj_path)
-    os.makedirs(os.path.dirname(obj_path), exist_ok=True)
-    with open(obj_path, "w") as obj_file:
+    output_obj_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
+    os.makedirs(os.path.dirname(output_obj_path), exist_ok=True)
+    print("WRITE:", output_obj_path)
+    with open(output_obj_path, "w") as obj_file:
         for line in new_lines:
             obj_file.write(f"{line}\n")
 
-    mtl_rel_path = os.path.relpath(mtl_path, start=input_dir)
-    return mtl_rel_path, output_rel_path
+    return face_vertices_list
 
 
 def process(input_dir: str, output_dir: str, output_format="png", temp_dir: Optional[str] = None):
-    obj_paths = glob(f"{input_dir}/**/*.obj", recursive=True)
-    mtl_contents = {}
-    for obj_path in obj_paths:
-        print("PROCESSING:", obj_path)
-        rel_obj_path = os.path.relpath(obj_path, start=input_dir)
-        mtl_rel_path, texture_rel_path = rectify_images(input_dir, rel_obj_path, output_dir, output_format,
-                                                        temp_dir=temp_dir, z_threshold=0.2)
-        if mtl_rel_path in mtl_contents:
-            mtl_contents[mtl_rel_path].append(texture_rel_path)
-        else:
-            mtl_contents[mtl_rel_path] = [texture_rel_path]
+    # {input_dir}/{area_id}_op.gml
+    # {input_dir}/{area_id}_appearance/{bldg_id}.jpg もしくは png
+    # {input_dir}/obj/{area_id}_op/{area_id}_op.mtl
+    # {input_dir}/obj/{area_id}_op/{bldg_id}.obj
+    # ↓
+    # {output_dir}/{area_id}_op.gml
+    # {output_dir}/{area_id}_appearance/{bldg_id}.{output_format}
+    # {output_dir}/obj/{area_id}_op/{area_id}_op.mtl
+    # {output_dir}/obj/{area_id}_op/{bldg_id}.obj
 
-    # Write .mtl files
-    for mtl_rel_path, texture_paths in mtl_contents.items():
-        mtl_output_path = os.path.join(output_dir, mtl_rel_path)
-        mtl_output_dir = os.path.dirname(mtl_output_path)
-        os.makedirs(os.path.dirname(mtl_output_path), exist_ok=True)
-        with open(mtl_output_path, "w") as mtl_file:
-            for i, texture_rel_path in enumerate(texture_paths):
-                texture_name = os.path.splitext(os.path.basename(texture_rel_path))[0]
-                texture_path = os.path.join(output_dir, texture_rel_path)
-                kd = os.path.relpath(texture_path, start=mtl_output_dir)
-                mtl_file.write(f"newmtl {texture_name}\n")
-                mtl_file.write(f"map_Kd {kd}\n")
+    areas_path = os.path.join(input_dir, "obj")
+    for _, area_names, _ in os.walk(areas_path):
+        for area_name in area_names:
+            if not area_name.endswith("_op"):
+                continue
+            area_id = area_name.removesuffix("_op")
+            area_path = os.path.join(areas_path, area_name)
+            bldg_ids: list[str] = []
+            face_vertices_list_map: dict[str, list[list[tuple[float, float]]]] = {}
+            for _, _, obj_names in os.walk(area_path):
+                for obj_name in obj_names:
+                    if not obj_name.endswith(".obj"):
+                        continue
+                    bldg_id = obj_name.removesuffix(".obj")
+                    bldg_ids.append(bldg_id)
+                    face_vertices_list_map[bldg_id] = rectify_images(input_dir, area_id, bldg_id, output_dir,
+                                                                     output_format, z_threshold=0.2)
 
-    gml_paths = glob(f"{input_dir}/**/*.gml", recursive=True)
-    for gml_path in gml_paths:
-        area_id, _ = os.path.splitext(os.path.basename(gml_path))
-        obj_path = next((obj_path for obj_path in obj_paths if area_id in obj_path), None)
-        if obj_path is None:
-            continue
-        rel_obj_path = os.path.relpath(obj_path, start=input_dir)
-        copy_gml(input_dir, rel_obj_path, output_dir)
+            mtl_output_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{area_id}_op.mtl")
+            mtl_output_dir = os.path.dirname(mtl_output_path)
+            os.makedirs(mtl_output_dir, exist_ok=True)
+            print("WRITE:", mtl_output_path)
+            with open(mtl_output_path, "w") as mtl_file:
+                for bldg_id in bldg_ids:
+                    texture_path = os.path.join(output_dir, f"{area_id}_appearance", f"{bldg_id}.{output_format}")
+                    kd = os.path.relpath(texture_path, start=mtl_output_dir)
+                    mtl_file.write(f"newmtl {bldg_id}\n")
+                    mtl_file.write(f"map_Kd {kd}\n")
+
+            copy_gml(input_dir, area_id, output_dir, output_format, face_vertices_list_map)
 
 
 def main():
