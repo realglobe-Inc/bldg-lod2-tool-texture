@@ -30,6 +30,7 @@ def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
                 bldg_id = os.path.splitext(os.path.basename(image_uri.text))[0]
                 if bldg_id not in face_vertices_list_map or os.path.dirname(image_uri.text) != f"{area_id}_appearance":
                     continue
+                image_uri.text = f"{area_id}_appearance/{bldg_id}.{output_format}"
 
                 face_vertices_list = face_vertices_list_map[bldg_id]
 
