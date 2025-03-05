@@ -50,7 +50,7 @@ def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
 
     output_path = os.path.join(output_dir, f"{area_id}_op.gml")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    print("output:", output_path)
+    # print("output:", output_path)
     tree.write(output_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
 
 
@@ -368,7 +368,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
         face_vertices_list.append(new_vt_value.tolist())
 
     output_image_path = os.path.join(output_dir, f"{area_id}_appearance", f"{bldg_id}.{output_format}")
-    print("output:", output_image_path)
+    # print("output:", output_image_path)
     os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
     cv2.imwrite(output_image_path, combined_image)
 
@@ -393,7 +393,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
 
     output_obj_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
     os.makedirs(os.path.dirname(output_obj_path), exist_ok=True)
-    print("output:", output_obj_path)
+    # print("output:", output_obj_path)
     with open(output_obj_path, "w") as obj_file:
         for line in new_lines:
             obj_file.write(f"{line}\n")
@@ -433,7 +433,7 @@ def process(input_dir: str, output_dir: str, output_format="png", temp_dir: Opti
             mtl_output_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{area_id}_op.mtl")
             mtl_output_dir = os.path.dirname(mtl_output_path)
             os.makedirs(mtl_output_dir, exist_ok=True)
-            print("output:", mtl_output_path)
+            # print("output:", mtl_output_path)
             with open(mtl_output_path, "w") as mtl_file:
                 for bldg_id in bldg_ids:
                     texture_path = os.path.join(output_dir, f"{area_id}_appearance", f"{bldg_id}.{output_format}")
