@@ -217,12 +217,12 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                 dst_points = dst_points.reshape(len(vs), 2)
 
                 if len(src_points) == 3:
-                    af = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
+                    tf = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
                                                 dst_points[:, :2].astype(np.float32))
-                    dst_image = cv2.warpAffine(image, af, (new_w, new_h))
+                    dst_image = cv2.warpAffine(image, tf, (new_w, new_h))
                 else:
-                    homo, _ = cv2.findHomography(src_points, dst_points)
-                    dst_image = cv2.warpPerspective(image, homo, (new_w, new_h))
+                    tf, _ = cv2.findHomography(src_points, dst_points)
+                    dst_image = cv2.warpPerspective(image, tf, (new_w, new_h))
                 mask = np.zeros_like(dst_image)
                 cv2.fillPoly(mask, [dst_points.reshape((-1, 1, 2)).astype(np.int32)], (255, 255, 255))
                 dst_image = cv2.bitwise_and(dst_image, mask)
@@ -238,7 +238,7 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                      "pixel_per_meter": pixel_per_meter,
                      "face_index": s_line,
                      "normal": normal.tolist(),
-                     "homo": homo.tolist(),
+                     "homo": tf.tolist(),
                      "texture": us.tolist(),
                      "src": src_points.tolist(),
                      "dst": dst_points.tolist(),
