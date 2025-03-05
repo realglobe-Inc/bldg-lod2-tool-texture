@@ -264,7 +264,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             src_points[:, 1] = orig_h - src_points[:, 1]
             mask = np.zeros((orig_h, orig_w), dtype=np.uint8)
             cv2.fillPoly(mask, [src_points.astype(np.int32)], 255)
-            kernel = np.ones((2 * margin_px + 1, 2 * margin_px + 1), np.uint8)  # 直径 11 (5ピクセル + 中心1) のカーネル
+            kernel = np.ones((margin_px + 1, margin_px + 1), np.uint8)
             dilated_mask = cv2.dilate(mask, kernel, iterations=1)
             src_image = orig_image.copy()
             src_image[dilated_mask == 0] = (255, 255, 255)
@@ -313,8 +313,8 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
                 dst_points = dst_points + 2 * np.array([margin_px, margin_px])
                 max_x = dst_points[:, 0].max()
                 max_y = dst_points[:, 1].max()
-                dst_w = int(max_x + 2 * margin_px)
-                dst_h = int(max_y + 2 * margin_px)
+                dst_w = int(max_x + margin_px)
+                dst_h = int(max_y + margin_px)
 
                 if len(src_points) == 3:
                     af = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
@@ -329,10 +329,10 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             image_h, image_w, _ = dst_image.shape
             x_coords = dst_points[:, 0]
             y_coords = dst_points[:, 1]
-            min_x = max(int(np.floor(x_coords.min())) - 2 * margin_px, 0)
-            min_y = max(int(np.floor(y_coords.min())) - 2 * margin_px, 0)
-            max_x = min(int(np.ceil(x_coords.max())) + 2 * margin_px, image_w)
-            max_y = min(int(np.ceil(y_coords.max())) + 2 * margin_px, image_h)
+            min_x = max(int(np.floor(x_coords.min())) - margin_px, 0)
+            min_y = max(int(np.floor(y_coords.min())) - margin_px, 0)
+            max_x = min(int(np.ceil(x_coords.max())) + margin_px, image_w)
+            max_y = min(int(np.ceil(y_coords.max())) + margin_px, image_h)
 
             cropped_image = dst_image[min_y: max_y, min_x:max_x]
             rectified_images.append(cropped_image)
