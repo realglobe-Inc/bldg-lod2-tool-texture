@@ -18,4 +18,4 @@ if [ "${output_format}" != "${input_format}" ]; then
   rm "${output_dir}/"**/*".${input_format}"
 fi
 
-INPUT_DIR="${input_dir}" OUTPUT_DIR="${output_dir}" INPUT_FORMAT="${input_format}" OUTPUT_FORMAT="jpg" "$(dirname "$0")/process_copy-obj.sh"
+INPUT_DIR="${input_dir}" OUTPUT_DIR="${output_dir}" INPUT_FORMAT="${input_format}" OUTPUT_FORMAT="${output_format}" "$(dirname "$0")/process_copy-obj.sh"
