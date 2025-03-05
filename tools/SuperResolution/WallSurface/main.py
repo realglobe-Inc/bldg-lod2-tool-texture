@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import time
+import traceback
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Union
@@ -325,6 +326,7 @@ if __name__ == "__main__":
                     try:
                         preprocess_log = preprocessing.main_step(obj_file, sub_processA_dir)
                     except Exception:
+                        traceback.print_exc()
                         result = cv2.imread(str(original_texture_path))
 
                         # Saving output results
@@ -364,6 +366,7 @@ if __name__ == "__main__":
                     try:
                         result = postprocessing.main_step(preprocess_log, sub_processC_dir)
                     except Exception:
+                        traceback.print_exc()
                         if logger is not None:
                             logger.info(f"Failed PostProcessing:", obj_file)
                         else:
