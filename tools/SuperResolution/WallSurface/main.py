@@ -240,6 +240,8 @@ if __name__ == "__main__":
     if param.get('OutputLogDir'):
         param['OutputLogDir'] = fix_relative_path(param['OutputLogDir'])
 
+    pixel_per_meter = 1 / float(param.get('MeterPerPixel')) if param.get('MeterPerPixel') else 0.16
+
     # Check required fields in the configuration
     log_root, logger = check_error(param)
 
@@ -256,6 +258,7 @@ if __name__ == "__main__":
         logger=logger,
         overlap=cfg_process['overlap'],
         size=cfg_process['size'],
+        pixel_per_meter=pixel_per_meter,
         z_threshold=cfg_process['z_threshold'],
         lower_limit=cfg_process['lower_limit'],
         upper_limit=cfg_process['upper_limit'],

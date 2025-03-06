@@ -17,11 +17,12 @@ def read_mtl(mtl_path: pathlib.Path):
     return mtl.materials
 
 
-def seitaika_main(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z_threshold=0.02):
+def seitaika_main(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, pixel_per_meter: float, z_threshold=0.02):
     if logger is not None:
         logger.info(f"input_obj_path = {obj_path}")
 
-    seitaika_info, seitaika_figs, roof_info = process_obj_file(logger, obj_path, output_dir, z_threshold)
+    seitaika_info, seitaika_figs, roof_info = process_obj_file(logger, obj_path, output_dir, z_threshold,
+                                                               pixel_per_meter)
 
     return seitaika_info, seitaika_figs, roof_info
 
@@ -89,7 +90,7 @@ def rotateToXZ(vs):
 
 
 def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z_threshold: float,
-                     max_pixel_per_meter: float = 8):
+                     pixel_per_meter: float):
     if logger is not None:
         logger.info(f"filepath: {obj_path}")
 
@@ -134,9 +135,6 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                     us = np.append(us, np.array(tex_vs[int(ui) - 1]))
                 vs = vs.reshape(len(elems), 3)
                 us = us.reshape(len(elems), 2)
-                height_max = np.abs(vs[:, 2].max() - vs[:, 2].min())
-                # texture_height = np.abs(us[:, 1].max() - us[:, 1].min())
-                distance = max(np.abs(vs[:, 0].max() - vs[:, 0].min()), np.abs(vs[:, 1].max() - vs[:, 1].min()))
 
                 min_x = vs[:, 0].min()
                 min_y = vs[:, 1].min()
@@ -181,9 +179,6 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                 max_x = new_vs[:, 0].max()
                 max_y = new_vs[:, 2].max()
 
-                x_width = np.abs(us[:, 0].max() - us[:, 0].min())
-                y_width = np.abs(us[:, 1].max() - us[:, 1].min())
-                pixel_per_meter = min(max_pixel_per_meter, max(x_width * w, y_width * h) / distance)
                 new_w = math.ceil((max_x - min_x) * pixel_per_meter)
                 new_h = math.ceil((max_y - min_y) * pixel_per_meter)
 

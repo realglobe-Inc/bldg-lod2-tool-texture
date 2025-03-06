@@ -190,7 +190,7 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
 
 
 def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str,
-                   z_threshold: float = 0.2, margin_px: int = 3, max_pixel_per_meter: float = 8) -> list[
+                   pixel_per_meter: float, margin_px: int = 3) -> list[
     list[tuple[float, float]]]:
     output_obj_path: str = os.path.join(input_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
 
@@ -256,9 +256,6 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             vs = np.array([np.array(v_values[v_index - 1]) for v_index, _ in v_vt_indices])
             vts = np.array([np.array(vt_values[vt_index - 1]) for _, vt_index in v_vt_indices])
 
-            height_max = np.abs(vs[:, 2].max() - vs[:, 2].min())
-            distance = max(np.abs(vs[:, 0].max() - vs[:, 0].min()), np.abs(vs[:, 1].max() - vs[:, 1].min()))
-
             src_points = vts * np.array([orig_w, orig_h])
             # objファイルは左下が始点だが、OpenCVは左上が始点
             src_points[:, 1] = orig_h - src_points[:, 1]
@@ -269,62 +266,54 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             src_image = orig_image.copy()
             src_image[dilated_mask == 0] = (255, 255, 255)
 
-            if height_max < z_threshold:
-                dst_points = src_points.copy()
-                dst_image = src_image.copy()
-            else:
-                min_x = vs[:, 0].min()
-                min_y = vs[:, 1].min()
-                min_z = vs[:, 2].min()
-                vs -= np.array([min_x, min_y, min_z])
-                new_vs, normal = rotateToXZ(vs)
+            min_x = vs[:, 0].min()
+            min_y = vs[:, 1].min()
+            min_z = vs[:, 2].min()
+            vs -= np.array([min_x, min_y, min_z])
+            new_vs, normal = rotateToXZ(vs)
 
-                min_x = new_vs[:, 0].min()
-                min_y = new_vs[:, 1].min()
-                min_z = new_vs[:, 2].min()
-                new_vs -= np.array([min_x, min_y, min_z])
+            min_x = new_vs[:, 0].min()
+            min_y = new_vs[:, 1].min()
+            min_z = new_vs[:, 2].min()
+            new_vs -= np.array([min_x, min_y, min_z])
 
-                min_x = new_vs[:, 0].min()
-                min_y = new_vs[:, 2].min()
-                max_x = new_vs[:, 0].max()
-                max_y = new_vs[:, 2].max()
+            min_x = new_vs[:, 0].min()
+            min_y = new_vs[:, 2].min()
+            max_x = new_vs[:, 0].max()
+            max_y = new_vs[:, 2].max()
 
-                x_width = np.abs(vts[:, 0].max() - vts[:, 0].min())
-                y_width = np.abs(vts[:, 1].max() - vts[:, 1].min())
-                pixel_per_meter = min(max_pixel_per_meter, max(x_width * orig_w, y_width * orig_h) / distance)
+            reverse_x = False
 
-                reverse_x = False
+            for i in range(len(vts)):
+                ni = (i + 1) % len(vts)
+                if (src_points[i][0] - src_points[ni][0]) * (new_vs[i][0] - new_vs[ni][0]) < 0:
+                    reverse_x = True
 
-                for i in range(len(vts)):
-                    ni = (i + 1) % len(vts)
-                    if (src_points[i][0] - src_points[ni][0]) * (new_vs[i][0] - new_vs[ni][0]) < 0:
-                        reverse_x = True
-
-                dst_points = np.empty(0)
-                for i in range(len(new_vs)):
-                    if reverse_x:
-                        dx = ((max_x - min_x) - new_vs[i][0]) * pixel_per_meter
-                        dy = ((max_y - min_y) - new_vs[i][2]) * pixel_per_meter
-                    else:
-                        dx = new_vs[i][0] * pixel_per_meter
-                        dy = new_vs[i][2] * pixel_per_meter
-                    dst_points = np.append(dst_points, [dx, dy])
-                dst_points = dst_points.reshape(len(vs), 2)
-                dst_points = dst_points + 2 * np.array([margin_px, margin_px])
-                max_x = dst_points[:, 0].max()
-                max_y = dst_points[:, 1].max()
-                dst_w = int(max_x + margin_px)
-                dst_h = int(max_y + margin_px)
-
-                if len(src_points) == 3:
-                    af = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
-                                                dst_points[:, :2].astype(np.float32))
-                    dst_image = cv2.warpAffine(src_image, af, (dst_w, dst_h), borderMode=cv2.BORDER_CONSTANT,
-                                               borderValue=(255, 255, 255))
+            dst_points = np.empty(0)
+            for i in range(len(new_vs)):
+                if reverse_x:
+                    dx = ((max_x - min_x) - new_vs[i][0]) * pixel_per_meter
+                    dy = ((max_y - min_y) - new_vs[i][2]) * pixel_per_meter
                 else:
-                    homo, _ = cv2.findHomography(src_points, dst_points)
-                    dst_image = cv2.warpPerspective(orig_image, homo, (dst_w, dst_h), borderMode=cv2.BORDER_CONSTANT,
-                                                    borderValue=(255, 255, 255))
+                    dx = new_vs[i][0] * pixel_per_meter
+                    dy = new_vs[i][2] * pixel_per_meter
+                dst_points = np.append(dst_points, [dx, dy])
+            dst_points = dst_points.reshape(len(vs), 2)
+            dst_points = dst_points + 2 * np.array([margin_px, margin_px])
+            max_x = dst_points[:, 0].max()
+            max_y = dst_points[:, 1].max()
+            dst_w = int(max_x + margin_px)
+            dst_h = int(max_y + margin_px)
+
+            if len(src_points) == 3:
+                af = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
+                                            dst_points[:, :2].astype(np.float32))
+                dst_image = cv2.warpAffine(src_image, af, (dst_w, dst_h), borderMode=cv2.BORDER_CONSTANT,
+                                           borderValue=(255, 255, 255))
+            else:
+                homo, _ = cv2.findHomography(src_points, dst_points)
+                dst_image = cv2.warpPerspective(orig_image, homo, (dst_w, dst_h), borderMode=cv2.BORDER_CONSTANT,
+                                                borderValue=(255, 255, 255))
 
             image_h, image_w, _ = dst_image.shape
             x_coords = dst_points[:, 0]
@@ -401,7 +390,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
     return face_vertices_list
 
 
-def process(input_dir: str, output_dir: str, output_format="png", temp_dir: Optional[str] = None):
+def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter: float):
     # {input_dir}/{area_id}_op.gml
     # {input_dir}/{area_id}_appearance/{bldg_id}.jpg もしくは png
     # {input_dir}/obj/{area_id}_op/{area_id}_op.mtl
@@ -428,7 +417,7 @@ def process(input_dir: str, output_dir: str, output_format="png", temp_dir: Opti
                     bldg_id = obj_name.removesuffix(".obj")
                     bldg_ids.append(bldg_id)
                     face_vertices_list_map[bldg_id] = rectify_images(input_dir, area_id, bldg_id, output_dir,
-                                                                     output_format)
+                                                                     output_format, pixel_per_meter)
 
             mtl_output_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{area_id}_op.mtl")
             mtl_output_dir = os.path.dirname(mtl_output_path)
@@ -448,11 +437,13 @@ def main():
     parser = argparse.ArgumentParser(description="JPEG画像を再保存するスクリプト")
     parser.add_argument("-i", "--input", required=True, help="入力ディレクトリのパス")
     parser.add_argument("-o", "--output", required=True, help="出力ディレクトリのパス")
-    parser.add_argument("--temp-dir", help="一時ディレクトリのパス")
-    parser.add_argument('--format', type=str, default='png', help='Output image extension')
+    parser.add_argument('--format', type=str, default='png', help='出力するテクスチャ画像の拡張子')
+    parser.add_argument('--meter-per-pixel', type=float, default=0.16,
+                        help='出力するテクスチャ画像の1ピクセルが何メートルに相当するか')
     args = parser.parse_args()
 
-    process(args.input, args.output, args.format, temp_dir=args.temp_dir)
+    pixel_per_meter = 1 / args.meter_per_pixel
+    process(args.input, args.output, args.format, pixel_per_meter)
 
 
 if __name__ == "__main__":
