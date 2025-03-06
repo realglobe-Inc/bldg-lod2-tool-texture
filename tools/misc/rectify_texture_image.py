@@ -190,7 +190,7 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
 
 
 def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str,
-                   pixel_per_meter: float, margin_px: int = 3) -> list[
+                   pixel_per_meter: float, margin_px: int = 4) -> list[
     list[tuple[float, float]]]:
     output_obj_path: str = os.path.join(input_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
 
