@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
 
 source ~/.bashrc
@@ -25,7 +27,7 @@ if [ -z "${PARAM_JSON}" ]; then
     \"CameraInfoPath\": \"${base_input_dir}/03_内部標定要素/CamInfo.txt\",
     \"DsmFolderPath\": \"${base_input_dir}/04_DSM_RGB\",
     \"CityGMLFolderPath\": \"${base_input_dir}/08_CityGML\",
-    \"LasCoordinateSystem\": 9,
+    \"LasCoordinateSystem\": 7,
     \"LasSwapXY\": false,
     \"RotateMatrixMode\": 0,
     \"OutputFolderPath\": \"${base_output_dir}\",
@@ -43,7 +45,8 @@ if [ -z "${PARAM_JSON}" ]; then
     \"TargetCoordAreas\": null,
     \"TargetBuildingIds\": null,
     \"TextureOutputWidthMax\": 1024,
-    \"TextureOutputHeightMax\": 1024
+    \"TextureOutputHeightMax\": 1024,
+    \"TextureImageFormat\": \"png\"
   }" > param.json
 else
   # PARAM_JSON が設定されている場合、その内容を param.json に保存
@@ -54,7 +57,7 @@ city_gml_dir_name=$(basename $(jq -r '.CityGMLFolderPath' param.json))
 # 入力ファイルのダウンロード
 # aws s3 cp --recursive s3://${BUCKET_NAME}/files/${JOB_INPUT_ID}/input ${base_input_dir}
 
-python3 AutoCreateLod2.py param.json
+python AutoCreateLod2.py param.json
 deactivate
 
 # 最新のフォルダを取得
@@ -84,11 +87,13 @@ echo "{
   \"OutputDir\": \"${output_latest_wall_surface_path}\",
   \"Device\": \"cuda\",
   \"OutputLogDir\": \"${base_output_dir}/log_output_latest_wall_surface\",
-  \"DebugLogOutput\": \"false\"
+  \"DebugLogOutput\": \"false\",
+  \"MeterPerPixel\": \"0.16\",
+  \"OutputFormat\": \"png\"
 }" > param.json
 
 rm -rf $output_latest_wall_surface_path/*
-python3 main.py param.json
+python main.py param.json
 deactivate
 
 
@@ -103,14 +108,15 @@ source ./$(basename $PWD)/bin/activate
 
 output_latest_esrgan_path="${base_output_dir}/output_latest_esrgan"
 rm -rf "${output_latest_esrgan_path}/*"
-python3 inference_realesrgan.py \
-  -n RealESRGAN_x4plus -g 0 -s 4 \
-  -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}"
+python inference_realesrgan.py \
+  -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
+  -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}" \
+  --input-ext "png" --ext "png"
 deactivate
 
 
 
-# ########## テクスチャ鮮明化ツール ##########
+########## テクスチャ鮮明化ツール ##########
 
 echo '########## テクスチャ鮮明化ツール ##########'
 
@@ -120,69 +126,54 @@ source ./$(basename $PWD)/bin/activate
 
 output_latest_deblurgan_path="${base_output_dir}/output_latest_deblurgan"
 rm -rf "${output_latest_deblurgan_path}/*"
-python3 predict.py \
+python predict.py \
   -c checkpoints/fpn_inception.h5 \
-  -i "${output_latest_esrgan_path}" -o "${output_latest_deblurgan_path}"
+  -i "${output_latest_esrgan_path}" -o "${output_latest_deblurgan_path}" \
+  --input-format "png" --output-format "jpg"
 deactivate
 
 
 
-########## テクスチャシャープ化ツール ##########
-
-echo '########## テクスチャシャープ化ツール ##########'
-
-# テクスチャシャープ化ツールのフォルダーに移動
-cd "${workspace_dir}/tools/UnsharpMask"
-source ./$(basename $PWD)/bin/activate
-
-output_latest_unsharp_mask_path="${base_output_dir}/output_latest_unsharp_mask"
-rm -rf "${output_latest_unsharp_mask_path}/*"
-python3 UnsharpMask.py \
-  -i "${output_latest_deblurgan_path}" -o "${output_latest_unsharp_mask_path}"
-deactivate
-
-# .gml ファイルを再帰的にコピー
-find "${output_latest_wall_surface_path}" -type f -name "*.gml" | while read file; do
-  # コピー先のディレクトリ構造を作成
-  target_dir="${output_latest_unsharp_mask_path}/$(dirname "${file#${output_latest_wall_surface_path}/}")"
-  mkdir -p "${target_dir}"
-
-  # ファイルをコピー
-  cp "${file}" "${target_dir}"
-done
+# tools/UnsharpMask はきれいにならないため使わない
+# tools/Atlas_Prot はうまく動かないため使わない
 
 
 
-# バグがあるため、一旦保留
-# ########## テクスチャアトラス化ツール ##########
-
-# echo '########## テクスチャアトラス化ツール ##########'
-
-# # テクスチャアトラス化ツールのフォルダーに移動
-# cd "${workspace_dir}/tools/Atlas_Prot"
-# source ./$(basename $PWD)/bin/activate
-
-# output_latest_atlas_prot_path="${base_output_dir}/output_latest_atlas_prot"
-# echo "{
-#   \"FilePath\": {
-#     \"InputGMLFolderPath\": \"${output_latest_unsharp_mask_path}\",
-#     \"OutputGMLFolderPath\": \"${output_latest_atlas_prot_path}\"
-#   },
-#   \"OutputWidth\": 2048,
-#   \"OutputHeight\": 2048,
-#   \"BackGroundColor\": 255,
-#   \"Extentpixel\": 1
-# }" > param.json
-
-# rm -rf "${output_latest_atlas_prot_path}/*"
-# python3 Atlas_Prot.py param.json
-# deactivate
-
-
-
-# ########## 最終結果フォルダー ##########
-
+########## 最終結果フォルダー ##########
 output_latest_result_path="${base_output_dir}/output_latest_result"
 rm -rf "${output_latest_result_path}/"
-mv "${output_latest_unsharp_mask_path}" "${output_latest_result_path}"
+cp "${output_latest_deblurgan_path}" "${output_latest_result_path}"
+
+for appearance_dir in "${output_latest_result_path}/"*_appearance; do
+  grp=$(basename -s '_appearance' "${appearance_dir}")
+  mkdir -p "${output_latest_result_path}/obj/${grp}_op"
+
+  # gmlファイルをコピー
+  cp -n "${output_latest_wall_surface_path}/${grp}_op.gml" "${output_latest_result_path}/"
+
+  # objファイルをコピー
+  for texture_file in "${appearance_dir}/"*".jpg"; do
+    bldg_id=$(basename -s ".jpg" "${texture_file}")
+    cp -n "${output_latest_wall_surface_path}/obj/${grp}_op/${bldg_id}.obj" "${output_latest_result_path}/obj/${grp}_op/"
+  done
+
+  # mtlファイル作成
+  rm -f "${output_latest_result_path}/obj/${grp}_op/${grp}_op.mtl"
+  for texture_file in "${appearance_dir}/"*".jpg"; do
+    bldg_id=$(basename -s ".jpg" "${texture_file}")
+    printf '%s\n\n%s\n\n' "newmtl ${bldg_id}" "map_Kd $(realpath --relative-to "${output_latest_result_path}/obj/${grp}_op" "${texture_file}")" >> "${output_latest_result_path}/obj/${grp}_op/${grp}_op.mtl"
+  done
+done
+
+cd "${workspace_dir}/tools/misc"
+. "./$(basename $PWD)/bin/activate"
+
+for gml_file in $(find "${output_latest_result_path}" -name '*.gml'); do
+  python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "jpg"
+done
+
+deactivate
+
+
+
 echo "最終結果 : ${output_latest_result_path}"

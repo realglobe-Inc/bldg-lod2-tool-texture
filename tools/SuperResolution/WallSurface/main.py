@@ -219,7 +219,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("param_file", type=Path)
     parser.add_argument("--cfg_file", type=Path, default="config.yml")
-    parser.add_argument("--output-format", type=str, default="png")
     args = parser.parse_args()
 
     # Load parameter information from JSON file
@@ -240,7 +239,8 @@ if __name__ == "__main__":
     if param.get('OutputLogDir'):
         param['OutputLogDir'] = fix_relative_path(param['OutputLogDir'])
 
-    pixel_per_meter = 1 / float(param.get('MeterPerPixel')) if param.get('MeterPerPixel') else 0.16
+    pixel_per_meter = 1 / float(param.get('MeterPerPixel', '0.16'))
+    output_format = param.get('OutputFormat', 'png').lower()
 
     # Check required fields in the configuration
     log_root, logger = check_error(param)
@@ -380,7 +380,7 @@ if __name__ == "__main__":
                     resolve_path_img = Path(original_texture_path)
                     relative_path_img = resolve_path_img.relative_to(Path(param['InputDir']).resolve())
                     output_path = Path(param['OutputDir']).joinpath(
-                        os.path.splitext(relative_path_img)[0] + f'.{args.output_format}')
+                        os.path.splitext(relative_path_img)[0] + f'.{output_format}')
                     output_path.parent.mkdir(exist_ok=True, parents=True)
                     cv2.imwrite(str(output_path), result)
 
@@ -400,7 +400,7 @@ if __name__ == "__main__":
                     not_processed_texture = cv2.imread(str(original_texture_path))
 
                     output_path = Path(param['OutputDir']).joinpath(
-                        os.path.splitext(texture_path)[0] + f'.{args.output_format}')
+                        os.path.splitext(texture_path)[0] + f'.{output_format}')
                     output_path.parent.mkdir(exist_ok=True, parents=True)
                     cv2.imwrite(str(output_path), not_processed_texture)
 
@@ -413,8 +413,8 @@ if __name__ == "__main__":
         for line in lines:
             l = line.strip().lower()
             ext = l.split(".")[-1]
-            if l.startswith("map_kd") and ext != args.output_format:
-                line = line.rstrip().replace(f".{ext}", f".{args.output_format}")
+            if l.startswith("map_kd") and ext != output_format:
+                line = line.rstrip().replace(f".{ext}", f".{output_format}")
                 changed = True
             new_lines.append(line)
         if changed:
@@ -437,13 +437,13 @@ if __name__ == "__main__":
                 parameterized_texture = surface_data_member.find('app:ParameterizedTexture', namespaces)
                 if parameterized_texture is not None:
                     image_uri = parameterized_texture.find('app:imageURI', namespaces)
-                    if image_uri is not None and not image_uri.text.endswith(f'.{args.output_format}'):
+                    if image_uri is not None and not image_uri.text.endswith(f'.{output_format}'):
                         changed = True
-                        image_uri.text = str(Path(image_uri.text).with_suffix(f'.{args.output_format}'))
+                        image_uri.text = str(Path(image_uri.text).with_suffix(f'.{output_format}'))
                     mime_type = parameterized_texture.find('app:mimeType', namespaces)
-                    if mime_type is not None and not mime_type.text.endswith(f'/{args.output_format}'):
+                    if mime_type is not None and not mime_type.text.endswith(f'/{output_format}'):
                         changed = True
-                        mime_type.text = f'image/{args.output_format}'
+                        mime_type.text = f'image/{output_format}'
 
         if changed:
             # 結果を新しいファイルに保存 (XML宣言を含む)

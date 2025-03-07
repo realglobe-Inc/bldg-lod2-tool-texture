@@ -23,10 +23,11 @@ echo "{
   \"Device\": \"cuda\",
   \"OutputLogDir\": \"${output_log_dir}\",
   \"DebugLogOutput\": \"${debug_log_output}\",
-  \"MeterPerPixel\": \"${meter_per_pixel}\"
+  \"MeterPerPixel\": \"${meter_per_pixel}\",
+  \"OutputFormat\": \"${output_format}\"
 }" > "${param_file}"
 rm -rf "${output_dir}/"*
-python main.py "${param_file}" --output-format "${output_format}"
+python main.py "${param_file}"
 
 deactivate
 )

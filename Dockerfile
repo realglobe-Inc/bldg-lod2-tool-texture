@@ -20,10 +20,10 @@ RUN git clone https://github.com/pyenv/pyenv.git "${PYENV_ROOT}" && \
     echo 'eval "$(pyenv init --path)"' >> ~/.bashrc && \
     echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 
-# Python 3.9.19 のインストールと設定
+# Python 3.9.21 のインストールと設定
 RUN eval "$(pyenv init --path)" && \
-    pyenv install 3.9.19 && \
-    pyenv global 3.9.19 && \
+    pyenv install 3.9.21 && \
+    pyenv global 3.9.21 && \
     pyenv rehash
 
 # Python のパス設定
@@ -187,6 +187,24 @@ RUN python3 -m venv $(basename $PWD) && \
     python3 -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
+
+
+########## テクスチャ正対化ツールのインストール ##########
+
+# テクスチャ正対化ツールのフォルダーに移動
+RUN mkdir -p /app/tools/misc
+WORKDIR /app/tools/misc
+
+# 必要なファイルをコピー
+COPY tools/misc/change_texture_image_ext_in_gml.py .
+COPY tools/misc/rectify_texture_image.py .
+COPY tools/misc/requirements.txt .
+
+# 必要なPythonライブラリをインストール
+RUN python3 -m venv $(basename $PWD) && \
+    . $(basename $PWD)/bin/activate && \
+    python3 -m pip install --no-cache-dir -r requirements.txt && \
+    deactivate
 
 
 ########################################################################
