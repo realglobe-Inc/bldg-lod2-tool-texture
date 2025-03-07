@@ -35,7 +35,8 @@ services:
         "TargetCoordAreas": null,
         "TargetBuildingIds": null,
         "TextureOutputWidthMax": 1024,
-        "TextureOutputHeightMax": 1024
+        "TextureOutputHeightMax": 1024,
+        "TextureImageFormat": "png"
       }'
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
