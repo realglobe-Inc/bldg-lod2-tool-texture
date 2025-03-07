@@ -142,7 +142,7 @@ deactivate
 ########## 最終結果フォルダー ##########
 output_latest_result_path="${base_output_dir}/output_latest_result"
 rm -rf "${output_latest_result_path}/"
-cp "${output_latest_deblurgan_path}" "${output_latest_result_path}"
+cp -r "${output_latest_deblurgan_path}" "${output_latest_result_path}"
 
 for appearance_dir in "${output_latest_result_path}/"*_appearance; do
   grp=$(basename -s '_appearance' "${appearance_dir}")
