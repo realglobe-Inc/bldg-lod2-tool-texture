@@ -63,13 +63,30 @@ deactivate
 # 最新のフォルダを取得
 output_latest_bldg_lod2_tool_path="${base_output_dir}/output_latest_bldg_lod2_tool"
 latest_folder=$(ls -t "${base_output_dir}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)
-if [ -n "$latest_folder" ]; then
-  cd $base_output_dir
+if [ -n "${latest_folder}" ]; then
+  cd "${base_output_dir}"
   rm -f ./output_latest_bldg_lod2_tool
   ln -s "./${latest_folder}" "./output_latest_bldg_lod2_tool"
 else
   echo "最新のフォルダが見つかりませんでした。"
 fi
+
+
+
+########## 正対化ツール ##########
+
+echo '########## 正対化ツール ##########'
+
+# 正対化ツールのフォルダーに移動
+cd "${workspace_dir}/tools/misc"
+source ./$(basename $PWD)/bin/activate
+
+output_latest_rectify_path="${base_output_dir}/output_latest_rectify"
+
+rm -rf "${output_latest_rectify_path}/"*
+python rectify_texture_image.py -i "${output_latest_bldg_lod2_tool_path}" -o "${output_latest_rectify_path}" \
+ --format "png" --meter-per-pixel "0.16"
+deactivate
 
 
 
@@ -83,7 +100,7 @@ source ./$(basename $PWD)/bin/activate
 
 output_latest_wall_surface_path="${base_output_dir}/output_latest_wall_surface"
 echo "{
-  \"InputDir\": \"${output_latest_bldg_lod2_tool_path}\",
+  \"InputDir\": \"${output_latest_rectify_path}\",
   \"OutputDir\": \"${output_latest_wall_surface_path}\",
   \"Device\": \"cuda\",
   \"OutputLogDir\": \"${base_output_dir}/log_output_latest_wall_surface\",
@@ -92,7 +109,7 @@ echo "{
   \"OutputFormat\": \"png\"
 }" > param.json
 
-rm -rf $output_latest_wall_surface_path/*
+rm -rf "${output_latest_wall_surface_path}/"*
 python main.py param.json
 deactivate
 
