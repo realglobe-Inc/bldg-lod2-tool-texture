@@ -99,6 +99,7 @@ cd "${workspace_dir}/tools/SuperResolution/WallSurface"
 source ./$(basename $PWD)/bin/activate
 
 output_latest_wall_surface_path="${base_output_dir}/output_latest_wall_surface"
+param_file=$(mktemp --suffix .json)
 echo "{
   \"InputDir\": \"${output_latest_rectify_path}\",
   \"OutputDir\": \"${output_latest_wall_surface_path}\",
@@ -107,10 +108,10 @@ echo "{
   \"DebugLogOutput\": \"false\",
   \"MeterPerPixel\": \"0.16\",
   \"OutputFormat\": \"png\"
-}" > param.json
+}" > "${param_file}"
 
 rm -rf "${output_latest_wall_surface_path}/"*
-python main.py param.json
+python main.py "${param_file}"
 deactivate
 
 
