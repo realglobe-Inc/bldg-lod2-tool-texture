@@ -178,7 +178,8 @@ def main():
                     # CityGML出力
                     log.module_start_log(ModuleType.OUTPUT_CITYGML, file_name)
                     # CityGML書き込み
-                    ret_citygml_write = citygml.write_file(file_name=file_name)
+                    ret_citygml_write = citygml.write_file(file_name=file_name,
+                                                           image_format=param_manager.texture_image_format)
                     log.module_result_log(ModuleType.OUTPUT_CITYGML, ret_citygml_write)
 
                 # summary用にモデル化結果を保存

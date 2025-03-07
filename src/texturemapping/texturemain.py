@@ -193,7 +193,8 @@ class TextureMain():
                             ver.output_optional_obj(
                                 objdir=self.optional_output_objdir,
                                 texture_dir=texturedir,
-                                mtl_file_name=f'{base_name}.mtl'
+                                mtl_file_name=f'{base_name}.mtl',
+                                image_format=image_format,
                             )
 
                         if not ret:
