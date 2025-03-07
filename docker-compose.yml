@@ -8,8 +8,8 @@ services:
     stdin_open: true
     command: /bin/bash -c "sleep 1000000"
     volumes:
-      - ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset:/app/input
-      - ~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/output:/app/output
+      - ${INPUT_DIR:-~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset}:/app/input
+      - ${OUTPUT_DIR:-~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/output}:/app/output
     environment:
       PARAM_JSON: '{
         "TextureFolderPath": "/app/input/RawImage",
@@ -17,7 +17,7 @@ services:
         "CameraInfoPath": "/app/input/CamInfo/CamInfo.txt",
         "DsmFolderPath": "/app/input/DSM",
         "CityGMLFolderPath": "/app/input/CityGML",
-        "LasCoordinateSystem": 9,
+        "LasCoordinateSystem": ${LAS_COORDINATE_SYSTEM:-9},
         "LasSwapXY": false,
         "RotateMatrixMode": 0,
         "OutputFolderPath": "/app/output",
