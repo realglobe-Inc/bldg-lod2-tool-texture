@@ -8,36 +8,8 @@ services:
     stdin_open: true
     command: /bin/bash -c "sleep 1000000"
     volumes:
-      - ${INPUT_DIR:-~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset}:/app/input
-      - ${OUTPUT_DIR:-~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset/output}:/app/output
+      - ${WORKSPACE_DIR:-~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset}:/workspace
     environment:
-      PARAM_JSON: '{
-        "TextureFolderPath": "/app/input/RawImage",
-        "ExternalCalibElementPath": "/app/input/ExCalib/ExCalib.txt",
-        "CameraInfoPath": "/app/input/CamInfo/CamInfo.txt",
-        "DsmFolderPath": "/app/input/DSM",
-        "CityGMLFolderPath": "/app/input/CityGML",
-        "LasCoordinateSystem": ${LAS_COORDINATE_SYSTEM:-9},
-        "LasSwapXY": false,
-        "RotateMatrixMode": 0,
-        "OutputFolderPath": "/app/output",
-        "OutputOBJ": true,
-        "OutputTexture": true,
-        "OutputCityGML": true,
-        "OutputLogFolderPath": "/app/output",
-        "DebugLogOutput": true,
-        "PhaseConsistency": {
-          "DeleteErrorObject": true,
-          "NonPlaneThickness": 0.05,
-          "NonPlaneAngle": 15
-        },
-        "DebugMode": false,
-        "TargetCoordAreas": null,
-        "TargetBuildingIds": null,
-        "TextureOutputWidthMax": 1024,
-        "TextureOutputHeightMax": 1024,
-        "TextureImageFormat": "png"
-      }'
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
     deploy:
