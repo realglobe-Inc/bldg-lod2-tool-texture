@@ -31,7 +31,7 @@ echo '########## LOD2建築物自動作成ツール ##########'
 # LOD2建築物自動作成ツールのフォルダーに移動
 cd "${project_dir}"
 
-bldg_lod2_tool_param_file=$(mktemp --suffix .json)
+bldg_lod2_tool_param_file="$(mktemp --suffix .json)"
 if [ -z "${bldg_lod2_tool_param}" ]; then
   cat <<EOF > "${bldg_lod2_tool_param_file}"
 {
@@ -64,24 +64,23 @@ if [ -z "${bldg_lod2_tool_param}" ]; then
 EOF
 else
   echo "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
-  output_texture_enabled=$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")
+  output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
 fi
-city_gml_dir_name=$(basename $(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}"))
+city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
 
-. ./$(basename $PWD)/bin/activate
+. "./$(basename $PWD)/bin/activate"
 python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
 deactivate
 
 # 最新のフォルダを取得
 output_latest_bldg_lod2_tool_path="${output_dir}/output_latest_bldg_lod2_tool"
-latest_folder=$(ls -t "${output_dir}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)
+latest_folder="$(ls -t "${output_dir}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)"
 if [ -n "${latest_folder}" ]; then
   cd "${output_dir}"
   rm -f ./output_latest_bldg_lod2_tool
   ln -s "./${latest_folder}" ./output_latest_bldg_lod2_tool
 else
   echo '最新のフォルダが見つかりませんでした。'
-  echo "${output_dir}/${city_gml_dir_name}"
   exit 1
 fi
 
@@ -109,7 +108,7 @@ cd "${project_dir}/tools/misc"
 output_latest_rectify_path="${output_dir}/output_latest_rectify"
 rm -rf "${output_latest_rectify_path}/"*
 
-. ./$(basename $PWD)/bin/activate
+. "./$(basename $PWD)/bin/activate"
 python rectify_texture_image.py -i "${output_latest_bldg_lod2_tool_path}" -o "${output_latest_rectify_path}" \
  --format png --meter-per-pixel "${meter_per_texture_pixel}"
 deactivate
@@ -126,7 +125,7 @@ cd "${project_dir}/tools/SuperResolution/WallSurface"
 output_latest_wall_surface_path="${output_dir}/output_latest_wall_surface"
 rm -rf "${output_latest_wall_surface_path}/"*
 
-wall_surface_param_file=$(mktemp --suffix .json)
+wall_surface_param_file="$(mktemp --suffix .json)"
 cat <<EOF > "${wall_surface_param_file}"
 {
   "InputDir": "${output_latest_rectify_path}",
@@ -139,7 +138,7 @@ cat <<EOF > "${wall_surface_param_file}"
 }
 EOF
 
-. ./$(basename $PWD)/bin/activate
+. "./$(basename $PWD)/bin/activate"
 python main.py "${wall_surface_param_file}"
 deactivate
 
@@ -155,7 +154,7 @@ cd "${project_dir}/tools/Real-ESRGAN"
 output_latest_esrgan_path="${output_dir}/output_latest_esrgan"
 rm -rf "${output_latest_esrgan_path}/*"
 
-. ./$(basename $PWD)/bin/activate
+. "./$(basename $PWD)/bin/activate"
 python inference_realesrgan.py \
   -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
   -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}" \
@@ -174,7 +173,7 @@ cd "${project_dir}/tools/DeblurGANv2"
 output_latest_deblurgan_path="${output_dir}/output_latest_deblurgan"
 rm -rf "${output_latest_deblurgan_path}/"*
 
-. ./$(basename $PWD)/bin/activate
+. "./$(basename $PWD)/bin/activate"
 python predict.py \
   -c checkpoints/fpn_inception.h5 \
   -i "${output_latest_esrgan_path}" -o "${output_latest_deblurgan_path}" \
@@ -194,28 +193,32 @@ deactivate
 ########## 最終結果フォルダー ##########
 
 output_latest_result_path="${output_dir}/output_latest_result"
-rm -rf "${output_latest_result_path}/"
+rm -rf "${output_latest_result_path}"
 cp -r "${output_latest_deblurgan_path}" "${output_latest_result_path}"
+input_misc_path="${output_latest_wall_surface_path}"
 
 # テクスチャ画像以外のファイルをコピー
-for appearance_dir in "${output_latest_wall_surface_path}/"*_appearance; do
-  grp=$(basename -s '_appearance' "${appearance_dir}")
-  mkdir -p "${output_latest_result_path}/obj/${grp}_op"
+for appearance_dir in "${output_latest_result_path}/"*_appearance; do
+  grp="$(basename -s '_appearance' "${appearance_dir}")"
 
   # gmlファイルをコピー
-  cp -n "${output_latest_wall_surface_path}/${grp}_op.gml" "${output_latest_result_path}/"
+  cp -n "${input_misc_path}/${grp}_op.gml" "${output_latest_result_path}/"
 
   # objファイルをコピー
+  obj_dir_path="${output_latest_result_path}/obj/${grp}_op"
+  mkdir -p "${obj_dir_path}"
   for texture_file in "${appearance_dir}/"*.jpg; do
-    bldg_id=$(basename -s .jpg "${texture_file}")
-    cp -n "${output_latest_wall_surface_path}/obj/${grp}_op/${bldg_id}.obj" "${output_latest_result_path}/obj/${grp}_op/"
+    bldg_id="$(basename -s .jpg "${texture_file}")"
+    cp -n "${input_misc_path}/obj/${grp}_op/${bldg_id}.obj" "${obj_dir_path}/"
   done
 
   # mtlファイル作成
-  rm -f "${output_latest_result_path}/obj/${grp}_op/${grp}_op.mtl"
+  mtl_file_path="${obj_dir_path}/${grp}_op.mtl"
+  rm -f "${mtl_file_path}"
   for texture_file in "${appearance_dir}/"*.jpg; do
-    bldg_id=$(basename -s .jpg "${texture_file}")
-    printf '%s\n\n%s\n\n' "newmtl ${bldg_id}" "map_Kd $(realpath --relative-to "${output_latest_result_path}/obj/${grp}_op" "${texture_file}")" >> "${output_latest_result_path}/obj/${grp}_op/${grp}_op.mtl"
+    bldg_id="$(basename -s .jpg "${texture_file}")"
+    printf '%s\n\n' "newmtl ${bldg_id}" >> "${mtl_file_path}"
+    printf '%s\n\n' "map_Kd $(realpath --relative-to "${obj_dir_path}" "${texture_file}")" >> "${mtl_file_path}"
   done
 done
 
