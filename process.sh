@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
-trap 'echo "Error on line $LINENO"' ERR
+trap 'if [ "$?" -ne 0 ]; then echo "Error on line ${LINENO}"; fi' EXIT
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
 
@@ -68,7 +68,7 @@ else
 fi
 city_gml_dir_name=$(basename $(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}"))
 
-source ./$(basename $PWD)/bin/activate
+. ./$(basename $PWD)/bin/activate
 python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
 deactivate
 
@@ -109,7 +109,7 @@ cd "${project_dir}/tools/misc"
 output_latest_rectify_path="${base_output_dir}/output_latest_rectify"
 rm -rf "${output_latest_rectify_path}/"*
 
-source ./$(basename $PWD)/bin/activate
+. ./$(basename $PWD)/bin/activate
 python rectify_texture_image.py -i "${output_latest_bldg_lod2_tool_path}" -o "${output_latest_rectify_path}" \
  --format png --meter-per-pixel "${meter_per_texture_pixel}"
 deactivate
@@ -139,7 +139,7 @@ cat <<EOF > "${wall_surface_param_file}"
 }
 EOF
 
-source ./$(basename $PWD)/bin/activate
+. ./$(basename $PWD)/bin/activate
 python main.py "${wall_surface_param_file}"
 deactivate
 
@@ -155,7 +155,7 @@ cd "${project_dir}/tools/Real-ESRGAN"
 output_latest_esrgan_path="${base_output_dir}/output_latest_esrgan"
 rm -rf "${output_latest_esrgan_path}/*"
 
-source ./$(basename $PWD)/bin/activate
+. ./$(basename $PWD)/bin/activate
 python inference_realesrgan.py \
   -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
   -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}" \
@@ -174,7 +174,7 @@ cd "${project_dir}/tools/DeblurGANv2"
 output_latest_deblurgan_path="${base_output_dir}/output_latest_deblurgan"
 rm -rf "${output_latest_deblurgan_path}/"*
 
-source ./$(basename $PWD)/bin/activate
+. ./$(basename $PWD)/bin/activate
 python predict.py \
   -c checkpoints/fpn_inception.h5 \
   -i "${output_latest_esrgan_path}" -o "${output_latest_deblurgan_path}" \
