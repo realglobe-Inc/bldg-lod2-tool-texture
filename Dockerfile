@@ -8,42 +8,34 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     nano curl wget zip unzip libopencv-dev jq build-essential \
     libssl-dev zlib1g-dev libbz2-dev libreadline-dev \
-    libsqlite3-dev libffi-dev liblzma-dev git && \
+    libsqlite3-dev libffi-dev liblzma-dev git locales && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+RUN locale-gen en_US.UTF-8 ja_JP.UTF-8
+RUN update-locale LANG=en_US.UTF-8
+
+ENV HOME="/root"
+
 # pyenv のインストール
-ENV PYENV_ROOT="/root/.pyenv"
+ENV PYENV_ROOT="${HOME}/.pyenv"
 ENV PATH="${PYENV_ROOT}/bin:${PATH}"
+RUN mkdir -p "${PYENV_ROOT}"
 RUN git clone https://github.com/pyenv/pyenv.git "${PYENV_ROOT}" && \
     git clone https://github.com/pyenv/pyenv-virtualenv.git "${PYENV_ROOT}/plugins/pyenv-virtualenv" && \
-    echo 'eval "$(pyenv init --path)"' >> ~/.bashrc && \
-    echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+    echo 'eval "$(pyenv init --path)"' >> "${HOME}/.bashrc" && \
+    echo 'eval "$(pyenv init -)"' >> "${HOME}/.bashrc"
 
-# Python 3.9.19 のインストールと設定
+# Python 3.9.21 のインストールと設定
 RUN eval "$(pyenv init --path)" && \
-    pyenv install 3.9.19 && \
-    pyenv global 3.9.19 && \
+    pyenv install 3.9.21 && \
+    pyenv global 3.9.21 && \
     pyenv rehash
 
 # Python のパス設定
 ENV PATH="${PYENV_ROOT}/shims:${PATH}"
 
-# AWS CLIのインストール
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install && \
-    rm -rf awscliv2.zip aws
 
-# ワーキングディレクトリを設定
-WORKDIR /app
-
-# 出力用ディレクトリを作成
-RUN mkdir -p ./output
-
-# pip 仮装環境コマンド追加
-RUN echo "alias create_env='python -m venv \$(basename \$PWD)'" >> ~/.bashrc && \
-    echo "alias activate='source \"\$PWD/\$(basename \$PWD)/bin/activate\"'" >> ~/.bashrc
 
 ########## LOD2建築物自動作成ツールのインストール ##########
 
@@ -55,9 +47,9 @@ WORKDIR /app
 COPY requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
 
@@ -86,9 +78,9 @@ COPY tools/SuperResolution/WallSurface/checkpoint checkpoint
 COPY tools/SuperResolution/WallSurface/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
@@ -109,16 +101,16 @@ COPY tools/DeblurGANv2/checkpoints checkpoints
 COPY tools/DeblurGANv2/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
-RUN mkdir -p ~/.cache/torch/hub/checkpoints && \
-    test -f ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth || \
+RUN mkdir -p "${HOME}/.cache/torch/hub/checkpoints" && \
+    test -f "${HOME}/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth" || \
     wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth' \
-      -O ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth && \
+      -O "${HOME}/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth" && \
     test -f checkpoints/fpn_inception.h5 || \
     wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/fpn_inception.h5' \
       -O checkpoints/fpn_inception.h5
@@ -126,20 +118,7 @@ RUN mkdir -p ~/.cache/torch/hub/checkpoints && \
 
 
 ########## テクスチャシャープ化ツールのインストール ##########
-
-# テクスチャシャープ化ツールのフォルダーに移動
-RUN mkdir -p /app/tools/UnsharpMask
-WORKDIR /app/tools/UnsharpMask
-
-# 必要なファイルをコピー
-COPY tools/UnsharpMask/UnsharpMask.py .
-COPY tools/UnsharpMask/requirements.txt .
-
-# 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
-    deactivate
+# テクスチャシャープ化ツールはきれいにならないため使わない
 
 
 
@@ -158,10 +137,10 @@ COPY tools/Real-ESRGAN/README.md .
 COPY tools/Real-ESRGAN/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
-    python3 setup.py develop && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
+    python setup.py develop && \
     deactivate
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
@@ -172,21 +151,24 @@ RUN test weights/RealESRGAN_x4plus.pth || \
 
 
 ########## テクスチャアトラス化ツールのインストール ##########
+# テクスチャアトラス化ツールはうまく動かないため使わない
 
-# テクスチャアトラス化ツールのフォルダーに移動
-RUN mkdir -p /app/tools/Atlas_Prot
-WORKDIR /app/tools/Atlas_Prot
+
+
+########## テクスチャ正対化ツール等のインストール ##########
+
+# テクスチャ正対化ツールのフォルダーに移動
+RUN mkdir -p /app/tools/misc
+WORKDIR /app/tools/misc
 
 # 必要なファイルをコピー
-COPY tools/Atlas_Prot/Atlas_Prot.py .
-COPY tools/Atlas_Prot/requirements.txt .
+COPY tools/misc/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
-
 
 
 ########################################################################
@@ -199,9 +181,6 @@ RUN python3 -m venv $(basename $PWD) && \
 
 # LOD2建築物自動作成ツールのフォルダーに移動
 WORKDIR /app
-
-# 必要なファイルをコピー
-COPY requirements.txt .
 
 # 必要なファイルをコピー
 COPY src src
@@ -235,9 +214,7 @@ COPY tools/DeblurGANv2/aug.py .
 
 
 ########## テクスチャシャープ化ツールの頻繁に変更されるファイル ##########
-
-# テクスチャシャープ化ツールのフォルダーに移動
-WORKDIR /app/tools/UnsharpMask
+# テクスチャシャープ化ツールはきれいにならないため使わない
 
 
 
@@ -252,12 +229,18 @@ COPY tools/Real-ESRGAN/inference_realesrgan.py .
 
 
 ########## テクスチャアトラス化ツールの頻繁に変更されるファイル ##########
+# テクスチャアトラス化ツールはうまく動かないため使わない
 
-# テクスチャアトラス化ツールのフォルダーに移動
-WORKDIR /app/tools/Atlas_Prot
+
+
+########## テクスチャ正対化ツール等の頻繁に変更されるファイル ##########
+
+# テクスチャ正対化ツールのフォルダーに移動
+WORKDIR /app/tools/misc
 
 # 必要なファイルをコピー
-COPY tools/Atlas_Prot/src src
+COPY tools/misc/change_texture_image_ext_in_gml.py .
+COPY tools/misc/rectify_texture_image.py .
 
 
 

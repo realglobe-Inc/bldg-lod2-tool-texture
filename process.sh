@@ -1,72 +1,117 @@
-#!/bin/bash
+#!/bin/sh
+
+set -e
+trap 'if [ "$?" -ne 0 ]; then echo "Error on line ${LINENO}"; fi' EXIT
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
 
-source ~/.bashrc
+input_dir="${INPUT_DIR:?}"
+output_dir="${OUTPUT_DIR:?}"
 
-workspace_dir=$PWD
-base_output_dir="${workspace_dir}/output"
-base_input_dir="${workspace_dir}/input"
+bldg_lod2_tool_param="${BLDG_LOD2_TOOL_PARAM}"
+las_coordinate_system="${LAS_COORDINATE_SYSTEM:-9}"
+output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
+meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-0.16}"
+
+echo "input_dir: ${input_dir}"
+echo "output_dir: ${output_dir}"
+echo "bldg_lod2_tool_param: ${bldg_lod2_tool_param}" | head -n 3
+echo "las_coordinate_system: ${las_coordinate_system}"
+echo "output_texture_enabled ${output_texture_enabled}"
+echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
+
+project_dir="$(dirname "$0")"
+
+
 
 ########## LOD2建築物自動作成ツール ##########
 
 echo '########## LOD2建築物自動作成ツール ##########'
 
 # LOD2建築物自動作成ツールのフォルダーに移動
-cd "${workspace_dir}"
-source ./$(basename $PWD)/bin/activate
+cd "${project_dir}"
 
-# param.json の作成
-if [ -z "${PARAM_JSON}" ]; then
-  # PARAM_JSON が設定されていない場合、デフォルトのデータを使用
-  echo "{
-    \"TextureFolderPath\": \"${base_input_dir}/01_原画像\",
-    \"ExternalCalibElementPath\": \"${base_input_dir}/02_外部標定要素/ExCalib.txt\",
-    \"CameraInfoPath\": \"${base_input_dir}/03_内部標定要素/CamInfo.txt\",
-    \"DsmFolderPath\": \"${base_input_dir}/04_DSM_RGB\",
-    \"CityGMLFolderPath\": \"${base_input_dir}/08_CityGML\",
-    \"LasCoordinateSystem\": 9,
-    \"LasSwapXY\": false,
-    \"RotateMatrixMode\": 0,
-    \"OutputFolderPath\": \"${base_output_dir}\",
-    \"OutputOBJ\": true,
-    \"OutputTexture\": true,
-    \"OutputCityGML\": true,
-    \"OutputLogFolderPath\": \"${base_output_dir}\",
-    \"DebugLogOutput\": true,
-    \"PhaseConsistency\": {
-      \"DeleteErrorObject\": true,
-      \"NonPlaneThickness\": 0.05,
-      \"NonPlaneAngle\": 15
-    },
-    \"DebugMode\": false,
-    \"TargetCoordAreas\": null,
-    \"TargetBuildingIds\": null,
-    \"TextureOutputWidthMax\": 1024,
-    \"TextureOutputHeightMax\": 1024
-  }" > param.json
+bldg_lod2_tool_param_file="$(mktemp --suffix .json)"
+if [ -z "${bldg_lod2_tool_param}" ]; then
+  cat <<EOF > "${bldg_lod2_tool_param_file}"
+{
+  "TextureFolderPath": "${input_dir}/RawImage",
+  "ExternalCalibElementPath": "${input_dir}/ExCalib/ExCalib.txt",
+  "CameraInfoPath": "${input_dir}/CamInfo/CamInfo.txt",
+  "DsmFolderPath": "${input_dir}/DSM",
+  "CityGMLFolderPath": "${input_dir}/CityGML",
+  "LasCoordinateSystem": ${las_coordinate_system},
+  "LasSwapXY": false,
+  "RotateMatrixMode": 0,
+  "OutputFolderPath": "${output_dir}",
+  "OutputOBJ": true,
+  "OutputTexture": ${output_texture_enabled},
+  "OutputCityGML": true,
+  "OutputLogFolderPath": "${output_dir}",
+  "DebugLogOutput": true,
+  "PhaseConsistency": {
+    "DeleteErrorObject": true,
+    "NonPlaneThickness": 0.05,
+    "NonPlaneAngle": 15
+  },
+  "DebugMode": false,
+  "TargetCoordAreas": null,
+  "TargetBuildingIds": null,
+  "TextureOutputWidthMax": 4096,
+  "TextureOutputHeightMax": 4096,
+  "TextureImageFormat": "png"
+}
+EOF
 else
-  # PARAM_JSON が設定されている場合、その内容を param.json に保存
-  echo "${PARAM_JSON}" > param.json
+  echo "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
+  output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
 fi
-city_gml_dir_name=$(basename $(jq -r '.CityGMLFolderPath' param.json))
+city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
 
-# 入力ファイルのダウンロード
-# aws s3 cp --recursive s3://${BUCKET_NAME}/files/${JOB_INPUT_ID}/input ${base_input_dir}
-
-python3 AutoCreateLod2.py param.json
+. "./$(basename $PWD)/bin/activate"
+python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
 deactivate
 
 # 最新のフォルダを取得
-output_latest_bldb_lod2_tool_path="${base_output_dir}/output_latest_bldb_lod2_tool"
-latest_folder=$(ls -t "${base_output_dir}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)
-if [ -n "$latest_folder" ]; then
-  cd $base_output_dir
-  rm -f ./output_latest_bldb_lod2_tool
-  ln -s "./${latest_folder}" "./output_latest_bldb_lod2_tool"
+output_latest_bldg_lod2_tool_path="${output_dir}/output_latest_bldg_lod2_tool"
+latest_folder="$(ls -t "${output_dir}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)"
+if [ -n "${latest_folder}" ]; then
+  cd "${output_dir}"
+  rm -f ./output_latest_bldg_lod2_tool
+  ln -s "./${latest_folder}" ./output_latest_bldg_lod2_tool
 else
-  echo "最新のフォルダが見つかりませんでした。"
+  echo '最新のフォルダが見つかりませんでした。'
+  exit 1
 fi
+
+
+
+if ! "${output_texture_enabled}"; then
+  # テクスチャつくらないなら終わり
+  output_latest_result_path="${output_dir}/output_latest_result"
+  rm -rf "${output_latest_result_path}/"
+  cp -r "${output_latest_bldg_lod2_tool_path}" "${output_latest_result_path}"
+
+  echo "最終結果 : ${output_latest_result_path}"
+  exit 0
+fi
+
+
+
+########## 正対化ツール ##########
+
+echo '########## 正対化ツール ##########'
+
+# 正対化ツールのフォルダーに移動
+cd "${project_dir}/tools/misc"
+
+output_latest_rectify_path="${output_dir}/output_latest_rectify"
+rm -rf "${output_latest_rectify_path}/"*
+
+. "./$(basename $PWD)/bin/activate"
+python rectify_texture_image.py -i "${output_latest_bldg_lod2_tool_path}" -o "${output_latest_rectify_path}" \
+ --format png --meter-per-pixel "${meter_per_texture_pixel}"
+deactivate
 
 
 
@@ -75,20 +120,26 @@ fi
 echo '########## 壁面視認性向上ツール ##########'
 
 # 壁面視認性向上ツールのフォルダーに移動
-cd "${workspace_dir}/tools/SuperResolution/WallSurface"
-source ./$(basename $PWD)/bin/activate
+cd "${project_dir}/tools/SuperResolution/WallSurface"
 
-output_latest_wall_surface_path="${base_output_dir}/output_latest_wall_surface"
-echo "{
-  \"InputDir\": \"${output_latest_bldb_lod2_tool_path}\",
-  \"OutputDir\": \"${output_latest_wall_surface_path}\",
-  \"Device\": \"cuda\",
-  \"OutputLogDir\": \"${base_output_dir}/log_output_latest_wall_surface\",
-  \"DebugLogOutput\": \"false\"
-}" > param.json
+output_latest_wall_surface_path="${output_dir}/output_latest_wall_surface"
+rm -rf "${output_latest_wall_surface_path}/"*
 
-rm -rf $output_latest_wall_surface_path/*
-python3 main.py param.json
+wall_surface_param_file="$(mktemp --suffix .json)"
+cat <<EOF > "${wall_surface_param_file}"
+{
+  "InputDir": "${output_latest_rectify_path}",
+  "OutputDir": "${output_latest_wall_surface_path}",
+  "Device": "cuda",
+  "OutputLogDir": "${output_dir}/log_output_latest_wall_surface",
+  "DebugLogOutput": "false",
+  "MeterPerPixel": "${meter_per_texture_pixel}",
+  "OutputFormat": "png"
+}
+EOF
+
+. "./$(basename $PWD)/bin/activate"
+python main.py "${wall_surface_param_file}"
 deactivate
 
 
@@ -98,91 +149,85 @@ deactivate
 echo '########## テクスチャ解像度向上ツール ##########'
 
 # テクスチャ解像度向上ツールのフォルダーに移動
-cd "${workspace_dir}/tools/Real-ESRGAN"
-source ./$(basename $PWD)/bin/activate
+cd "${project_dir}/tools/Real-ESRGAN"
 
-output_latest_esrgan_path="${base_output_dir}/output_latest_esrgan"
+output_latest_esrgan_path="${output_dir}/output_latest_esrgan"
 rm -rf "${output_latest_esrgan_path}/*"
-python3 inference_realesrgan.py \
-  -n RealESRGAN_x4plus -g 0 -s 4 \
-  -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}"
+
+. "./$(basename $PWD)/bin/activate"
+python inference_realesrgan.py \
+  -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
+  -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}" \
+  --input-ext png --ext png
 deactivate
 
 
 
-# ########## テクスチャ鮮明化ツール ##########
+########## テクスチャ鮮明化ツール ##########
 
 echo '########## テクスチャ鮮明化ツール ##########'
 
 # テクスチャ鮮明化ツールのフォルダーに移動
-cd "${workspace_dir}/tools/DeblurGANv2"
-source ./$(basename $PWD)/bin/activate
+cd "${project_dir}/tools/DeblurGANv2"
 
-output_latest_deblurgan_path="${base_output_dir}/output_latest_deblurgan"
-rm -rf "${output_latest_deblurgan_path}/*"
-python3 predict.py \
+output_latest_deblurgan_path="${output_dir}/output_latest_deblurgan"
+rm -rf "${output_latest_deblurgan_path}/"*
+
+. "./$(basename $PWD)/bin/activate"
+python predict.py \
   -c checkpoints/fpn_inception.h5 \
-  -i "${output_latest_esrgan_path}" -o "${output_latest_deblurgan_path}"
+  -i "${output_latest_esrgan_path}" -o "${output_latest_deblurgan_path}" \
+  --input-format png --output-format jpg
 deactivate
 
 
 
 ########## テクスチャシャープ化ツール ##########
+# テクスチャシャープ化ツールはきれいにならないため使わない
 
-echo '########## テクスチャシャープ化ツール ##########'
+########## テクスチャアトラス化ツール ##########
+# テクスチャアトラス化ツールはうまく動かないため使わない
 
-# テクスチャシャープ化ツールのフォルダーに移動
-cd "${workspace_dir}/tools/UnsharpMask"
-source ./$(basename $PWD)/bin/activate
 
-output_latest_unsharp_mask_path="${base_output_dir}/output_latest_unsharp_mask"
-rm -rf "${output_latest_unsharp_mask_path}/*"
-python3 UnsharpMask.py \
-  -i "${output_latest_deblurgan_path}" -o "${output_latest_unsharp_mask_path}"
-deactivate
 
-# .gml ファイルを再帰的にコピー
-find "${output_latest_wall_surface_path}" -type f -name "*.gml" | while read file; do
-  # コピー先のディレクトリ構造を作成
-  target_dir="${output_latest_unsharp_mask_path}/$(dirname "${file#${output_latest_wall_surface_path}/}")"
-  mkdir -p "${target_dir}"
+########## 最終結果フォルダー ##########
 
-  # ファイルをコピー
-  cp "${file}" "${target_dir}"
+output_latest_result_path="${output_dir}/output_latest_result"
+rm -rf "${output_latest_result_path}"
+cp -r "${output_latest_deblurgan_path}" "${output_latest_result_path}"
+input_misc_path="${output_latest_wall_surface_path}"
+
+# テクスチャ画像以外のファイルをコピー
+for appearance_dir in "${output_latest_result_path}/"*_appearance; do
+  grp="$(basename -s '_appearance' "${appearance_dir}")"
+
+  # gmlファイルをコピー
+  cp -n "${input_misc_path}/${grp}_op.gml" "${output_latest_result_path}/"
+
+  # objファイルをコピー
+  obj_dir_path="${output_latest_result_path}/obj/${grp}_op"
+  mkdir -p "${obj_dir_path}"
+  for texture_file in "${appearance_dir}/"*.jpg; do
+    bldg_id="$(basename -s .jpg "${texture_file}")"
+    cp -n "${input_misc_path}/obj/${grp}_op/${bldg_id}.obj" "${obj_dir_path}/"
+  done
+
+  # mtlファイル作成
+  mtl_file_path="${obj_dir_path}/${grp}_op.mtl"
+  rm -f "${mtl_file_path}"
+  for texture_file in "${appearance_dir}/"*.jpg; do
+    bldg_id="$(basename -s .jpg "${texture_file}")"
+    printf '%s\n\n' "newmtl ${bldg_id}" >> "${mtl_file_path}"
+    printf '%s\n\n' "map_Kd $(realpath --relative-to "${obj_dir_path}" "${texture_file}")" >> "${mtl_file_path}"
+  done
 done
 
+# gmlファイルの中でpngの箇所をjpgに変更
+cd "${project_dir}/tools/misc"
+. "./$(basename $PWD)/bin/activate"
+for gml_file in $(find "${output_latest_result_path}" -name '*.gml'); do
+  python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext jpg
+done
+deactivate
 
-
-# バグがあるため、一旦保留
-# ########## テクスチャアトラス化ツール ##########
-
-# echo '########## テクスチャアトラス化ツール ##########'
-
-# # テクスチャアトラス化ツールのフォルダーに移動
-# cd "${workspace_dir}/tools/Atlas_Prot"
-# source ./$(basename $PWD)/bin/activate
-
-# output_latest_atlas_prot_path="${base_output_dir}/output_latest_atlas_prot"
-# echo "{
-#   \"FilePath\": {
-#     \"InputGMLFolderPath\": \"${output_latest_unsharp_mask_path}\",
-#     \"OutputGMLFolderPath\": \"${output_latest_atlas_prot_path}\"
-#   },
-#   \"OutputWidth\": 2048,
-#   \"OutputHeight\": 2048,
-#   \"BackGroundColor\": 255,
-#   \"Extentpixel\": 1
-# }" > param.json
-
-# rm -rf "${output_latest_atlas_prot_path}/*"
-# python3 Atlas_Prot.py param.json
-# deactivate
-
-
-
-# ########## 最終結果フォルダー ##########
-
-output_latest_result_path="${base_output_dir}/output_latest_result"
-rm -rf "${output_latest_result_path}/"
-mv "${output_latest_unsharp_mask_path}" "${output_latest_result_path}"
 echo "最終結果 : ${output_latest_result_path}"
