@@ -22,6 +22,8 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
 project_dir="$(dirname "$0")"
 
+
+
 ########## LOD2建築物自動作成ツール ##########
 
 echo '########## LOD2建築物自動作成ツール ##########'
@@ -170,7 +172,7 @@ echo '########## テクスチャ鮮明化ツール ##########'
 cd "${project_dir}/tools/DeblurGANv2"
 
 output_latest_deblurgan_path="${base_output_dir}/output_latest_deblurgan"
-rm -rf "${output_latest_deblurgan_path}/*"
+rm -rf "${output_latest_deblurgan_path}/"*
 
 source ./$(basename $PWD)/bin/activate
 python predict.py \
@@ -196,7 +198,7 @@ rm -rf "${output_latest_result_path}/"
 cp -r "${output_latest_deblurgan_path}" "${output_latest_result_path}"
 
 # テクスチャ画像以外のファイルをコピー
-for appearance_dir in "${output_latest_result_path}/"*_appearance; do
+for appearance_dir in "${output_latest_wall_surface_path}/"*_appearance; do
   grp=$(basename -s '_appearance' "${appearance_dir}")
   mkdir -p "${output_latest_result_path}/obj/${grp}_op"
 
