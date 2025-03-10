@@ -12,18 +12,19 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+RUN locale-gen en_US.UTF-8 ja_JP.UTF-8
+RUN update-locale LANG=en_US.UTF-8
+
+ENV HOME="/root"
 
 # pyenv のインストール
-ENV PYENV_ROOT="/root/.pyenv"
+ENV PYENV_ROOT="${HOME}/.pyenv"
 ENV PATH="${PYENV_ROOT}/bin:${PATH}"
+RUN mkdir -p "${PYENV_ROOT}"
 RUN git clone https://github.com/pyenv/pyenv.git "${PYENV_ROOT}" && \
     git clone https://github.com/pyenv/pyenv-virtualenv.git "${PYENV_ROOT}/plugins/pyenv-virtualenv" && \
-    echo 'eval "$(pyenv init --path)"' >> ~/.bashrc && \
-    echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+    echo 'eval "$(pyenv init --path)"' >> "${HOME}/.bashrc" && \
+    echo 'eval "$(pyenv init -)"' >> "${HOME}/.bashrc"
 
 # Python 3.9.21 のインストールと設定
 RUN eval "$(pyenv init --path)" && \
@@ -34,21 +35,7 @@ RUN eval "$(pyenv init --path)" && \
 # Python のパス設定
 ENV PATH="${PYENV_ROOT}/shims:${PATH}"
 
-# AWS CLIのインストール
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install && \
-    rm -rf awscliv2.zip aws
 
-# ワーキングディレクトリを設定
-WORKDIR /app
-
-# 出力用ディレクトリを作成
-RUN mkdir -p ./output
-
-# pip 仮装環境コマンド追加
-RUN echo "alias create_env='python -m venv \$(basename \$PWD)'" >> ~/.bashrc && \
-    echo "alias activate='source \"\$PWD/\$(basename \$PWD)/bin/activate\"'" >> ~/.bashrc
 
 ########## LOD2建築物自動作成ツールのインストール ##########
 
@@ -60,9 +47,9 @@ WORKDIR /app
 COPY requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
 
@@ -91,9 +78,9 @@ COPY tools/SuperResolution/WallSurface/checkpoint checkpoint
 COPY tools/SuperResolution/WallSurface/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
@@ -114,16 +101,16 @@ COPY tools/DeblurGANv2/checkpoints checkpoints
 COPY tools/DeblurGANv2/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
-RUN mkdir -p ~/.cache/torch/hub/checkpoints && \
-    test -f ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth || \
+RUN mkdir -p "${HOME}/.cache/torch/hub/checkpoints" && \
+    test -f "${HOME}/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth" || \
     wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth' \
-      -O ~/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth && \
+      -O "${HOME}/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth" && \
     test -f checkpoints/fpn_inception.h5 || \
     wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/fpn_inception.h5' \
       -O checkpoints/fpn_inception.h5
@@ -150,10 +137,10 @@ COPY tools/Real-ESRGAN/README.md .
 COPY tools/Real-ESRGAN/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
-    python3 setup.py develop && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
+    python setup.py develop && \
     deactivate
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
@@ -178,9 +165,9 @@ WORKDIR /app/tools/misc
 COPY tools/misc/requirements.txt .
 
 # 必要なPythonライブラリをインストール
-RUN python3 -m venv $(basename $PWD) && \
-    . $(basename $PWD)/bin/activate && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python -m venv "$(basename $PWD)" && \
+    . "$(basename $PWD)/bin/activate" && \
+    python -m pip install --no-cache-dir -r requirements.txt && \
     deactivate
 
 

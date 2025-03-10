@@ -6,9 +6,15 @@ services:
       context: .
     tty: true
     stdin_open: true
-    command: /bin/bash -c "sleep 1000000"
+    command: >
+      env
+      BASE_INPUT_DIR="${BASE_INPUT_DIR}"
+      BASE_OUTPUT_DIR="${BASE_OUTPUT_DIR}"
+      OUTPUT_TEXTURE_ENABLED="${OUTPUT_TEXTURE_ENABLED}"
+      LAS_COORDINATE_SYSTEM="${LAS_COORDINATE_SYSTEM}"
+      /app/process.sh
     volumes:
-      - ${WORKSPACE_DIR:-~/AutoCreateLod2_tutorial/LOD2Creator_tutorial/dataset}:/workspace
+      - ${WORKSPACE_DIR:-./workspace}:/workspace
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all

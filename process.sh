@@ -4,14 +4,20 @@ set -e
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
 
-source ~/.bashrc
+base_input_dir="${BASE_INPUT_DIR:?}"
+base_output_dir="${BASE_OUTPUT_DIR:?}"
 
-base_input_dir="${INPUT_DIR:?}"
-base_output_dir="${OUTPUT_DIR:?}"
-
-bldg_lod2_tool_param="${PARAM_JSON}"
+bldg_lod2_tool_param="${BLDG_LOD2_TOOL_PARAM}"
 las_coordinate_system="${LAS_COORDINATE_SYSTEM:-9}"
+output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
 meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-0.16}"
+
+echo "base_input_dir: ${base_input_dir}"
+echo "base_output_dir: ${base_output_dir}"
+echo "bldg_lod2_tool_param: ${bldg_lod2_tool_param}" | head -n 3
+echo "las_coordinate_system: ${las_coordinate_system}"
+echo "output_texture_enabled ${output_texture_enabled}"
+echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
 project_dir="$(dirname "$0")"
 
@@ -21,7 +27,6 @@ echo '########## LOD2建築物自動作成ツール ##########'
 
 # LOD2建築物自動作成ツールのフォルダーに移動
 cd "${project_dir}"
-source ./$(basename $PWD)/bin/activate
 
 bldg_lod2_tool_param_file=$(mktemp --suffix .json)
 if [ -z "${bldg_lod2_tool_param}" ]; then
@@ -37,7 +42,7 @@ if [ -z "${bldg_lod2_tool_param}" ]; then
   "RotateMatrixMode": 0,
   "OutputFolderPath": "${base_output_dir}",
   "OutputOBJ": true,
-  "OutputTexture": true,
+  "OutputTexture": ${output_texture_enabled},
   "OutputCityGML": true,
   "OutputLogFolderPath": "${base_output_dir}",
   "DebugLogOutput": true,
@@ -56,13 +61,12 @@ if [ -z "${bldg_lod2_tool_param}" ]; then
 EOF
 else
   echo "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
+  output_texture_enabled=$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")
 fi
 city_gml_dir_name=$(basename $(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}"))
 
-# 入力ファイルのダウンロード
-# aws s3 cp --recursive s3://${BUCKET_NAME}/files/${JOB_INPUT_ID}/input ${base_input_dir}
-
-python AutoCreateLod2.py param.json
+source ./$(basename $PWD)/bin/activate
+python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
 deactivate
 
 # 最新のフォルダを取得
@@ -74,6 +78,20 @@ if [ -n "${latest_folder}" ]; then
   ln -s "./${latest_folder}" ./output_latest_bldg_lod2_tool
 else
   echo '最新のフォルダが見つかりませんでした。'
+  echo "${base_output_dir}/${city_gml_dir_name}"
+  exit 1
+fi
+
+
+
+if ! "${output_texture_enabled}"; then
+  # テクスチャつくらないなら終わり
+  output_latest_result_path="${base_output_dir}/output_latest_result"
+  rm -rf "${output_latest_result_path}/"
+  cp -r "${output_latest_bldg_lod2_tool_path}" "${output_latest_result_path}"
+
+  echo "最終結果 : ${output_latest_result_path}"
+  exit 0
 fi
 
 
@@ -84,11 +102,11 @@ echo '########## 正対化ツール ##########'
 
 # 正対化ツールのフォルダーに移動
 cd "${project_dir}/tools/misc"
-source ./$(basename $PWD)/bin/activate
 
 output_latest_rectify_path="${base_output_dir}/output_latest_rectify"
-
 rm -rf "${output_latest_rectify_path}/"*
+
+source ./$(basename $PWD)/bin/activate
 python rectify_texture_image.py -i "${output_latest_bldg_lod2_tool_path}" -o "${output_latest_rectify_path}" \
  --format png --meter-per-pixel "${meter_per_texture_pixel}"
 deactivate
@@ -101,9 +119,10 @@ echo '########## 壁面視認性向上ツール ##########'
 
 # 壁面視認性向上ツールのフォルダーに移動
 cd "${project_dir}/tools/SuperResolution/WallSurface"
-source ./$(basename $PWD)/bin/activate
 
 output_latest_wall_surface_path="${base_output_dir}/output_latest_wall_surface"
+rm -rf "${output_latest_wall_surface_path}/"*
+
 wall_surface_param_file=$(mktemp --suffix .json)
 cat <<EOF > "${wall_surface_param_file}"
 {
@@ -117,7 +136,7 @@ cat <<EOF > "${wall_surface_param_file}"
 }
 EOF
 
-rm -rf "${output_latest_wall_surface_path}/"*
+source ./$(basename $PWD)/bin/activate
 python main.py "${wall_surface_param_file}"
 deactivate
 
@@ -129,10 +148,11 @@ echo '########## テクスチャ解像度向上ツール ##########'
 
 # テクスチャ解像度向上ツールのフォルダーに移動
 cd "${project_dir}/tools/Real-ESRGAN"
-source ./$(basename $PWD)/bin/activate
 
 output_latest_esrgan_path="${base_output_dir}/output_latest_esrgan"
 rm -rf "${output_latest_esrgan_path}/*"
+
+source ./$(basename $PWD)/bin/activate
 python inference_realesrgan.py \
   -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
   -i "${output_latest_wall_surface_path}" -o "${output_latest_esrgan_path}" \
@@ -147,10 +167,11 @@ echo '########## テクスチャ鮮明化ツール ##########'
 
 # テクスチャ鮮明化ツールのフォルダーに移動
 cd "${project_dir}/tools/DeblurGANv2"
-source ./$(basename $PWD)/bin/activate
 
 output_latest_deblurgan_path="${base_output_dir}/output_latest_deblurgan"
 rm -rf "${output_latest_deblurgan_path}/*"
+
+source ./$(basename $PWD)/bin/activate
 python predict.py \
   -c checkpoints/fpn_inception.h5 \
   -i "${output_latest_esrgan_path}" -o "${output_latest_deblurgan_path}" \
@@ -198,13 +219,9 @@ done
 # gmlファイルの中でpngの箇所をjpgに変更
 cd "${project_dir}/tools/misc"
 . "./$(basename $PWD)/bin/activate"
-
 for gml_file in $(find "${output_latest_result_path}" -name '*.gml'); do
   python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext jpg
 done
-
 deactivate
-
-
 
 echo "最終結果 : ${output_latest_result_path}"
