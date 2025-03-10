@@ -8,8 +8,8 @@ services:
     stdin_open: true
     command: >
       env
-      BASE_INPUT_DIR="${BASE_INPUT_DIR}"
-      BASE_OUTPUT_DIR="${BASE_OUTPUT_DIR}"
+      INPUT_DIR="${INPUT_DIR}"
+      OUTPUT_DIR="${OUTPUT_DIR}"
       OUTPUT_TEXTURE_ENABLED="${OUTPUT_TEXTURE_ENABLED}"
       LAS_COORDINATE_SYSTEM="${LAS_COORDINATE_SYSTEM}"
       /app/process.sh

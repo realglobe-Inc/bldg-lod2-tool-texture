@@ -5,16 +5,16 @@ trap 'if [ "$?" -ne 0 ]; then echo "Error on line ${LINENO}"; fi' EXIT
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
 
-base_input_dir="${BASE_INPUT_DIR:?}"
-base_output_dir="${BASE_OUTPUT_DIR:?}"
+input_dir="${INPUT_DIR:?}"
+output_dir="${OUTPUT_DIR:?}"
 
 bldg_lod2_tool_param="${BLDG_LOD2_TOOL_PARAM}"
 las_coordinate_system="${LAS_COORDINATE_SYSTEM:-9}"
 output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
 meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-0.16}"
 
-echo "base_input_dir: ${base_input_dir}"
-echo "base_output_dir: ${base_output_dir}"
+echo "input_dir: ${input_dir}"
+echo "output_dir: ${output_dir}"
 echo "bldg_lod2_tool_param: ${bldg_lod2_tool_param}" | head -n 3
 echo "las_coordinate_system: ${las_coordinate_system}"
 echo "output_texture_enabled ${output_texture_enabled}"
@@ -35,19 +35,19 @@ bldg_lod2_tool_param_file=$(mktemp --suffix .json)
 if [ -z "${bldg_lod2_tool_param}" ]; then
   cat <<EOF > "${bldg_lod2_tool_param_file}"
 {
-  "TextureFolderPath": "${base_input_dir}/RawImage",
-  "ExternalCalibElementPath": "${base_input_dir}/ExCalib/ExCalib.txt",
-  "CameraInfoPath": "${base_input_dir}/CamInfo/CamInfo.txt",
-  "DsmFolderPath": "${base_input_dir}/DSM",
-  "CityGMLFolderPath": "${base_input_dir}/CityGML",
+  "TextureFolderPath": "${input_dir}/RawImage",
+  "ExternalCalibElementPath": "${input_dir}/ExCalib/ExCalib.txt",
+  "CameraInfoPath": "${input_dir}/CamInfo/CamInfo.txt",
+  "DsmFolderPath": "${input_dir}/DSM",
+  "CityGMLFolderPath": "${input_dir}/CityGML",
   "LasCoordinateSystem": ${las_coordinate_system},
   "LasSwapXY": false,
   "RotateMatrixMode": 0,
-  "OutputFolderPath": "${base_output_dir}",
+  "OutputFolderPath": "${output_dir}",
   "OutputOBJ": true,
   "OutputTexture": ${output_texture_enabled},
   "OutputCityGML": true,
-  "OutputLogFolderPath": "${base_output_dir}",
+  "OutputLogFolderPath": "${output_dir}",
   "DebugLogOutput": true,
   "PhaseConsistency": {
     "DeleteErrorObject": true,
@@ -73,15 +73,15 @@ python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
 deactivate
 
 # 最新のフォルダを取得
-output_latest_bldg_lod2_tool_path="${base_output_dir}/output_latest_bldg_lod2_tool"
-latest_folder=$(ls -t "${base_output_dir}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)
+output_latest_bldg_lod2_tool_path="${output_dir}/output_latest_bldg_lod2_tool"
+latest_folder=$(ls -t "${output_dir}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)
 if [ -n "${latest_folder}" ]; then
-  cd "${base_output_dir}"
+  cd "${output_dir}"
   rm -f ./output_latest_bldg_lod2_tool
   ln -s "./${latest_folder}" ./output_latest_bldg_lod2_tool
 else
   echo '最新のフォルダが見つかりませんでした。'
-  echo "${base_output_dir}/${city_gml_dir_name}"
+  echo "${output_dir}/${city_gml_dir_name}"
   exit 1
 fi
 
@@ -89,7 +89,7 @@ fi
 
 if ! "${output_texture_enabled}"; then
   # テクスチャつくらないなら終わり
-  output_latest_result_path="${base_output_dir}/output_latest_result"
+  output_latest_result_path="${output_dir}/output_latest_result"
   rm -rf "${output_latest_result_path}/"
   cp -r "${output_latest_bldg_lod2_tool_path}" "${output_latest_result_path}"
 
@@ -106,7 +106,7 @@ echo '########## 正対化ツール ##########'
 # 正対化ツールのフォルダーに移動
 cd "${project_dir}/tools/misc"
 
-output_latest_rectify_path="${base_output_dir}/output_latest_rectify"
+output_latest_rectify_path="${output_dir}/output_latest_rectify"
 rm -rf "${output_latest_rectify_path}/"*
 
 . ./$(basename $PWD)/bin/activate
@@ -123,7 +123,7 @@ echo '########## 壁面視認性向上ツール ##########'
 # 壁面視認性向上ツールのフォルダーに移動
 cd "${project_dir}/tools/SuperResolution/WallSurface"
 
-output_latest_wall_surface_path="${base_output_dir}/output_latest_wall_surface"
+output_latest_wall_surface_path="${output_dir}/output_latest_wall_surface"
 rm -rf "${output_latest_wall_surface_path}/"*
 
 wall_surface_param_file=$(mktemp --suffix .json)
@@ -132,7 +132,7 @@ cat <<EOF > "${wall_surface_param_file}"
   "InputDir": "${output_latest_rectify_path}",
   "OutputDir": "${output_latest_wall_surface_path}",
   "Device": "cuda",
-  "OutputLogDir": "${base_output_dir}/log_output_latest_wall_surface",
+  "OutputLogDir": "${output_dir}/log_output_latest_wall_surface",
   "DebugLogOutput": "false",
   "MeterPerPixel": "${meter_per_texture_pixel}",
   "OutputFormat": "png"
@@ -152,7 +152,7 @@ echo '########## テクスチャ解像度向上ツール ##########'
 # テクスチャ解像度向上ツールのフォルダーに移動
 cd "${project_dir}/tools/Real-ESRGAN"
 
-output_latest_esrgan_path="${base_output_dir}/output_latest_esrgan"
+output_latest_esrgan_path="${output_dir}/output_latest_esrgan"
 rm -rf "${output_latest_esrgan_path}/*"
 
 . ./$(basename $PWD)/bin/activate
@@ -171,7 +171,7 @@ echo '########## テクスチャ鮮明化ツール ##########'
 # テクスチャ鮮明化ツールのフォルダーに移動
 cd "${project_dir}/tools/DeblurGANv2"
 
-output_latest_deblurgan_path="${base_output_dir}/output_latest_deblurgan"
+output_latest_deblurgan_path="${output_dir}/output_latest_deblurgan"
 rm -rf "${output_latest_deblurgan_path}/"*
 
 . ./$(basename $PWD)/bin/activate
@@ -193,7 +193,7 @@ deactivate
 
 ########## 最終結果フォルダー ##########
 
-output_latest_result_path="${base_output_dir}/output_latest_result"
+output_latest_result_path="${output_dir}/output_latest_result"
 rm -rf "${output_latest_result_path}/"
 cp -r "${output_latest_deblurgan_path}" "${output_latest_result_path}"
 
