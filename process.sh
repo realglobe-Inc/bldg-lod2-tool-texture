@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+trap 'echo "Error on line $LINENO"' ERR
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
 
