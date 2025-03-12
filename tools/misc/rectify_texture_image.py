@@ -157,8 +157,8 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
         texture_height = 2 ** math.ceil(math.log2(sum(hs)))
 
         a = texture_width / texture_height
-        if a <= 2.0:
-            # 横の長さが縦の2倍以内
+        if a <= 2.0 or n_row == len(image_sizes):
+            # 横の長さが縦の2倍以内もしくは全部縦に並べ終わった
             if aspect is not None and 1 / a > aspect:
                 # 逆に縦が長くなりすぎた
                 n_row -= 1
