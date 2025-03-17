@@ -131,62 +131,55 @@ def read_mtl(mtl_path: str):
     return mtl
 
 
+def calc_width_and_height(image_sizes: [tuple[int, int]], n_row: int) -> tuple[tuple[int, int], list[int]]:
+    """
+    :return: 返り値の最後は行ごとの高さ
+    """
+    widths: list[int] = [0] * n_row
+    heights: list[int] = [0] * n_row
+    for index in range(len(image_sizes)):
+        w, h = image_sizes[index]
+        min_index = widths.index(min(widths))
+        widths[min_index] += w
+        heights[min_index] = max(heights[min_index], h)
+    width = 2 ** math.ceil(math.log2(max(widths)))
+    height = 2 ** math.ceil(math.log2(sum(heights)))
+    return (width, height), heights
+
+
 def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[tuple[int, int]]]:
     # # 横に長い順
     # indices = sorted(range(len(image_sizes)), key=lambda i: image_sizes[i][0], reverse=True)
     # そのまま
     indices = list(range(len(image_sizes)))
 
-    # 縦と横の比率が極端にならないように横に並べる
-    n_row = 1
-    widths: list[int]
-    heights: list[int]
-    aspect: Optional[float] = None
-    while True:
-        ws = [0] * n_row
-        hs = [0] * n_row
+    # 縦と横の長さが極端にならないように並べる
+    best_n_row: Optional[int] = None
+    best_w: Optional[int] = None
+    best_h: Optional[int] = None
+    best_hs: Optional[list[int]] = None
+    for n_row in range(1, len(image_sizes)):
+        (w, h), hs = calc_width_and_height(image_sizes, n_row)
+        if (best_w is None or best_h is None) or w * h < best_w * best_h or (
+                w * h == best_w * best_h and w + h < best_w + best_h):
+            best_n_row = n_row
+            best_w = w
+            best_h = h
+            best_hs = hs
 
-        for index in indices:
-            w, h = image_sizes[index]
-            min_index = ws.index(min(ws))
-            ws[min_index] += w
-            if h > hs[min_index]:
-                hs[min_index] = h
-
-        texture_width = 2 ** math.ceil(math.log2(max(ws)))
-        texture_height = 2 ** math.ceil(math.log2(sum(hs)))
-
-        a = texture_width / texture_height
-        if a <= 2.0 or n_row == len(image_sizes):
-            # 横の長さが縦の2倍以内もしくは全部縦に並べ終わった
-            if aspect is not None and 1 / a > aspect:
-                # 逆に縦が長くなりすぎた
-                n_row -= 1
-                break
-            widths = ws
-            heights = hs
-            break
-
-        n_row += 1
-        widths = ws
-        heights = hs
-        aspect = a
-
-    texture_width: int = 2 ** math.ceil(math.log2(max(widths)))
-    texture_height: int = 2 ** math.ceil(math.log2(sum(heights)))
-
+    assert best_n_row is not None and best_w is not None and best_h is not None
     offsets: list[tuple[int, int]] = [(-1, -1)] * len(indices)
-    ws = [0] * n_row
+    ws = [0] * best_n_row
     for index in indices:
         min_index = ws.index(min(ws))
         width_offset = ws[min_index]
-        height_offset = sum(heights[i] for i in range(min_index))
+        height_offset = sum(best_hs[:min_index])
         offsets[index] = (width_offset, height_offset)
 
         w, _ = image_sizes[index]
         ws[min_index] += w
 
-    return (texture_width, texture_height), offsets
+    return (best_w, best_h), offsets
 
 
 def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str,
