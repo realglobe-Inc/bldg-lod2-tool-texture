@@ -1,65 +1,71 @@
-import os
 import argparse
+import os
+import sys
 from glob import glob
 from pathlib import Path
 
-from tqdm import tqdm
 from PIL import Image, ImageFilter
+from tqdm import tqdm
 
 
 def fix_relative_path(path):
-  # pathlibで統一して簡潔にする
-  return str(Path(path).expanduser().resolve())
+    # pathlibで統一して簡潔にする
+    return str(Path(path).expanduser().resolve())
 
 
 def sorted_glob(patterns):
-  files = []
-  for pattern in patterns:
-    files.extend(glob(pattern, recursive=True))
-  return sorted(files)
+    files = []
+    for pattern in patterns:
+        files.extend(glob(pattern, recursive=True))
+    return sorted(files)
 
 
 def main(input_dir: str, out_dir: str, input_format: str, output_format: str):
-  img_patterns = [
-      os.path.join(fix_relative_path(input_dir), '**', f'*.{input_format}')
-  ]
-  imgs = sorted_glob(img_patterns)
-  os.makedirs(out_dir, exist_ok=True)
+    img_patterns = [
+        os.path.join(fix_relative_path(input_dir), '**', f'*.{input_format}')
+    ]
+    imgs = sorted_glob(img_patterns)
+    os.makedirs(out_dir, exist_ok=True)
 
-  Image.MAX_IMAGE_PIXELS = 933120000
-  pbar = tqdm(total=len(imgs), desc="UnsharpMask Processing", unit="item")
-  for img_path in imgs:
-    image = Image.open(img_path)
+    Image.MAX_IMAGE_PIXELS = 933120000
+    isatty = sys.stdout.isatty()
+    pbar = tqdm(total=len(imgs), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
+    for img_path in imgs:
+        pbar.set_description(os.path.basename(img_path))
+        if not isatty:
+            print(f'Processing {os.path.basename(img_path)}')
 
-    sharpened_image = image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
-    relative_path = os.path.relpath(img_path, start=Path(input_dir))
-    save_path = os.path.join(out_dir, os.path.splitext(relative_path)[0] + f'.{output_format}')
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        image = Image.open(img_path)
 
-    sharpened_image.save(save_path)
-    pbar.update(1)
+        sharpened_image = image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+        relative_path = os.path.relpath(img_path, start=Path(input_dir))
+        save_path = os.path.join(out_dir, os.path.splitext(relative_path)[0] + f'.{output_format}')
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-  pbar.close()
+        sharpened_image.save(save_path)
+        pbar.update(1)
+
+    pbar.close()
 
 
 if __name__ == '__main__':
-  # Parse command line arguments
-  parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '-i', '--input', type=str, required=True, help='Input image or folder'
-  )
-  parser.add_argument(
-      '-o', '--output', type=str, required=True, help='Output folder'
-  )
-  parser.add_argument(
-  '--input-format', type=str, default='png', help='Input image extension'
-  )
-  parser.add_argument(
-  '--output-format', type=str, default='png', help='Output image extension'
-  )
+    # Parse command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-i', '--input', type=str, required=True, help='Input image or folder'
+    )
+    parser.add_argument(
+        '-o', '--output', type=str, required=True, help='Output folder'
+    )
+    parser.add_argument(
+        '--input-format', type=str, default='png', help='Input image extension'
+    )
+    parser.add_argument(
+        '--output-format', type=str, default='png', help='Output image extension'
+    )
 
-  args = parser.parse_args()
-  args.input = fix_relative_path(args.input)
-  args.output = fix_relative_path(args.output)
+    args = parser.parse_args()
+    args.input = fix_relative_path(args.input)
+    args.output = fix_relative_path(args.output)
 
-  main(input_dir=args.input, out_dir=args.output, input_format=args.input_format, output_format=args.output_format)
+    main(input_dir=args.input, out_dir=args.output, input_format=args.input_format, output_format=args.output_format)

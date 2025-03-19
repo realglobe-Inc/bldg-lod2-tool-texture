@@ -1,11 +1,13 @@
 import argparse
 import math
 import os
+import sys
 from typing import Optional
 
 import cv2
 import numpy as np
 from lxml import etree
+from tqdm import tqdm
 
 
 def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
@@ -404,13 +406,23 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
             bldg_ids: list[str] = []
             face_vertices_list_map: dict[str, list[list[tuple[float, float]]]] = {}
             for _, _, obj_names in os.walk(area_path):
+                isatty = sys.stdout.isatty()
+                pbar = tqdm(total=len(obj_names), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
+
                 for obj_name in obj_names:
+                    pbar.set_description(f"{area_id}/{obj_name}")
+                    if not isatty:
+                        print(f"Processing {area_id}/{obj_name}")
+
                     if not obj_name.endswith(".obj"):
+                        pbar.update(1)
                         continue
                     bldg_id = obj_name.removesuffix(".obj")
                     bldg_ids.append(bldg_id)
                     face_vertices_list_map[bldg_id] = rectify_images(input_dir, area_id, bldg_id, output_dir,
                                                                      output_format, pixel_per_meter)
+                    pbar.update(1)
+                pbar.close()
 
             mtl_output_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{area_id}_op.mtl")
             mtl_output_dir = os.path.dirname(mtl_output_path)

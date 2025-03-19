@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import time
 import traceback
 import xml.etree.ElementTree as ET
@@ -295,16 +296,17 @@ if __name__ == "__main__":
             shutil.copytree(input_obj_dir, output_obj_dir)
             shutil.copy(city_gml_path, Path(param['OutputDir']).joinpath(Path(city_gml_path.name)))
 
-            progress_bar = tqdm(
-                input_obj_dir.iterdir(),
-                desc=f"{city_gml_path.stem}", position=0,
-                leave=True,
-                total=len(list(input_obj_dir.iterdir())),
-            )
+            isatty = sys.stdout.isatty()
+            obj_files = [obj_file for obj_file in input_obj_dir.iterdir() if obj_file.suffix.lower() == ".obj"]
+            pbar = tqdm(total=len(obj_files), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
 
-            for obj_file in progress_bar:
-                # Check object files
-                if obj_file.suffix.lower() == ".obj":
+            for obj_file in obj_files:
+                pbar.set_description(f"{city_gml_path.stem}/{obj_file.name}")
+                if not isatty:
+                    print(f"Processing {city_gml_path.stem}/{obj_file.name}")
+
+                try:
+                    # Check object files
                     index = obj_file.name.replace('.', '_')
                     # Setting Sub Directories Paths
                     sub_processA_dir = processA_dir.joinpath(Path(city_gml_path.stem, index))
@@ -386,6 +388,10 @@ if __name__ == "__main__":
 
                     if texture_check_list.get(str(relative_path_img)) is not None:
                         texture_check_list[str(relative_path_img)] = True
+                finally:
+                    pbar.update(1)
+
+            pbar.close()
 
             processed_count = 0
             for is_processed in texture_check_list.values():

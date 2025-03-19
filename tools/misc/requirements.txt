@@ -1,3 +1,4 @@
 opencv-python-headless==4.11.0.86
 lxml==5.3.1
 numpy==2.0.2
+tqdm~=4.67.1

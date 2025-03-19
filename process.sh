@@ -4,23 +4,25 @@ set -e
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
 
-output_dir="${OUTPUT_DIR:?}"
+output_dir="$(realpath -sm "${OUTPUT_DIR:?}")"
 
 bldg_lod2_tool_param="${BLDG_LOD2_TOOL_PARAM}"
-input_dir="${INPUT_DIR}"
+if [ -n "${INPUT_DIR}" ]; then
+  input_dir="$(realpath "${INPUT_DIR}")"
+fi
 las_coordinate_system="${LAS_COORDINATE_SYSTEM:-9}"
 output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
 
 meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-0.24}"
 
 echo "output_dir: ${output_dir}"
-printf 'bldg_lod2_tool_param: %s\n' "${bldg_lod2_tool_param}" | head -n 3
+printf 'bldg_lod2_tool_param: %s\n' "${bldg_lod2_tool_param}" | head -n 5
 echo "input_dir: ${input_dir}"
 echo "las_coordinate_system: ${las_coordinate_system}"
 echo "output_texture_enabled ${output_texture_enabled}"
 echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
-project_dir="$(dirname "$0")"
+project_dir="$(realpath "$(dirname "$0")")"
 
 
 
@@ -70,7 +72,7 @@ else
   exit 1
 fi
 city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
-output_bldg_lod2_tool_dir_path="$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")"
+output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
 
 . "./$(basename $PWD)/bin/activate"
 python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"

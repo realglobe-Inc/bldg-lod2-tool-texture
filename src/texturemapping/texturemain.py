@@ -2,6 +2,7 @@ import csv
 import os
 import re
 import shutil
+import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -165,12 +166,15 @@ class TextureMain():
                 )
                 restype = ResultType.WARN
             else:
-                pbar = tqdm(total=len(building_list), desc="Processing", unit="item", leave=False)
+                isatty = sys.stdout.isatty()
+                pbar = tqdm(total=len(building_list), unit="bldg", leave=False, dynamic_ncols=isatty,
+                            disable=not isatty)
                 for build in building_list:
                     # 建造物分テクスチャ貼付け処理
                     try:
-                        if pbar is not None:
-                            pbar.set_description(f'Processing({build.build_id})')
+                        pbar.set_description(build.build_id)
+                        if not isatty:
+                            print(f"Processing {build.build_id}")
 
                         id = build.build_id
                         build.paste_texture = ProcessResult.SKIP
@@ -213,8 +217,7 @@ class TextureMain():
                         build.paste_texture = ProcessResult.ERROR
 
                     finally:
-                        if pbar is not None:
-                            pbar.update(1)
+                        pbar.update(1)
 
                 pbar.close()
 
