@@ -8,7 +8,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     nano curl wget zip unzip libopencv-dev jq build-essential \
     libssl-dev zlib1g-dev libbz2-dev libreadline-dev \
-    libsqlite3-dev libffi-dev liblzma-dev git locales && \
+    libsqlite3-dev libffi-dev liblzma-dev git locales bc && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

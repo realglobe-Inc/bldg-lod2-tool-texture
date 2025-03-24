@@ -4,14 +4,15 @@ services:
     image: bldg-lod2-tool-3d-model
     build:
       context: .
-    tty: true
     stdin_open: true
     command: >
       env
-      INPUT_DIR="${INPUT_DIR}"
-      OUTPUT_DIR="${OUTPUT_DIR}"
-      OUTPUT_TEXTURE_ENABLED="${OUTPUT_TEXTURE_ENABLED}"
-      LAS_COORDINATE_SYSTEM="${LAS_COORDINATE_SYSTEM}"
+      OUTPUT_DIR='${OUTPUT_DIR}'
+      BLDG_LOD2_TOOL_PARAM='${BLDG_LOD2_TOOL_PARAM}'
+      INPUT_DIR='${INPUT_DIR}'
+      OUTPUT_TEXTURE_ENABLED='${OUTPUT_TEXTURE_ENABLED}'
+      LAS_COORDINATE_SYSTEM='${LAS_COORDINATE_SYSTEM}'
+      METER_PER_TEXTURE_PIXEL='${METER_PER_TEXTURE_PIXEL}'
       /app/process.sh
     volumes:
       - ${WORKSPACE_DIR:-./workspace}:/workspace
