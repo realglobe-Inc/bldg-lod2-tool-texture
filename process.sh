@@ -41,7 +41,6 @@ if [ -z "${bldg_lod2_tool_param_file}" ]; then
   bldg_lod2_tool_param_file="$(mktemp --suffix .json)"
   if [ -n "${bldg_lod2_tool_param}" ]; then
     printf '%s' "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
-    output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
   elif [ -n "${input_dir}" ]; then
     cat <<EOF > "${bldg_lod2_tool_param_file}"
 {
@@ -77,6 +76,7 @@ EOF
     exit 1
   fi
 fi
+output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
 city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
 output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
 
