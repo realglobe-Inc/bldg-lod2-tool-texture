@@ -6,6 +6,9 @@ set -e
 
 output_dir="$(realpath -sm "${OUTPUT_DIR:?}")"
 
+if [ -n "${BLDG_LOD2_TOOL_PARAM_FILE}" ]; then
+  bldg_lod2_tool_param_file="$(realpath "${BLDG_LOD2_TOOL_PARAM_FILE}")"
+fi
 bldg_lod2_tool_param="${BLDG_LOD2_TOOL_PARAM}"
 if [ -n "${INPUT_DIR}" ]; then
   input_dir="$(realpath "${INPUT_DIR}")"
@@ -16,7 +19,8 @@ output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
 meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-0.24}"
 
 echo "output_dir: ${output_dir}"
-printf 'bldg_lod2_tool_param: %s\n' "${bldg_lod2_tool_param}" | head -n 5
+echo "bldg_lod2_tool_param_file: ${bldg_lod2_tool_param_file}"
+printf 'bldg_lod2_tool_param: %s\n' "${bldg_lod2_tool_param}"
 echo "input_dir: ${input_dir}"
 echo "las_coordinate_system: ${las_coordinate_system}"
 echo "output_texture_enabled ${output_texture_enabled}"
@@ -33,12 +37,12 @@ echo '########## LOD2建築物自動作成ツール ##########'
 # LOD2建築物自動作成ツールのフォルダーに移動
 cd "${project_dir}"
 
-bldg_lod2_tool_param_file="$(mktemp --suffix .json)"
-if [ -n "${bldg_lod2_tool_param}" ]; then
-  printf '%s' "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
-  output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
-elif [ -n "${input_dir}" ]; then
-  cat <<EOF > "${bldg_lod2_tool_param_file}"
+if [ -z "${bldg_lod2_tool_param_file}" ]; then
+  bldg_lod2_tool_param_file="$(mktemp --suffix .json)"
+  if [ -n "${bldg_lod2_tool_param}" ]; then
+    printf '%s' "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
+  elif [ -n "${input_dir}" ]; then
+    cat <<EOF > "${bldg_lod2_tool_param_file}"
 {
   "TextureFolderPath": "${input_dir}/RawImage",
   "ExternalCalibElementPath": "${input_dir}/ExCalib/ExCalib.txt",
@@ -67,10 +71,12 @@ elif [ -n "${input_dir}" ]; then
   "TextureImageFormat": "png"
 }
 EOF
-else
-  echo 'BLDG_LOD2_TOOL_PARAM or INPUT_DIR required'
-  exit 1
+  else
+    echo 'BLDG_LOD2_TOOL_PARAM or INPUT_DIR required'
+    exit 1
+  fi
 fi
+output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
 city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
 output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
 
@@ -96,7 +102,7 @@ if ! "${output_texture_enabled}"; then
   # テクスチャつくらないなら終わり
   output_result_path="${output_dir}/output_result"
   rm -rf "${output_result_path}/"
-  cp -r "${output_bldg_lod2_tool_path}" "${output_result_path}"
+  cp -rL "${output_bldg_lod2_tool_path}" "${output_result_path}"
 
   echo "最終結果 : ${output_result_path}"
   exit 0
