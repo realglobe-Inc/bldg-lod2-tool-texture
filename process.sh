@@ -102,7 +102,7 @@ if ! "${output_texture_enabled}"; then
   # テクスチャつくらないなら終わり
   output_result_path="${output_dir}/output_result"
   rm -rf "${output_result_path}/"
-  cp -r "${output_bldg_lod2_tool_path}" "${output_result_path}"
+  cp -rL "${output_bldg_lod2_tool_path}" "${output_result_path}"
 
   echo "最終結果 : ${output_result_path}"
   exit 0
