@@ -411,9 +411,9 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
                 pbar = tqdm(total=len(obj_names), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
 
                 for obj_name in obj_names:
-                    pbar.set_description(f"{area_id}/{obj_name}")
+                    pbar.set_description(f"{area_label}/{obj_name}")
                     if not isatty:
-                        print(f"Processing {area_id}/{obj_name}")
+                        print(f"Processing {area_label}/{obj_name}")
 
                     if not obj_name.endswith(".obj"):
                         pbar.update(1)
