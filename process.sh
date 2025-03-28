@@ -227,7 +227,7 @@ copy_misc() {
     if [ -f "${input_misc_path}/${area}.gml" ]; then
       area_label="${area}"
     else
-      for gml_file in "${input_misc_path}/${area}_*.gml"; do
+      for gml_file in "${input_misc_path}/${area}_"*".gml"; do
         area_label=$(basename -s .gml "${gml_file}")
         break
       done
