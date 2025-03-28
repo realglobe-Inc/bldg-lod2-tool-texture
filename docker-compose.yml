@@ -4,7 +4,6 @@ services:
     image: bldg-lod2-tool-3d-model
     build:
       context: .
-    stdin_open: true
     command: >
       env
       OUTPUT_DIR='${OUTPUT_DIR}'

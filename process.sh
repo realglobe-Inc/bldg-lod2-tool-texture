@@ -3,6 +3,32 @@
 set -e
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
+# OUTPUT_DIR:
+#     出力ファイルや中間ファイルを保存するディレクトリパス。
+#     最終出力は ${OUTPUT_DIR}/output_result 。
+# BLDG_LOD2_TOOL_PARAM_FILE:
+#     LOD2自動モデリングの設定ファイルパス。
+#     これか BLDG_LOD2_TOOL_PARAM か INPUT_DIR、LAS_COORDINATE_SYSTEM、
+#     OUTPUT_TEXTURE_ENABLED の組で自動モデリング部分を制御する。
+#     優先度は BLDG_LOD2_TOOL_PARAM_FILE > BLDG_LOD2_TOOL_PARAM >
+#     INPUT_DIR、LAS_COORDINATE_SYSTEM、OUTPUT_TEXTURE_ENABLED の組。
+#     BLDG_LOD2_TOOL_PARAM_FILE も BLDG_LOD2_TOOL_PARAM も
+#     LAS_COORDINATE_SYSTEM も空の場合はLOD2自動モデリングはスキップする。
+# BLDG_LOD2_TOOL_PARAM:
+#     LOD2自動モデリングの設定。
+#     JSONをそのまま入れる。
+# INPUT_DIR:
+#     LAS_COORDINATE_SYSTEM が空でない場合はLOD2自動モデリングの入力ディレクトリ。
+#     LOD2自動モデリングがスキップされた場合はテクスチャ高精度化の入力ディレクトリ。
+# LAS_COORDINATE_SYSTEM:
+#     LOD2自動モデリングの際の座標系。
+# OUTPUT_TEXTURE_ENABLED:
+#     LOD2自動モデリングの際にテクスチャも作成するか。
+# METER_PER_TEXTURE_PIXEL:
+#     テクスチャ画像の1ピクセルを何mに相当させるか。
+#     デフォルト0.24。
+#     基本指定不要。
+
 
 output_dir="$(realpath -sm "${OUTPUT_DIR:?}")"
 
@@ -13,7 +39,7 @@ bldg_lod2_tool_param="${BLDG_LOD2_TOOL_PARAM}"
 if [ -n "${INPUT_DIR}" ]; then
   input_dir="$(realpath "${INPUT_DIR}")"
 fi
-las_coordinate_system="${LAS_COORDINATE_SYSTEM:-9}"
+las_coordinate_system="${LAS_COORDINATE_SYSTEM}"
 output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
 
 meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-0.24}"
@@ -32,15 +58,16 @@ project_dir="$(realpath "$(dirname "$0")")"
 
 ########## LOD2建築物自動作成ツール ##########
 
-echo '########## LOD2建築物自動作成ツール ##########'
-
 # LOD2建築物自動作成ツールのフォルダーに移動
 cd "${project_dir}"
 
+skip_bldg_lod2_tool=false
 if [ -z "${bldg_lod2_tool_param_file}" ]; then
   bldg_lod2_tool_param_file="$(mktemp --suffix .json)"
   if [ -n "${bldg_lod2_tool_param}" ]; then
     printf '%s' "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
+  elif [ -z "${las_coordinate_system}" ]; then
+    skip_bldg_lod2_tool=true
   elif [ -n "${input_dir}" ]; then
     cat <<EOF > "${bldg_lod2_tool_param_file}"
 {
@@ -72,42 +99,51 @@ if [ -z "${bldg_lod2_tool_param_file}" ]; then
 }
 EOF
   else
-    echo 'BLDG_LOD2_TOOL_PARAM or INPUT_DIR required'
+    echo 'LOD2建築物の自動作成には BLDG_LOD2_TOOL_PARAM_FILE か BLDG_LOD2_TOOL_PARAM か INPUT_DIR が必要です' 1>&2
     exit 1
   fi
 fi
-output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
-city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
-output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
 
-. "./$(basename $PWD)/bin/activate"
-python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
-deactivate
+if ! "${skip_bldg_lod2_tool}"; then
+  echo '########## LOD2建築物自動作成ツール ##########'
 
-# 最新のフォルダを取得
-output_bldg_lod2_tool_path="${output_dir}/output_bldg_lod2_tool"
-latest_folder="$(ls -t "${output_bldg_lod2_tool_dir_path}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)"
-if [ -n "${latest_folder}" ]; then
-  cd "${output_dir}"
-  rm -f ./output_bldg_lod2_tool
-  ln -s "${output_bldg_lod2_tool_dir_path}/${latest_folder}" ./output_bldg_lod2_tool
+  output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
+  city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
+  output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
+
+  . "./$(basename $PWD)/bin/activate"
+  python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
+  deactivate
+
+  # 最新のフォルダを取得
+  output_bldg_lod2_tool_path="${output_dir}/output_bldg_lod2_tool"
+  latest_folder="$(ls -t "${output_bldg_lod2_tool_dir_path}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)"
+  if [ -n "${latest_folder}" ]; then
+    cd "${output_dir}"
+    rm -f ./output_bldg_lod2_tool
+    ln -s "${output_bldg_lod2_tool_dir_path}/${latest_folder}" ./output_bldg_lod2_tool
+  else
+    echo '最新のフォルダが見つかりませんでした。' 1>&2
+    exit 1
+  fi
+
+
+
+  if ! "${output_texture_enabled}"; then
+    # テクスチャつくらないなら終わり
+    output_result_path="${output_dir}/output_result"
+    rm -rf "${output_result_path}/"
+    cp -rL "${output_bldg_lod2_tool_path}" "${output_result_path}"
+
+    echo "最終結果 : ${output_result_path}"
+    exit 0
+  fi
+elif [ -n "${input_dir}" ]; then
+  output_bldg_lod2_tool_path="${input_dir}"
 else
-  echo '最新のフォルダが見つかりませんでした。'
+  echo 'テクスチャ高精度化には INPUT_DIR が必要です' 1>&2
   exit 1
 fi
-
-
-
-if ! "${output_texture_enabled}"; then
-  # テクスチャつくらないなら終わり
-  output_result_path="${output_dir}/output_result"
-  rm -rf "${output_result_path}/"
-  cp -rL "${output_bldg_lod2_tool_path}" "${output_result_path}"
-
-  echo "最終結果 : ${output_result_path}"
-  exit 0
-fi
-
 
 
 ########## 正対化ツール ##########
@@ -186,21 +222,30 @@ copy_misc() {
 
   # テクスチャ画像以外のファイルをコピー
   for appearance_dir in "${output_result_path}/"*_appearance; do
-    grp="$(basename -s '_appearance' "${appearance_dir}")"
+    area="$(basename -s '_appearance' "${appearance_dir}")"
+
+    if [ -f "${input_misc_path}/${area}.gml" ]; then
+      area_label="${area}"
+    else
+      for gml_file in "${input_misc_path}/${area}_"*".gml"; do
+        area_label=$(basename -s .gml "${gml_file}")
+        break
+      done
+    fi
 
     # gmlファイルをコピー
-    cp -n "${input_misc_path}/${grp}_op.gml" "${output_result_path}/"
+    cp -n "${input_misc_path}/${area_label}.gml" "${output_result_path}/"
 
     # objファイルをコピー
-    obj_dir_path="${output_result_path}/obj/${grp}_op"
+    obj_dir_path="${output_result_path}/obj/${area_label}"
     mkdir -p "${obj_dir_path}"
     for texture_file in "${appearance_dir}/"*."${output_format}"; do
       bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
-      cp -n "${input_misc_path}/obj/${grp}_op/${bldg_id}.obj" "${obj_dir_path}/"
+      cp -n "${input_misc_path}/obj/${area_label}/${bldg_id}.obj" "${obj_dir_path}/"
     done
 
     # mtlファイル作成
-    mtl_file_path="${obj_dir_path}/${grp}_op.mtl"
+    mtl_file_path="${obj_dir_path}/${area_label}.mtl"
     rm -f "${mtl_file_path}"
     for texture_file in "${appearance_dir}/"*."${output_format}"; do
       bldg_id="$(basename -s ."${output_format}" "${texture_file}")"

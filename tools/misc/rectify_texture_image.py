@@ -2,6 +2,7 @@ import argparse
 import math
 import os
 import sys
+from glob import glob
 from typing import Optional
 
 import cv2
@@ -12,7 +13,8 @@ from tqdm import tqdm
 
 def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
              face_vertices_list_map: dict[str, list[list[tuple[float, float]]]]):
-    input_path = os.path.join(input_dir, f"{area_id}_op.gml")
+    area_label = os.path.splitext(os.path.basename(glob(os.path.join(input_dir, f"{area_id}*.gml"))[0]))[0]
+    input_path = os.path.join(input_dir, f"{area_label}.gml")
 
     # GMLファイルを解析
     tree = etree.parse(input_path)
@@ -50,13 +52,13 @@ def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
                         texture_coordinates.text = " ".join(
                             [f"{x} {y}" for (x, y) in face_vertices + face_vertices[0:1]])
 
-    output_path = os.path.join(output_dir, f"{area_id}_op.gml")
+    output_path = os.path.join(output_dir, f"{area_label}.gml")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     # print("output:", output_path)
     tree.write(output_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
 
 
-def rotateToXZ(vs):
+def rotate_to_xz(vs):
     if len(vs) < 3:
         raise Exception("Invalid array size")
 
@@ -187,7 +189,8 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
 def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str,
                    pixel_per_meter: float, margin_px: int = 4) -> list[
     list[tuple[float, float]]]:
-    output_obj_path: str = os.path.join(input_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
+    area_label = os.path.basename(glob(os.path.join(input_dir, "obj", f"{area_id}*"))[0])
+    output_obj_path: str = os.path.join(input_dir, "obj", area_label, f"{bldg_id}.obj")
 
     mtllib_value: Optional[str] = None
     v_values: list[tuple[float, float, float]] = []
@@ -265,7 +268,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             min_y = vs[:, 1].min()
             min_z = vs[:, 2].min()
             vs -= np.array([min_x, min_y, min_z])
-            new_vs, normal = rotateToXZ(vs)
+            new_vs, normal = rotate_to_xz(vs)
 
             min_x = new_vs[:, 0].min()
             min_y = new_vs[:, 1].min()
@@ -375,7 +378,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
         else:
             new_lines.append(lines[i])
 
-    output_obj_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{bldg_id}.obj")
+    output_obj_path = os.path.join(output_dir, "obj", area_label, f"{bldg_id}.obj")
     os.makedirs(os.path.dirname(output_obj_path), exist_ok=True)
     # print("output:", output_obj_path)
     with open(output_obj_path, "w") as obj_file:
@@ -397,12 +400,10 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
     # {output_dir}/obj/{area_id}_op/{bldg_id}.obj
 
     areas_path = os.path.join(input_dir, "obj")
-    for _, area_names, _ in os.walk(areas_path):
-        for area_name in area_names:
-            if not area_name.endswith("_op"):
-                continue
-            area_id = area_name.removesuffix("_op")
-            area_path = os.path.join(areas_path, area_name)
+    for _, area_labels, _ in os.walk(areas_path):
+        for area_label in area_labels:
+            area_id = area_label.removesuffix("_op")
+            area_path = os.path.join(areas_path, area_label)
             bldg_ids: list[str] = []
             face_vertices_list_map: dict[str, list[list[tuple[float, float]]]] = {}
             for _, _, obj_names in os.walk(area_path):
@@ -410,13 +411,14 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
                 pbar = tqdm(total=len(obj_names), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
 
                 for obj_name in obj_names:
-                    pbar.set_description(f"{area_id}/{obj_name}")
-                    if not isatty:
-                        print(f"Processing {area_id}/{obj_name}")
-
                     if not obj_name.endswith(".obj"):
                         pbar.update(1)
                         continue
+
+                    pbar.set_description(f"{area_label}/{obj_name}")
+                    if not isatty:
+                        print(f"Processing {area_label}/{obj_name}")
+
                     bldg_id = obj_name.removesuffix(".obj")
                     bldg_ids.append(bldg_id)
                     face_vertices_list_map[bldg_id] = rectify_images(input_dir, area_id, bldg_id, output_dir,
@@ -424,7 +426,7 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
                     pbar.update(1)
                 pbar.close()
 
-            mtl_output_path = os.path.join(output_dir, "obj", f"{area_id}_op", f"{area_id}_op.mtl")
+            mtl_output_path = os.path.join(output_dir, "obj", area_label, f"{area_label}.mtl")
             mtl_output_dir = os.path.dirname(mtl_output_path)
             os.makedirs(mtl_output_dir, exist_ok=True)
             # print("output:", mtl_output_path)
