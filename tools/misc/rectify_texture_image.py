@@ -58,7 +58,7 @@ def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
     tree.write(output_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
 
 
-def rotateToXZ(vs):
+def rotate_to_xz(vs):
     if len(vs) < 3:
         raise Exception("Invalid array size")
 
@@ -268,7 +268,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             min_y = vs[:, 1].min()
             min_z = vs[:, 2].min()
             vs -= np.array([min_x, min_y, min_z])
-            new_vs, normal = rotateToXZ(vs)
+            new_vs, normal = rotate_to_xz(vs)
 
             min_x = new_vs[:, 0].min()
             min_y = new_vs[:, 1].min()
