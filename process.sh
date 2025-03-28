@@ -188,19 +188,28 @@ copy_misc() {
   for appearance_dir in "${output_result_path}/"*_appearance; do
     grp="$(basename -s '_appearance' "${appearance_dir}")"
 
+    if [ -f "${input_misc_path}/${grp}.gml" ]; then
+      grp_label="${grp}"
+    else
+      for gml_file in "${input_misc_path}/${grp}_*.gml"; do
+        grp_label=$(basename -s .gml "${gml_file}")
+        break
+      done
+    fi
+
     # gmlファイルをコピー
-    cp -n "${input_misc_path}/${grp}_op.gml" "${output_result_path}/"
+    cp -n "${input_misc_path}/${grp_label}.gml" "${output_result_path}/"
 
     # objファイルをコピー
-    obj_dir_path="${output_result_path}/obj/${grp}_op"
+    obj_dir_path="${output_result_path}/obj/${grp_label}"
     mkdir -p "${obj_dir_path}"
     for texture_file in "${appearance_dir}/"*."${output_format}"; do
       bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
-      cp -n "${input_misc_path}/obj/${grp}_op/${bldg_id}.obj" "${obj_dir_path}/"
+      cp -n "${input_misc_path}/obj/${grp_label}/${bldg_id}.obj" "${obj_dir_path}/"
     done
 
     # mtlファイル作成
-    mtl_file_path="${obj_dir_path}/${grp}_op.mtl"
+    mtl_file_path="${obj_dir_path}/${grp_label}.mtl"
     rm -f "${mtl_file_path}"
     for texture_file in "${appearance_dir}/"*."${output_format}"; do
       bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
