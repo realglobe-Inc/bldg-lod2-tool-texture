@@ -58,8 +58,6 @@ project_dir="$(realpath "$(dirname "$0")")"
 
 ########## LOD2建築物自動作成ツール ##########
 
-echo '########## LOD2建築物自動作成ツール ##########'
-
 # LOD2建築物自動作成ツールのフォルダーに移動
 cd "${project_dir}"
 
@@ -107,6 +105,8 @@ EOF
 fi
 
 if ! "${skip_bldg_lod2_tool}"; then
+  echo '########## LOD2建築物自動作成ツール ##########'
+
   output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
   city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
   output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
