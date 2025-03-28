@@ -411,13 +411,14 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
                 pbar = tqdm(total=len(obj_names), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
 
                 for obj_name in obj_names:
+                    if not obj_name.endswith(".obj"):
+                        pbar.update(1)
+                        continue
+
                     pbar.set_description(f"{area_label}/{obj_name}")
                     if not isatty:
                         print(f"Processing {area_label}/{obj_name}")
 
-                    if not obj_name.endswith(".obj"):
-                        pbar.update(1)
-                        continue
                     bldg_id = obj_name.removesuffix(".obj")
                     bldg_ids.append(bldg_id)
                     face_vertices_list_map[bldg_id] = rectify_images(input_dir, area_id, bldg_id, output_dir,
