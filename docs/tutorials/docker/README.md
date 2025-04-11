@@ -5,42 +5,57 @@
 - docker-compose が docker 内部に組み込まれているもの : `docker compose`
 - バージョン確認 : `docker --version`
 
-## 実行準 / ビルドイメージ名 / ビルド方法
-- まず、ベースイメージを pull
-  ```
-  docker pull nvidia/cuda:11.3.1-cudnn8-devel-ubuntu20.04
-  ```
-- その後ビルド
-  ```
-  docker compose build
-  ```
+## ビルド方法
 
-## インプット/アウトプットのデーターのI/Fは [docker-compose.yml](../../../docker-compose.yml) を参照
-
-## docker-compose.yml 設定
-
-### インプットフォルダーのパス変更
-- [docker-compose.yml](../../../docker-compose.yml) の `~/lod2_data/kawazaki` を入力データーのあるフォルダーのパスに変更
-
-### 入力データーのフォルダーの中のフォルダー名変更
-- `~/lod2_data/kawazaki` の中には以下のデーターが必要
-  |フォルダー名|[パラメター名](../setup-linux/README.md#必須パラメーター)|
-  |-|-|
-  |01_原画像|TextureFolderPath|
-  |02_外部標定要素|ExternalCalibElementPath|
-  |03_内部標定要素|CameraInfoPath|
-  |04_DSM_RGB|DsmFolderPath|
-  |08_CityGML|CityGMLFolderPath|
-
-## docker compose exec で順番に docker で実行
-```
-docker compose up -d # バックグラウンドで実行
-docker compose exec 3d-model bash -c "/app/process.sh"
+```shell
+docker compose build
 ```
 
-## その他 docker compose で使えるコマンド
+## 実行方法
+
+以下では、[テスト用データ](https://drive.google.com/file/d/1UnxBL2MrDZaQ5EF44TXCFc-ZnVbp9Gf6/view)を使うとする。
+別のデータを使う場合は適宜置き換えること。
+
+設定ファイルを用意する。
+
+```shell
+cat <<EOF > AutoCreateLod2_tutorial/LOD2Creator_tutorial/param.docker.json
+{
+  "LasCoordinateSystem": 9,
+  "DsmFolderPath": "/workspace/dataset/DSM",
+  "LasSwapXY": false,
+  "CityGMLFolderPath": "/workspace/dataset/CityGML",
+  "TextureFolderPath": "/workspace/dataset/RawImage",
+  "RotateMatrixMode": 0,
+  "ExternalCalibElementPath": "/workspace/dataset/ExCalib/ExCalib.txt",
+  "CameraInfoPath": "/workspace/dataset/CamInfo/CamInfo.txt",
+  "OutputFolderPath": "/workspace/output",
+  "OutputOBJ": true,
+  "OutputTexture": true,
+  "OutputCityGML": true,
+  "OutputLogFolderPath": "/workspace/output",
+  "DebugLogOutput": false,
+  "PhaseConsistency": {
+    "DeleteErrorObject": true,
+    "NonPlaneThickness": 0.05,
+    "NonPlaneAngle": 15
+  }
+}
+EOF
 ```
-docker compose down # バックグラウンド終了
-docker compose ps # 稼働中のコンテナ確認
-docker compose exec 3d-model bash # コンテナ内部へアクセス
+
+設定内容については[LOD2建築物モデル自動作成ツールの旧操作マニュアル](https://project-plateau.github.io/Auto-Create-bldg-lod2-tool/manual/userManLod2Bldg.html#3-2-%E8%A8%AD%E5%AE%9A%E3%83%91%E3%83%A9%E3%83%A1%E3%83%BC%E3%82%BF%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB)を参照。
+
+環境変数でデータと設定ファイルを指定して実行する。
+
 ```
+WORKSPACE_DIR=./AutoCreateLod2_tutorial/LOD2Creator_tutorial \
+  OUTPUT_DIR=/workspace/output \
+  BLDG_LOD2_TOOL_PARAM_FILE=/workspace/param.docker.json \
+  docker compose up
+```
+
+`WORKSPACE_DIR`にはコンテナ内の /workspace にマウントするディレクトリを指定する。
+`WORKSPACE_DIR`以外の環境変数については[process.sh](../../../process.sh)を参照。
+
+最終的な出力は AutoCreateLod2_tutorial/LOD2Creator_tutorial/output/output_result/ に保存される。
