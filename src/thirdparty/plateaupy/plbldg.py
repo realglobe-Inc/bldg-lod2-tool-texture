@@ -88,21 +88,26 @@ class plbldg(plobj):
 
 		# scan appearanceMember
 		partex = []
-		for app in tree.xpath('/core:CityModel/app:appearanceMember/app:Appearance/app:surfaceDataMember/app:ParameterizedTexture', namespaces=nsmap):
-			par = appParameterizedTexture()
-			for at in app.xpath('app:imageURI', namespaces=nsmap):
-				par.imageURI = at.text
-			for at in app.xpath('app:target', namespaces=nsmap):
-				uri = at.attrib['uri']
-				colist = [str2floats(v).reshape((-1,2)) for v in at.xpath('app:TexCoordList/app:textureCoordinates', namespaces=nsmap)]
-				maxnum = max(map(lambda x:x.shape[0],colist))
-				for cidx,co in enumerate(colist):
-					last = co[-1].reshape(-1,2)
-					num = maxnum - co.shape[0]
-					if num > 0:
-						colist[cidx] = np.append(co,np.tile(co[-1].reshape(-1,2),(num,1)),axis=0)
-				par.targets[uri] = np.array(colist)
-			partex.append(par)
+		try:
+			if 'app' in nsmap:
+				for app in tree.xpath('/core:CityModel/app:appearanceMember/app:Appearance/app:surfaceDataMember/app:ParameterizedTexture', namespaces=nsmap):
+					par = appParameterizedTexture()
+					for at in app.xpath('app:imageURI', namespaces=nsmap):
+						par.imageURI = at.text
+					for at in app.xpath('app:target', namespaces=nsmap):
+						uri = at.attrib['uri']
+						colist = [str2floats(v).reshape((-1,2)) for v in at.xpath('app:TexCoordList/app:textureCoordinates', namespaces=nsmap)]
+						maxnum = max(map(lambda x:x.shape[0],colist))
+						for cidx,co in enumerate(colist):
+							last = co[-1].reshape(-1,2)
+							num = maxnum - co.shape[0]
+							if num > 0:
+								colist[cidx] = np.append(co,np.tile(co[-1].reshape(-1,2),(num,1)),axis=0)
+						par.targets[uri] = np.array(colist)
+					partex.append(par)
+		except Exception as e:
+			print(f"Error: Unexpected error during appearance processing in {filename}: {e}")
+			pass
 
 		# scan cityObjectMember
 		blds = tree.xpath('/core:CityModel/core:cityObjectMember/bldg:Building', namespaces=nsmap)
