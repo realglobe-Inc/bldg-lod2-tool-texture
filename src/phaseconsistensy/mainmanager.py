@@ -108,9 +108,6 @@ class MainManager:
             obj_info = ObjInfo()
             except_flag = False
 
-            # OBJファイルを読み込む
-            mesh = trimesh.load(result_info.obj_name)
-
             try:
                 # OBJ ファイル入力
                 obj_info.read_file(result_info.obj_name, err_message)
@@ -119,6 +116,7 @@ class MainManager:
                 self._check_double_point(obj_info, result_info, build)
 
                 # ソリッド閉合検査
+                mesh = trimesh.load(result_info.obj_name)
                 if result_info.status != StatusType.ERROR:
                     self._check_solid(mesh, result_info, build)
 
