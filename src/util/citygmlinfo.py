@@ -250,6 +250,16 @@ class CityGmlManager:
                 plobj = plapy.plobj()
                 tree, root = plobj.loadFile(self.lod1_file_path)
                 self._nsmap = plobj.removeNoneKeyFromDic(root.nsmap)
+                if not 'app' in self._nsmap:
+                    # バージョン指定しちゃってるけど本当にこれで大丈夫か？
+                    self._nsmap['app'] = "http://www.opengis.net/citygml/appearance/2.0"
+                if not 'bldg' in self._nsmap:
+                    self._nsmap['bldg'] = "http://www.opengis.net/citygml/building/2.0"
+                if not 'gml' in self._nsmap:
+                    self._nsmap['gml'] = "http://www.opengis.net/gml"
+                if not 'xlink' in self._nsmap:
+                    self._nsmap['xlink'] = "http://www.w3.org/1999/xlink"
+
                 self._app_ns = "{" + self._nsmap['app'] + "}"
                 self._bldg_ns = "{" + self._nsmap['bldg'] + "}"
                 self._gml_ns = "{" + self._nsmap['gml'] + "}"
