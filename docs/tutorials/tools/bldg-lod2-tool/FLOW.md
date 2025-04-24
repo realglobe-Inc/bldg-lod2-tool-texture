@@ -203,6 +203,100 @@ graph TD
 
 
 
+## `createmodel/buildingclassification/classifybuilding.py` の `classify_building` 関数の処理
+
+### `classify_building` 処理フロー図 (Mermaid)
+
+```mermaid
+graph TD
+    Start["Start: 開始"] --> A{"A:建物サイズ確認\n(> 256x256相当?)"};
+    A -- "大きい" --> B["B: BuildingClass.FLAT を返す"];
+    A -- "小さい/普通" --> C["C: Preprocess インスタンス化"];
+    C --> D["D: Preprocess.preprocess 実行"];
+    D -- "失敗" --> ErrorEnd["ErrorEnd: エラー終了"];
+    D -- "成功" --> E["Classifier インスタンス化"];
+    E -- "失敗\n(チェックポイント読込失敗)" --> ErrorEnd;
+    E -- "成功" --> F["F: Classifier.classify実行"];
+    F --> G["G: 分類結果を返す\n(FLAT or NON_FLAT)"];
+    G --> End["End: 正常終了"];
+    B --> End;
+
+    subgraph "Preprocess.preprocess詳細 (点群 -> 分類用128x128画像生成)"
+        D1["D1: 建物点群の回転角度計算\n(_calc_rotation_angle)"] --> D2["D2: 点群回転と画像化\n(_rotate_point_cloud)"];
+        D2 --> D3["D3: 128x128 RGB画像生成\n(リサイズ)"];
+    end
+    D -.-> D1;
+    D3 -.-> D;
+
+    subgraph "Classifier.classify詳細 (分類推論)"
+        F1["F1: 入力画像の前処理\n(BGR変換, 正規化, Tensor化)"] --> F2["F2: 学習済みモデルで推論実行\n(ResNet+ViT)"];
+        F2 --> F3["F3: 推論結果からクラス判定\n(0: NON_FLAT, 1: FLAT)"];
+    end
+    F -.-> F1;
+    F3 -.-> F;
+```
+
+### 各ステップの詳細解説
+
+1.  **`classify_building` 開始 (`Start`)**:
+    *   呼び出し元から、建物の点群データ (`cloud`)、外形ポリゴン (`shape`)、建物ID (`building_id`)、学習済みモデルのパス (`classifier_checkpoint_path`) などを受け取ります。
+
+2.  **建物サイズ確認 (`A`)**:
+    *   **目的:** 処理負荷が高い、または複雑な屋根形状を持つ可能性が低い非常に大きな建物を早期に判定し、処理をスキップするため。
+    *   **処理:** 入力点群のXYバウンディングボックスから、指定されたグリッドサイズ (`grid_size`) と拡大率 (`expand_rate_for_house_model`) を基に、モデル入力時の推定画像サイズを計算します。
+    *   **判定:** 推定画像サイズの幅または高さが **256** ピクセルを超える場合、「大きい」と判定します。
+
+3.  **`BuildingClass.FLAT` を返す (`B`)**:
+    *   建物が「大きい」と判定された場合、詳細な分類処理を行わず、強制的に陸屋根 (`BuildingClass.FLAT`) として結果を返し、処理を終了します。
+
+4.  **`Preprocess` インスタンス化 (`C`)**:
+    *   建物サイズが処理範囲内の場合、`createmodel/buildingclassification/preprocess.py` の `Preprocess` クラスをインスタンス化します。このクラスは点群データをモデル入力用の画像に変換します。
+
+5.  **`Preprocess.preprocess` 実行 (`D`)**:
+    *   `Preprocess` インスタンスの `preprocess` メソッドを実行します。
+    *   **内部処理フロー (`D1` ~ `D3`)**:
+        1.  **建物点群の回転角度計算 (`D1`)**: `_calc_rotation_angle` メソッドで、建物外形ポリゴンの最も長い辺の角度を計算し、建物の主方向を決定します。
+        2.  **点群回転と画像化 (`D2`)**: `_rotate_point_cloud` メソッドで、点群データを建物の主方向が画像の水平または垂直になるように回転させます。その後、回転後の点群をグリッド化し、各グリッドに最近傍点のRGB値を割り当ててカラー画像を生成します。
+        3.  **128x128 RGB画像生成 (`D3`)**: 生成されたカラー画像を、分類モデルの入力サイズである **128x128** ピクセルにリサイズします。
+    *   **出力:** 128x128ピクセルのRGB画像 (`building_img`) が返されます。
+    *   **エラー:** 内部処理で問題が発生した場合、例外が発生しエラー終了 (`ErrorEnd`) する可能性があります。
+
+6.  **`Classifier` インスタンス化 (`E`)**:
+    *   `createmodel/buildingclassification/classifier.py` の `Classifier` クラスをインスタンス化します。
+    *   **内部処理:**
+        *   `ClassifierModel` (ResNet + Vision Transformerベース) を定義します。
+        *   GPUが利用可能かつ `use_gpu` フラグがTrueであればGPU、そうでなければCPUを推論デバイスとして設定します。
+        *   `torch.load` を使用して、指定された `classifier_checkpoint_path` から学習済みモデルの重みをロードします。
+    *   **エラー:** チェックポイントファイルのパスが不正、ファイル破損、モデル構造との不一致などによりロードに失敗した場合、`ClassifierCheckpointReadException` が発生し、エラー終了 (`ErrorEnd`) します。
+
+7.  **`Classifier.classify` 実行 (`F`)**:
+    *   `Classifier` インスタンスの `classify` メソッドを実行し、前処理で生成された画像 (`building_img`) を用いて分類推論を行います。
+    *   **内部処理フロー (`F1` ~ `F3`)**:
+        1.  **入力画像の前処理 (`F1`)**: 入力画像 (HWC, RGB, uint8) をモデルが受け付ける形式 (CHW, BGR, float32, 値域0.0-1.0) に変換し、PyTorch Tensorにします。
+        2.  **学習済みモデルで推論実行 (`F2`)**: `ClassifierModel` にTensorを入力し、フォワードパスを実行します。モデルは2つのクラス（0: NON_FLAT, 1: FLAT）に対するロジット（確率に変換される前の値）を出力します。
+        3.  **推論結果からクラス判定 (`F3`)**: 出力されたロジットのうち、値が大きい方のインデックスを取得します。インデックスが0なら非陸屋根 (`BuildingClass.NON_FLAT`)、1なら陸屋根 (`BuildingClass.FLAT`) と判定します。
+    *   **出力:** 判定された `BuildingClass` (Enum値) が返されます。
+
+8.  **分類結果を返す (`G`)**:
+    *   `Classifier.classify` から返された建物の分類結果 (`BuildingClass.FLAT` または `BuildingClass.NON_FLAT`) を、`classify_building` 関数の最終的な戻り値として返します。
+
+9.  **終了 (`End`, `ErrorEnd`)**:
+    *   分類結果を返して正常終了 (`End`) するか、途中でエラーが発生した場合はエラー終了 (`ErrorEnd`) します。
+
+### 関連クラスと役割（classify_building内および呼び出し先）
+
+*   **`createmodel.buildingclassification.preprocess.Preprocess`**: 点群データをモデル入力に適した画像（128x128 RGB、回転補正済み）に変換する。
+*   **`createmodel.buildingclassification.classifier.Classifier`**: 学習済みモデルをロードし、入力画像に対する分類推論を実行する。
+*   **`createmodel.buildingclassification.classifier_model.ClassifierModel`**: 建物分類を行うための深層学習モデル（ResNet+ViT）のアーキテクチャを定義する。
+*   **`createmodel.lasmanager.PointCloud`**: 建物点群データを保持・管理する。
+*   **`shapely.geometry.Polygon`**: 建物外形形状を表現し、辺の長さなどを計算するために使用される。
+*   **`cv2` (OpenCV)**: 画像のリサイズや回転などの前処理に使用される。
+*   **`numpy`**: 配列操作、数値計算に使用される。
+*   **`torch` (PyTorch)**: 深層学習モデルの定義、重みロード、推論実行に使用される。
+*   **`createmodel.buildingclassification.classifier.BuildingClass` (Enum)**: 分類結果（FLAT, NON_FLAT）を表現する列挙型。
+
+
+
 ## `createmodel/buildingmodeling/createmodel.py`内の`BuildingModelBuilder`クラス（陸屋根モデル用）の処理
 
 `BuildingModelBuilder` は、入力された点群データと建物外形ポリゴンから、陸屋根の3Dモデル（OBJ形式）を生成する役割を担います。
