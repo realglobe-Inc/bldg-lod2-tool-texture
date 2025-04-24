@@ -225,6 +225,26 @@ class CityGmlManager:
             Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.INPUT_CITYGML, e)
             return ResultType.ERROR, None
 
+    @staticmethod
+    def _add_namespace(tree, k, v):
+        """XMLを読み取ってできたtreeに、キーがk、値がvという名前空間を追加して新しいtreeを返す
+
+        Args:
+            tree (lxml.etree._ElementTree): 操作対象のXMLツリー
+            k (str): 名前空間のキー
+            v (str): 名前空間の値
+
+        Returns:
+            lxml.etree._ElementTree: 名前空間を追加したXMLツリー
+        """
+        root = tree.getroot()
+        nsmap = root.nsmap
+        nsmap[k] = v
+        new_root = lxml.etree.Element(root.tag, attrib=root.attrib, nsmap=nsmap)
+        new_root.extend(root)
+        new_tree = lxml.etree.ElementTree(new_root)
+        return new_tree, new_root
+
     def write_file(self, file_name: str, image_format: str) -> ResultType:
         """CityGMLファイル書き出し
 
@@ -249,7 +269,19 @@ class CityGmlManager:
             if ret != ResultType.ERROR:
                 plobj = plapy.plobj()
                 tree, root = plobj.loadFile(self.lod1_file_path)
+                if not 'app' in root.nsmap:
+                    # バージョン指定しちゃってるけど本当にこれで大丈夫か？
+                    tree, root = CityGmlManager._add_namespace(tree, 'app',
+                                                               "http://www.opengis.net/citygml/appearance/2.0")
+                if not 'bldg' in root.nsmap:
+                    tree, root = CityGmlManager._add_namespace(tree, 'bldg',
+                                                               "http://www.opengis.net/citygml/building/2.0")
+                if not 'gml' in root.nsmap:
+                    tree, root = CityGmlManager._add_namespace(tree, 'gml', "http://www.opengis.net/gml")
+                if not 'xlink' in root.nsmap:
+                    tree, root = CityGmlManager._add_namespace(tree, 'xlink', "http://www.w3.org/1999/xlink")
                 self._nsmap = plobj.removeNoneKeyFromDic(root.nsmap)
+
                 self._app_ns = "{" + self._nsmap['app'] + "}"
                 self._bldg_ns = "{" + self._nsmap['bldg'] + "}"
                 self._gml_ns = "{" + self._nsmap['gml'] + "}"
