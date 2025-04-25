@@ -212,33 +212,31 @@ class ParamManager:
                 )
 
             # 選択値の取得
-            self.output_obj = json_load.get(self.KEY_OUTPUT_OBJ) or self.output_obj
-            self.output_texture = (
-                json_load.get(self.KEY_OUTPUT_TEXTURE) or self.output_texture
+            self.output_obj = json_load.get(self.KEY_OUTPUT_OBJ, self.output_obj)
+            self.output_texture = json_load.get(
+                self.KEY_OUTPUT_TEXTURE, self.output_texture
             )
-            self.output_citygml = (
-                json_load.get(self.KEY_OUTPUT_CITYGML) or self.output_citygml
+            self.output_citygml = json_load.get(
+                self.KEY_OUTPUT_CITYGML, self.output_citygml
             )
-            self.debug_mode = json_load.get(self.KEY_DEBUG_MODE) or self.debug_mode
-            self.target_coord_areas = (
-                json_load.get(self.KEY_TARGET_COORD_AREAS) or self.target_coord_areas
+            self.debug_mode = json_load.get(self.KEY_DEBUG_MODE, self.debug_mode)
+            self.target_coord_areas = json_load.get(
+                self.KEY_TARGET_COORD_AREAS, self.target_coord_areas
             )
-            self.target_building_ids = (
-                json_load.get(self.KEY_TARGET_BUILDING_IDS) or self.target_building_ids
+            self.target_building_ids = json_load.get(
+                self.KEY_TARGET_BUILDING_IDS, self.target_building_ids
             )
-            self.texture_output_width_max = (
-                json_load.get(self.KEY_TEXTURE_OUTPUT_WIDTH_MAX)
-                or ParamManager.TEXTURE_OUTPUT_WIDTH_MAX
+            self.texture_output_width_max = json_load.get(
+                self.KEY_TEXTURE_OUTPUT_WIDTH_MAX, ParamManager.TEXTURE_OUTPUT_WIDTH_MAX
             )
-            self.texture_output_height_max = (
-                json_load.get(self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX)
-                or ParamManager.TEXTURE_OUTPUT_HEIGHT_MAX
+            self.texture_output_height_max = json_load.get(
+                self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX,
+                ParamManager.TEXTURE_OUTPUT_HEIGHT_MAX,
             )
-            self.texture_image_format = (
-                json_load.get(self.KEY_TEXTURE_IMAGE_FORMAT)
-                or ParamManager.DEFAULT_TEXTURE_IMAGE_FORMAT
+            self.texture_image_format = json_load.get(
+                self.KEY_TEXTURE_IMAGE_FORMAT, ParamManager.DEFAULT_TEXTURE_IMAGE_FORMAT
             )
-            self.grid_size = json_load.get(self.KEY_GRID_SIZE) or self.DEFAULT_GRID_SIZE
+            self.grid_size = json_load.get(self.KEY_GRID_SIZE, self.DEFAULT_GRID_SIZE)
 
             # 必須キーの確認
             for key in ParamManager.REQUIRED_KEYS:
