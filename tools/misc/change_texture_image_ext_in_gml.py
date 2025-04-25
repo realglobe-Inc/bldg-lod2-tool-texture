@@ -24,22 +24,26 @@ def change(input: str, output: str, ext: str) -> None:
     root = tree.getroot()
 
     # app:surfaceDataMemberのnamespaceを取得
-    namespaces = {'app': 'http://www.opengis.net/citygml/appearance/2.0'}
+    namespaces = {"app": "http://www.opengis.net/citygml/appearance/2.0"}
 
     # app:Appearance要素を取得
     for appearance in root.findall(".//app:Appearance", namespaces):
-        for surface_data_member in appearance.findall("app:surfaceDataMember", namespaces):
-            parameterized_texture = surface_data_member.find('app:ParameterizedTexture', namespaces)
+        for surface_data_member in appearance.findall(
+            "app:surfaceDataMember", namespaces
+        ):
+            parameterized_texture = surface_data_member.find(
+                "app:ParameterizedTexture", namespaces
+            )
             if parameterized_texture is not None:
-                image_uri = parameterized_texture.find('app:imageURI', namespaces)
+                image_uri = parameterized_texture.find("app:imageURI", namespaces)
                 if image_uri is not None and image_uri.text:
-                    image_uri.text = str(Path(image_uri.text).with_suffix(f'.{ext}'))
-                mime_type = parameterized_texture.find('app:mimeType', namespaces)
+                    image_uri.text = str(Path(image_uri.text).with_suffix(f".{ext}"))
+                mime_type = parameterized_texture.find("app:mimeType", namespaces)
                 if mime_type is not None and mime_type.text:
-                    mime_type.text = f'image/{ext}'
+                    mime_type.text = f"image/{ext}"
 
     # 結果を新しいファイルに保存 (XML宣言を含む)
-    tree.write(output, encoding='utf-8', xml_declaration=True, pretty_print=True)
+    tree.write(output, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
 
 def main():
@@ -48,7 +52,7 @@ def main():
     parser.add_argument("-i", "--input", help="Input GML file")
     parser.add_argument("-o", "--output", help="Output GML file")
     parser.add_argument(
-        '--ext', type=str, default='png', help='Converted image extension'
+        "--ext", type=str, default="png", help="Converted image extension"
     )
 
     args = parser.parse_args()

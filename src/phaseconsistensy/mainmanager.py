@@ -19,15 +19,14 @@ from ..util.resulttype import ProcessResult, ResultType
 # LOG_LEVEL = logging.DEBUG
 LOG_LEVEL = logging.WARNING
 
-logging.basicConfig(level=LOG_LEVEL, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=LOG_LEVEL, format="%(levelname)s: %(message)s")
 
 
 class MainManager:
-    """位相一貫性検査/補正全体制御クラス
-    """
+    """位相一貫性検査/補正全体制御クラス"""
 
-    _module_name = 'CheckPhaseConsistensy Module'
-    _module_version = '0.0.1'
+    _module_name = "CheckPhaseConsistensy Module"
+    _module_version = "0.0.1"
 
     def __init__(self, param_manager: ParamManager):
         """コンストラクタ
@@ -61,20 +60,20 @@ class MainManager:
         Log.output_log_write(
             LogLevel.INFO,
             ModuleType.CHECK_PHASE_CONSISTENSY,
-            f'DeleteErrorObject : {self._param_manager.delete_error_flag}',
+            f"DeleteErrorObject : {self._param_manager.delete_error_flag}",
         )
 
         if not os.path.exists(self._input_folder):
             Log.output_log_write(
                 LogLevel.ERROR,
                 ModuleType.CHECK_PHASE_CONSISTENSY,
-                f'{self._input_folder}: obj folder does not exist.',
+                f"{self._input_folder}: obj folder does not exist.",
             )
             return ResultType.ERROR
 
         file_list = os.listdir(self._input_folder)
 
-        building_list = [i for i in buildings if i.build_id + '.obj' in file_list]
+        building_list = [i for i in buildings if i.build_id + ".obj" in file_list]
         self._obj_num = len(building_list)
 
         if self._obj_num == 0:
@@ -82,7 +81,7 @@ class MainManager:
             Log.output_log_write(
                 LogLevel.ERROR,
                 ModuleType.CHECK_PHASE_CONSISTENSY,
-                f'{self._input_folder}: obj folder do not have obj file.',
+                f"{self._input_folder}: obj folder do not have obj file.",
             )
             return ResultType.ERROR
 
@@ -96,15 +95,23 @@ class MainManager:
 
         # 各 OBJ ファイル対して検査/補正処理
         isatty = sys.stdout.isatty()
-        pbar = tqdm(total=len(building_list), unit="bldg", leave=False, dynamic_ncols=isatty, disable=not isatty)
+        pbar = tqdm(
+            total=len(building_list),
+            unit="bldg",
+            leave=False,
+            dynamic_ncols=isatty,
+            disable=not isatty,
+        )
         for build in building_list:
             pbar.set_description(build.build_id)
             if not isatty:
                 print(f"Processing {build.build_id}")
 
-            err_message = ''
+            err_message = ""
             result_info = ResultInfo()
-            result_info.obj_name = os.path.join(self._input_folder, f'{build.build_id}.obj')
+            result_info.obj_name = os.path.join(
+                self._input_folder, f"{build.build_id}.obj"
+            )
             obj_info = ObjInfo()
             except_flag = False
 
@@ -146,16 +153,18 @@ class MainManager:
                     self._results.append(result_info)
 
                     # ログファイル出力
-                    Log.output_log_write(LogLevel.MODEL_ERROR,
-                                         ModuleType.CHECK_PHASE_CONSISTENSY,
-                                         result_info.get_str())
+                    Log.output_log_write(
+                        LogLevel.MODEL_ERROR,
+                        ModuleType.CHECK_PHASE_CONSISTENSY,
+                        result_info.get_str(),
+                    )
                     result_type = ResultType.WARN
 
                 # OBJ ファイル出力
                 if output_flag:
                     file_path = os.path.join(
-                        self._output_folder,
-                        os.path.basename(obj_info.file_name))
+                        self._output_folder, os.path.basename(obj_info.file_name)
+                    )
                     obj_info.write_file(file_path)
 
             except (FileNotFoundError, SyntaxError, ValueError) as e:
@@ -174,14 +183,16 @@ class MainManager:
                     if not self._param_manager.delete_error_flag:
                         # 入力 OBJ を出力
                         out_path = os.path.join(
-                            self._output_folder,
-                            os.path.basename(result_info.obj_name))
+                            self._output_folder, os.path.basename(result_info.obj_name)
+                        )
                         shutil.copy(result_info.obj_name, out_path)
                     else:
                         result_info.status = StatusType.DELETED
-                    Log.output_log_write(LogLevel.MODEL_ERROR,
-                                         ModuleType.CHECK_PHASE_CONSISTENSY,
-                                         result_info.get_str())
+                    Log.output_log_write(
+                        LogLevel.MODEL_ERROR,
+                        ModuleType.CHECK_PHASE_CONSISTENSY,
+                        result_info.get_str(),
+                    )
                     result_type = ResultType.WARN
                 self._summary[result_info.status] += 1
 
@@ -195,30 +206,31 @@ class MainManager:
         return result_type
 
     def _output_log_file_summary(self):
-        """ログファイル サマリー部出力
-        """
-        message = 'Summary\n'
+        """ログファイル サマリー部出力"""
+        message = "Summary\n"
         no_error = self._obj_num - (
-                self._summary[StatusType.AUTO_CORRECTED]
-                + self._summary[StatusType.DELETED]
-                + self._summary[StatusType.ERROR]
+            self._summary[StatusType.AUTO_CORRECTED]
+            + self._summary[StatusType.DELETED]
+            + self._summary[StatusType.ERROR]
         )
-        message += f'\t\tNumber of files      : {self._obj_num}\n'
-        message += f'\t\tNo Error files       : {no_error}\n'
-        tmp_str = 'Auto corrected files : ' + str(self._summary[StatusType.AUTO_CORRECTED])
-        message += f'\t\t{tmp_str}\n'
-        message += '\t\tDeleted files        : '
-        message += f'{self._summary[StatusType.DELETED]}\n'
-        message += '\t\tError files          : '
-        message += f'{self._summary[StatusType.ERROR]}'
+        message += f"\t\tNumber of files      : {self._obj_num}\n"
+        message += f"\t\tNo Error files       : {no_error}\n"
+        tmp_str = "Auto corrected files : " + str(
+            self._summary[StatusType.AUTO_CORRECTED]
+        )
+        message += f"\t\t{tmp_str}\n"
+        message += "\t\tDeleted files        : "
+        message += f"{self._summary[StatusType.DELETED]}\n"
+        message += "\t\tError files          : "
+        message += f"{self._summary[StatusType.ERROR]}"
 
         Log.output_log_write(LogLevel.INFO, ModuleType.CHECK_PHASE_CONSISTENSY, message)
 
     def _check_double_point(
-            self,
-            obj_info: ObjInfo,
-            result_info: ResultInfo,
-            build: CityGmlManager.BuildInfo
+        self,
+        obj_info: ObjInfo,
+        result_info: ResultInfo,
+        build: CityGmlManager.BuildInfo,
     ):
         """連続頂点重複検査/補正
 
@@ -235,7 +247,7 @@ class MainManager:
                 ret = check_face.check_double_point()
                 if ret is TestResultType.AUTO_CORRECTED:
                     # エラーあり、自動補正済み
-                    logging.debug('error occured')
+                    logging.debug("error occured")
                     result_info.add_err(ErrorType.DOUBLE_POINT, check_face.err_list)
                     result_info.status = StatusType.AUTO_CORRECTED
                     # print("_check_double_point AUTO_CORRECTED")
@@ -247,10 +259,10 @@ class MainManager:
                     return
 
     def _check_intersection(
-            self,
-            obj_info: ObjInfo,
-            result_info: ResultInfo,
-            build: CityGmlManager.BuildInfo,
+        self,
+        obj_info: ObjInfo,
+        result_info: ResultInfo,
+        build: CityGmlManager.BuildInfo,
     ):
         """自己交差・自己接触検査
 
@@ -265,16 +277,18 @@ class MainManager:
                 check_face = CheckFace(obj_info, face, self._param_manager)
                 if not check_face.check_intersection():
                     # エラーあり
-                    result_info.add_err(ErrorType.SELF_INTERSECTION, check_face.err_list)
+                    result_info.add_err(
+                        ErrorType.SELF_INTERSECTION, check_face.err_list
+                    )
                     result_info.status = StatusType.ERROR
                     build.intersection = ProcessResult.ERROR
                     print("_check_intersection ERROR")
 
     def _check_face_intersection(
-            self,
-            obj_info: ObjInfo,
-            result_info: ResultInfo,
-            build: CityGmlManager.BuildInfo,
+        self,
+        obj_info: ObjInfo,
+        result_info: ResultInfo,
+        build: CityGmlManager.BuildInfo,
     ):
         """地物内面同士交差検査
 
@@ -293,10 +307,10 @@ class MainManager:
             print("_check_face_intersection ERROR")
 
     def _check_non_plane(
-            self,
-            obj_info: ObjInfo,
-            result_info: ResultInfo,
-            build: CityGmlManager.BuildInfo,
+        self,
+        obj_info: ObjInfo,
+        result_info: ResultInfo,
+        build: CityGmlManager.BuildInfo,
     ):
         """非平面検査/三角形分割補正
 
@@ -324,10 +338,10 @@ class MainManager:
                     return
 
     def _check_zero_area(
-            self,
-            obj_info: ObjInfo,
-            result_info: ResultInfo,
-            build: CityGmlManager.BuildInfo,
+        self,
+        obj_info: ObjInfo,
+        result_info: ResultInfo,
+        build: CityGmlManager.BuildInfo,
     ):
         """面積 0 ポリゴン検査/補正
 
@@ -360,7 +374,9 @@ class MainManager:
 
         build.zero_area = ProcessResult.SUCCESS
 
-    def _check_solid(self, mesh, result_info: ResultInfo, build: CityGmlManager.BuildInfo):
+    def _check_solid(
+        self, mesh, result_info: ResultInfo, build: CityGmlManager.BuildInfo
+    ):
         """ソリッド閉合検査/補正
 
         Args:

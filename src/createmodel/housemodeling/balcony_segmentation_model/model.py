@@ -7,8 +7,7 @@ from .networks.vit_seg_modeling import DecoderCup, SegmentationHead, Transformer
 
 
 class SegmentationModel(torch.nn.Module):
-    """セマンティックセグメンテーションを行うモデル
-    """
+    """セマンティックセグメンテーションを行うモデル"""
 
     config: Final[ml_collections.ConfigDict]
     num_classes: Final[int]
@@ -34,19 +33,18 @@ class SegmentationModel(torch.nn.Module):
         self.config = get_r50_b16_config()
 
         self.num_classes = num_classes
-        self.transformer = Transformer(
-            self.config, image_size, in_channels, vis=False)
+        self.transformer = Transformer(self.config, image_size, in_channels, vis=False)
         self.decoder = DecoderCup(self.config)
         self.segmentation_head = SegmentationHead(
-            in_channels=cast(tuple[int, int, int, int],
-                             self.config['decoder_channels'])[-1],
-            out_channels=self.config['n_classes'],
+            in_channels=cast(
+                tuple[int, int, int, int], self.config["decoder_channels"]
+            )[-1],
+            out_channels=self.config["n_classes"],
             kernel_size=3,
         )
 
     def forward(self, x):
-        """順伝搬
-        """
+        """順伝搬"""
         if x.size()[1] == 1:
             x = x.repeat(1, 3, 1, 1)
         x, _, features = self.transformer(x)  # (B, n_patch, hidden)

@@ -20,8 +20,7 @@ from ..util.resulttype import ResultType, ProcessResult
 
 
 class ModelCreator:
-    """モデル要素生成モジュール
-    """
+    """モデル要素生成モジュール"""
 
     def __init__(self, param: ParamManager):
         """コンストラクタ
@@ -46,7 +45,8 @@ class ModelCreator:
 
             # 座標変換用のコンバータの作成
             self._dsm_coord_city_gml_coord_converter = DsmCoordCityGmlCoordConverter(
-                coordinate_id=self._param_mng.las_coordinate_system)
+                coordinate_id=self._param_mng.las_coordinate_system
+            )
 
             # 入力DSM点群フォルダパスの確認
             if not os.path.isdir(self._param_mng.dsm_folder_path):
@@ -54,7 +54,7 @@ class ModelCreator:
                 raise ModelingException(ModelingMessage.ERR_MSG_LAS_FOLDER_NOT_FOUND)
 
             # lasファイルの存在確認
-            las_path = os.path.join(self._param_mng.dsm_folder_path, '*.las')
+            las_path = os.path.join(self._param_mng.dsm_folder_path, "*.las")
             files = glob.glob(las_path)
             if len(files) == 0:
                 # lasファイルが存在しない場合
@@ -69,25 +69,31 @@ class ModelCreator:
 
         except DsmCoordCityGmlCoordConverterException:
             # 座標変換用のコンバータのエラー
-            msg = '{}.{}, {}'.format(
-                class_name, func_name,
-                ModelingMessage.ERR_MSG_LAS_COORDINATE_SYSTEM)
-            Log.output_log_write(LogLevel.ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg)
+            msg = "{}.{}, {}".format(
+                class_name, func_name, ModelingMessage.ERR_MSG_LAS_COORDINATE_SYSTEM
+            )
+            Log.output_log_write(
+                LogLevel.ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg
+            )
             raise DsmCoordCityGmlCoordConverterException(msg)
         except ModelingException as e:
             # モデル作成のエラー
-            msg = '{}.{}, {}'.format(class_name, func_name, e)
-            Log.output_log_write(LogLevel.ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg)
+            msg = "{}.{}, {}".format(class_name, func_name, e)
+            Log.output_log_write(
+                LogLevel.ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg
+            )
             raise  # 呼び出し側にも通知
         except Exception:
             # 予期せぬエラー
-            Log.output_log_write(LogLevel.ERROR, ModuleType.MODEL_ELEMENT_GENERATION, traceback.format_exc())
+            Log.output_log_write(
+                LogLevel.ERROR,
+                ModuleType.MODEL_ELEMENT_GENERATION,
+                traceback.format_exc(),
+            )
             raise  # 呼び出し側にも通知
 
     def create(
-            self,
-            gmls: list[CityGmlManager.BuildInfo],
-            debug_mode: bool = False
+        self, gmls: list[CityGmlManager.BuildInfo], debug_mode: bool = False
     ) -> ResultType:
         """モデル生成
 
@@ -102,16 +108,24 @@ class ModelCreator:
         func_name = sys._getframe().f_code.co_name
 
         if gmls is None or len(gmls) == 0:
-            msg = '{}.{}, {}'.format(
-                class_name, func_name,
-                ModelingMessage.ERR_MSG_CITY_GML_DATA)
-            Log.output_log_write(LogLevel.ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg)
+            msg = "{}.{}, {}".format(
+                class_name, func_name, ModelingMessage.ERR_MSG_CITY_GML_DATA
+            )
+            Log.output_log_write(
+                LogLevel.ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg
+            )
             return ResultType.ERROR
 
         warn_flag = False
         # 進捗バーの初期化
         isatty = sys.stdout.isatty()
-        pbar = tqdm(total=len(gmls), unit="bldg", leave=False, dynamic_ncols=isatty, disable=not isatty)
+        pbar = tqdm(
+            total=len(gmls),
+            unit="bldg",
+            leave=False,
+            dynamic_ncols=isatty,
+            disable=not isatty,
+        )
         for gml in gmls:
             try:
                 pbar.set_description(gml.build_id)
@@ -128,7 +142,9 @@ class ModelCreator:
                 shape = []
                 for pos in gml.lod0_poslist:
                     if len(pos) > 1:
-                        x, y = self._dsm_coord_city_gml_coord_converter.to_cartesian(latitude=pos[0], longitude=pos[1])
+                        x, y = self._dsm_coord_city_gml_coord_converter.to_cartesian(
+                            latitude=pos[0], longitude=pos[1]
+                        )
                         shape.append([x, y])
 
                 info = Building(
@@ -147,16 +163,20 @@ class ModelCreator:
 
             except ModelingException as e:
                 # モデル作成のエラー(想定エラー)
-                msg = '{}, {}'.format(gml.build_id, e)
+                msg = "{}, {}".format(gml.build_id, e)
                 print(msg)
-                Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg)
+                Log.output_log_write(
+                    LogLevel.MODEL_ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg
+                )
                 warn_flag = True
 
             except Exception:
                 # 予期せぬエラー
-                msg = '{}\n{}'.format(gml.build_id, traceback.format_exc())
+                msg = "{}\n{}".format(gml.build_id, traceback.format_exc())
                 print(msg)
-                Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg)
+                Log.output_log_write(
+                    LogLevel.MODEL_ERROR, ModuleType.MODEL_ELEMENT_GENERATION, msg
+                )
                 warn_flag = True
 
             finally:
@@ -166,8 +186,11 @@ class ModelCreator:
 
         if warn_flag:
             # 未作成のモデルがある場合
-            Log.output_log_write(LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION,
-                                 ModelingMessage.WARN_MSG_COULD_NOT_CREATE_MODEL)
+            Log.output_log_write(
+                LogLevel.WARN,
+                ModuleType.MODEL_ELEMENT_GENERATION,
+                ModelingMessage.WARN_MSG_COULD_NOT_CREATE_MODEL,
+            )
             return ResultType.WARN
         else:
             # 全てのモデルを生成した場合

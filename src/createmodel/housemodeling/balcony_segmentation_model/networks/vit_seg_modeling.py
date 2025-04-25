@@ -36,8 +36,11 @@ def swish(x):
     return x * torch.sigmoid(x)
 
 
-ACT2FN = {"gelu": torch.nn.functional.gelu,
-          "relu": torch.nn.functional.relu, "swish": swish}
+ACT2FN = {
+    "gelu": torch.nn.functional.gelu,
+    "relu": torch.nn.functional.relu,
+    "swish": swish,
+}
 
 
 class Attention(nn.Module):
@@ -45,8 +48,7 @@ class Attention(nn.Module):
         super(Attention, self).__init__()
         self.vis = vis
         self.num_attention_heads = config.transformer["num_heads"]
-        self.attention_head_size = int(
-            config.hidden_size / self.num_attention_heads)
+        self.attention_head_size = int(config.hidden_size / self.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
         self.query = Linear(config.hidden_size, self.all_head_size)
@@ -54,16 +56,16 @@ class Attention(nn.Module):
         self.value = Linear(config.hidden_size, self.all_head_size)
 
         self.out = Linear(config.hidden_size, config.hidden_size)
-        self.attn_dropout = Dropout(
-            config.transformer["attention_dropout_rate"])
-        self.proj_dropout = Dropout(
-            config.transformer["attention_dropout_rate"])
+        self.attn_dropout = Dropout(config.transformer["attention_dropout_rate"])
+        self.proj_dropout = Dropout(config.transformer["attention_dropout_rate"])
 
         self.softmax = Softmax(dim=-1)
 
     def transpose_for_scores(self, x):
-        new_x_shape = x.size()[
-            :-1] + (self.num_attention_heads, self.attention_head_size)
+        new_x_shape = x.size()[:-1] + (
+            self.num_attention_heads,
+            self.attention_head_size,
+        )
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
@@ -76,18 +78,15 @@ class Attention(nn.Module):
         key_layer = self.transpose_for_scores(mixed_key_layer)
         value_layer = self.transpose_for_scores(mixed_value_layer)
 
-        attention_scores = torch.matmul(
-            query_layer, key_layer.transpose(-1, -2))
-        attention_scores = attention_scores / \
-            math.sqrt(self.attention_head_size)
+        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         attention_probs = self.softmax(attention_scores)
         weights = attention_probs if self.vis else None
         attention_probs = self.attn_dropout(attention_probs)
 
         context_layer = torch.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[
-            :-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
         attention_output = self.out(context_layer)
         attention_output = self.proj_dropout(attention_output)
@@ -120,8 +119,7 @@ class Mlp(nn.Module):
 
 
 class Embeddings(nn.Module):
-    """Construct the embeddings from patch, position embeddings.
-    """
+    """Construct the embeddings from patch, position embeddings."""
 
     def __init__(self, config, img_size, in_channels=3):
         super(Embeddings, self).__init__()
@@ -129,33 +127,38 @@ class Embeddings(nn.Module):
         self.config = config
         img_size = _pair(img_size)
 
-        if config.patches.get("grid") is not None:   # ResNet
+        if config.patches.get("grid") is not None:  # ResNet
             grid_size = config.patches["grid"]
-            patch_size = (img_size[0] // 16 // grid_size[0],
-                          img_size[1] // 16 // grid_size[1])
+            patch_size = (
+                img_size[0] // 16 // grid_size[0],
+                img_size[1] // 16 // grid_size[1],
+            )
             patch_size_real = (patch_size[0] * 16, patch_size[1] * 16)
-            n_patches = (img_size[0] // patch_size_real[0]) * \
-                (img_size[1] // patch_size_real[1])
+            n_patches = (img_size[0] // patch_size_real[0]) * (
+                img_size[1] // patch_size_real[1]
+            )
             self.hybrid = True
         else:
             patch_size = _pair(config.patches["size"])
-            n_patches = (img_size[0] // patch_size[0]) * \
-                (img_size[1] // patch_size[1])
+            n_patches = (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1])
             self.hybrid = False
 
         if self.hybrid:
             self.hybrid_model = ResNetV2(
                 block_units=config.resnet.num_layers,
                 width_factor=config.resnet.width_factor,
-                in_channels=in_channels
+                in_channels=in_channels,
             )
             in_channels = self.hybrid_model.width * 16
-        self.patch_embeddings = Conv2d(in_channels=in_channels,
-                                       out_channels=config.hidden_size,
-                                       kernel_size=patch_size,
-                                       stride=patch_size)
+        self.patch_embeddings = Conv2d(
+            in_channels=in_channels,
+            out_channels=config.hidden_size,
+            kernel_size=patch_size,
+            stride=patch_size,
+        )
         self.position_embeddings = nn.Parameter(
-            torch.zeros(1, n_patches, config.hidden_size))
+            torch.zeros(1, n_patches, config.hidden_size)
+        )
 
         self.dropout = Dropout(config.transformer["dropout_rate"])
 
@@ -219,26 +222,24 @@ class Encoder(nn.Module):
 class Transformer(nn.Module):
     def __init__(self, config, img_size, in_channels, vis):
         super(Transformer, self).__init__()
-        self.embeddings = Embeddings(
-            config, img_size=img_size, in_channels=in_channels)
+        self.embeddings = Embeddings(config, img_size=img_size, in_channels=in_channels)
         self.encoder = Encoder(config, vis)
 
     def forward(self, input_ids):
         embedding_output, features = self.embeddings(input_ids)
-        encoded, attn_weights = self.encoder(
-            embedding_output)  # (B, n_patch, hidden)
+        encoded, attn_weights = self.encoder(embedding_output)  # (B, n_patch, hidden)
         return encoded, attn_weights, features
 
 
 class Conv2dReLU(nn.Sequential):
     def __init__(
-            self,
-            in_channels,
-            out_channels,
-            kernel_size,
-            padding=0,
-            stride=1,
-            use_batchnorm=True,
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding=0,
+        stride=1,
+        use_batchnorm=True,
     ):
         conv = nn.Conv2d(
             in_channels,
@@ -257,11 +258,11 @@ class Conv2dReLU(nn.Sequential):
 
 class DecoderBlock(nn.Module):
     def __init__(
-            self,
-            in_channels,
-            out_channels,
-            skip_channels=0,
-            use_batchnorm=True,
+        self,
+        in_channels,
+        out_channels,
+        skip_channels=0,
+        use_batchnorm=True,
     ):
         super().__init__()
         self.conv1 = Conv2dReLU(
@@ -292,10 +293,14 @@ class DecoderBlock(nn.Module):
 class SegmentationHead(nn.Sequential):
 
     def __init__(self, in_channels, out_channels, kernel_size=3, upsampling=1):
-        conv2d = nn.Conv2d(in_channels, out_channels,
-                           kernel_size=kernel_size, padding=kernel_size // 2)
-        upsampling = nn.UpsamplingBilinear2d(
-            scale_factor=upsampling) if upsampling > 1 else nn.Identity()
+        conv2d = nn.Conv2d(
+            in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2
+        )
+        upsampling = (
+            nn.UpsamplingBilinear2d(scale_factor=upsampling)
+            if upsampling > 1
+            else nn.Identity()
+        )
         super().__init__(conv2d, upsampling)
 
 
@@ -318,14 +323,15 @@ class DecoderCup(nn.Module):
         if self.config.n_skip != 0:
             skip_channels = self.config.skip_channels
             # re-select the skip channels according to n_skip
-            for i in range(4-self.config.n_skip):
-                skip_channels[3-i] = 0
+            for i in range(4 - self.config.n_skip):
+                skip_channels[3 - i] = 0
 
         else:
             skip_channels = [0, 0, 0, 0]
 
         blocks = [
-            DecoderBlock(in_ch, out_ch, sk_ch) for in_ch, out_ch, sk_ch in zip(in_channels, out_channels, skip_channels)
+            DecoderBlock(in_ch, out_ch, sk_ch)
+            for in_ch, out_ch, sk_ch in zip(in_channels, out_channels, skip_channels)
         ]
         self.blocks = nn.ModuleList(blocks)
 
@@ -346,7 +352,15 @@ class DecoderCup(nn.Module):
 
 
 class VisionTransformer(nn.Module):
-    def __init__(self, config, img_size=224, num_classes=21843, zero_head=False, vis=False, class_weight=None):
+    def __init__(
+        self,
+        config,
+        img_size=224,
+        num_classes=21843,
+        zero_head=False,
+        vis=False,
+        class_weight=None,
+    ):
         super(VisionTransformer, self).__init__()
         self.num_classes = num_classes
         self.zero_head = zero_head
@@ -354,8 +368,8 @@ class VisionTransformer(nn.Module):
         self.transformer = Transformer(config, img_size, vis)
         self.decoder = DecoderCup(config)
         self.segmentation_head = SegmentationHead(
-            in_channels=config['decoder_channels'][-1],
-            out_channels=config['n_classes'],
+            in_channels=config["decoder_channels"][-1],
+            out_channels=config["n_classes"],
             kernel_size=3,
         )
         self.config = config
@@ -365,7 +379,8 @@ class VisionTransformer(nn.Module):
             self.criterion = nn.CrossEntropyLoss()
         else:
             self.criterion = nn.CrossEntropyLoss(
-                weight=torch.from_numpy(class_weight.astype(np.float32)))
+                weight=torch.from_numpy(class_weight.astype(np.float32))
+            )
 
     def forward(self, x):
         if x.size()[1] == 1:
@@ -377,5 +392,5 @@ class VisionTransformer(nn.Module):
 
 
 CONFIGS = {
-    'R50-ViT-B_16': configs.get_r50_b16_config(),
+    "R50-ViT-B_16": configs.get_r50_b16_config(),
 }

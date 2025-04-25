@@ -7,8 +7,8 @@ from numpy.typing import NDArray
 
 
 class ClusterInfo(object):
-    """点群と推定面を管理するデータクラス
-    """
+    """点群と推定面を管理するデータクラス"""
+
     @property
     def id(self) -> int:
         """id
@@ -17,7 +17,7 @@ class ClusterInfo(object):
             int: id
         """
         return self._id
-    
+
     @id.setter
     def id(self, value: int):
         """id
@@ -35,7 +35,7 @@ class ClusterInfo(object):
             PointCloud: 点群データ
         """
         return self._points
-    
+
     @points.setter
     def points(self, value: PointCloud):
         """点群データ
@@ -181,9 +181,16 @@ class ClusterInfo(object):
         Returns:
             str: 文字列
         """
-        return repr((self.id, self.points,
-                     self.roof_polygon, self.parent,
-                     self.children, self.roof_height))
+        return repr(
+            (
+                self.id,
+                self.points,
+                self.roof_polygon,
+                self.parent,
+                self.children,
+                self.roof_height,
+            )
+        )
 
     def get_contours(self) -> list[geo.Polygon]:
         """点群のalpha shape形状を取得する
@@ -195,10 +202,14 @@ class ClusterInfo(object):
         try:
             if len(self._points.get_points()) > 0:
                 geom = alphashape.alphashape(
-                    self._points.get_points()[:, 0:2], alpha=2.0)
+                    self._points.get_points()[:, 0:2], alpha=2.0
+                )
                 separate_geoms = GeoUtil.separate_geometry(geom)
-                list = [poly for poly in separate_geoms
-                        if (type(poly) is geo.Polygon and poly.area > 0)]
+                list = [
+                    poly
+                    for poly in separate_geoms
+                    if (type(poly) is geo.Polygon and poly.area > 0)
+                ]
         except Exception:
             pass
 

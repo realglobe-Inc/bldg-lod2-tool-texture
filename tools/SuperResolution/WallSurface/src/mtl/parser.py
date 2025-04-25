@@ -30,6 +30,7 @@ def parse_map_kd(tokens: List[str]) -> Optional[str]:
     else:
         raise ValueError()
 
+
 """
 def parse_mtl_from_file(path: Path) -> MaterialLib:
     mtl = MaterialLib()
@@ -56,20 +57,22 @@ def parse_mtl_from_file(path: Path) -> MaterialLib:
 
     return mtl
 """
+
+
 def parse_mtl_from_file(path: Path) -> MaterialLib:
     mtl = MaterialLib()
     current_material: Optional[Material] = None
- 
+
     with open(path, "r") as f:
         for line in f:
             tokens = line.split()
- 
+
             if len(tokens) == 0:
                 continue
- 
+
             material_name = parse_newmtl(tokens)
             map_kd = parse_map_kd(tokens)
-            
+
             if material_name:
                 if current_material is not None:
                     mtl.materials[current_material.name] = current_material
@@ -79,9 +82,8 @@ def parse_mtl_from_file(path: Path) -> MaterialLib:
                 if current_material is None:
                     raise ValueError()
                 current_material.texture_name = map_kd
- 
+
     if current_material is not None:
         mtl.materials[current_material.name] = current_material
- 
-    return mtl
 
+    return mtl

@@ -14,7 +14,7 @@ def save_images(images, output_folder, filename):
     Returns:
     - split_list: List of paths to the saved images.
     """
-    split_folder_path = os.path.join(output_folder, 'split_images')
+    split_folder_path = os.path.join(output_folder, "split_images")
     os.makedirs(split_folder_path, exist_ok=True)
 
     split_list = []
@@ -64,7 +64,7 @@ def split_image(input_path, gsd, size=120):
     - (height, width, channel): Original image dimensions.
     - images: List of segmented images.
     """
-    
+
     image = cv2.imread(input_path)
 
     if gsd < 0.25:
@@ -76,11 +76,11 @@ def split_image(input_path, gsd, size=120):
     for y in range(0, height, size):
         for x in range(0, width, size):
             if x + size <= width and y + size <= height:
-                images.append(image[y:y+size, x:x+size])
+                images.append(image[y : y + size, x : x + size])
             else:
-                over_x = min(x, width-size)
-                over_y = min(y, height-size)
-                images.append(image[over_y:over_y+size, over_x:over_x+size])
+                over_x = min(x, width - size)
+                over_y = min(y, height - size)
+                images.append(image[over_y : over_y + size, over_x : over_x + size])
 
     return (height, width, channel), images
 
@@ -108,9 +108,9 @@ def merge_images(merged_image, image, num, size=480):
         col = (num % ((width // size) + 1)) * size
 
     if row + size > height or col + size > width:
-        row = min(row, height-size)
-        col = min(col, width-size)
+        row = min(row, height - size)
+        col = min(col, width - size)
 
-    merged_image[row:row + size, col:col + size] = image
+    merged_image[row : row + size, col : col + size] = image
 
     return merged_image

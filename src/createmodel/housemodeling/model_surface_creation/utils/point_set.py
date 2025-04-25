@@ -14,16 +14,14 @@ class PointSet:
     points: list[Point]
 
     def __init__(self) -> None:
-        """コンストラクタ
-        """
+        """コンストラクタ"""
         self.points = []
 
     def __len__(self) -> int:
-        """点の数を返す
-        """
+        """点の数を返す"""
         return len(self.points)
 
-    def find_nearest(self, p: Point, limit: float = float('inf')) -> Optional[Point]:
+    def find_nearest(self, p: Point, limit: float = float("inf")) -> Optional[Point]:
         """最も近い点を求める
 
         Args:
@@ -33,7 +31,7 @@ class PointSet:
         Returns:
             Optional[Point]: limitより近い最近点、存在しない場合はNone
         """
-        minimum_distance = float('inf')
+        minimum_distance = float("inf")
         nearest_point = None
         for point in self.points:
             distance = point.distance(p)
@@ -47,7 +45,7 @@ class PointSet:
 
         Args:
             point(Point): 追加する点
-            acceptable_error(float, optional): 同一の点と見なす距離の上限(Default: 0.5) 
+            acceptable_error(float, optional): 同一の点と見なす距離の上限(Default: 0.5)
 
         Returns:
             bool: 点の追加が発生した場合True

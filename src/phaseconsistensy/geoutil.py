@@ -17,7 +17,7 @@ class GeoUtil:
         if val1 < val2:
             return val1
         return val2
-    
+
     @classmethod
     def max(self, val1, val2):
         if val1 > val2:
@@ -26,7 +26,7 @@ class GeoUtil:
 
     @classmethod
     def get_point_str(self, pos: Point):
-        return '(' + str(pos.x) + ', ' + str(pos.y) + ', ' + str(pos.z) + ')'
+        return "(" + str(pos.x) + ", " + str(pos.y) + ", " + str(pos.z) + ")"
 
     @classmethod
     def is_same_value(self, value1: float, value2: float) -> bool:
@@ -46,10 +46,10 @@ class GeoUtil:
     @classmethod
     def float_is_zero(self, value: float) -> bool:
         """浮動小数点が0であるかチェック
-    
+
         Args:
             value (float): 値
-     
+
         Returns:
             bool: True: 0である, False: 0でない
         """
@@ -107,17 +107,15 @@ class GeoUtil:
         list_len = len(p_list)
         if list_len < 3:
             return normal
-        
+
         i = 1
         v0 = np.array([p_list[0].x, p_list[0].y, p_list[0].z])
-        while (i < list_len - 1):
+        while i < list_len - 1:
             v1 = np.array([p_list[i].x, p_list[i].y, p_list[i].z]) - v0
-            v2 = np.array([p_list[i + 1].x,
-                           p_list[i + 1].y,
-                           p_list[i + 1].z]) - v0
+            v2 = np.array([p_list[i + 1].x, p_list[i + 1].y, p_list[i + 1].z]) - v0
             normal += np.cross(v2, v1)
             i += 1
-        
+
         return self.normalize(normal)
 
     @classmethod
@@ -136,8 +134,7 @@ class GeoUtil:
         v2 = np.array([p3.x - p2.x, p3.y - p2.y, p3.z - p2.z])
         norm1 = np.linalg.norm(v1, ord=2)
         norm2 = np.linalg.norm(v2, ord=2)
-        if GeoUtil.is_same_value(norm1, 0.0) \
-                or GeoUtil.is_same_value(norm2, 0.0):
+        if GeoUtil.is_same_value(norm1, 0.0) or GeoUtil.is_same_value(norm2, 0.0):
             return 0.0
         dot = GeoUtil.dot(v1, v2)
         return math.acos(dot)
@@ -186,11 +183,13 @@ class GeoUtil:
             v2 = self.normalize(v2)
             z_vec = np.cross(v2, v1)
             z_vec = self.normalize(z_vec)
-        
+
         new_list = []
-        if GeoUtil.float_is_zero(z_vec[0]) \
-           and GeoUtil.float_is_zero(z_vec[1]) \
-           and GeoUtil.float_is_zero(z_vec[2]):
+        if (
+            GeoUtil.float_is_zero(z_vec[0])
+            and GeoUtil.float_is_zero(z_vec[1])
+            and GeoUtil.float_is_zero(z_vec[2])
+        ):
             for pos in p_list:
                 new_list.append(pos)
             return new_list
@@ -200,18 +199,22 @@ class GeoUtil:
         x_vec = np.cross(y_vec, z_vec)
         x_vec = self.normalize(x_vec)
 
-        conv_mat = np.array([[x_vec[0], y_vec[0], z_vec[0], 0.0],
-                             [x_vec[1], y_vec[1], z_vec[1], 0.0],
-                             [x_vec[2], y_vec[2], z_vec[2], 0.0],
-                             [0.0, 0.0, 0.0, 1.0]])
+        conv_mat = np.array(
+            [
+                [x_vec[0], y_vec[0], z_vec[0], 0.0],
+                [x_vec[1], y_vec[1], z_vec[1], 0.0],
+                [x_vec[2], y_vec[2], z_vec[2], 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
 
         inv_mat = np.linalg.inv(conv_mat)
 
         for i, pos in enumerate(p_list):
-            in_pos = np.array([pos.x-p0.x , pos.y-p0.y, pos.z-p0.z, 1.0])
+            in_pos = np.array([pos.x - p0.x, pos.y - p0.y, pos.z - p0.z, 1.0])
             out_pos = inv_mat @ in_pos
             new_list.append(Point(out_pos[0], out_pos[1]))
-        
+
         return new_list
 
     @classmethod
@@ -228,11 +231,13 @@ class GeoUtil:
         point_len = len(p_list)
         for i in range(point_len):
             if i == (point_len - 1):
-                line = LineString([(p_list[i].x, p_list[i].y),
-                                   (p_list[0].x, p_list[0].y)])
+                line = LineString(
+                    [(p_list[i].x, p_list[i].y), (p_list[0].x, p_list[0].y)]
+                )
             else:
-                line = LineString([(p_list[i].x, p_list[i].y),
-                                   (p_list[i + 1].x, p_list[i + 1].y)])
+                line = LineString(
+                    [(p_list[i].x, p_list[i].y), (p_list[i + 1].x, p_list[i + 1].y)]
+                )
             line_list.append(line)
         return line_list
 
@@ -259,7 +264,7 @@ class GeoUtil:
         if self.is_cross_2d(xy_list, err_index):
             for i in err_index:
                 err_list.append(p_list[i])
-        
+
         # 自己接触チェック
         err_index = []
         if self.is_touch_2d(xy_list, err_index):
@@ -267,9 +272,9 @@ class GeoUtil:
                 err_list.append(p_list[i])
 
         if len(err_list) > 0:
-            return True        
+            return True
         return False
-    
+
     @classmethod
     def is_cross_2d(self, p_list: list, err_list: list) -> bool:
         """面の自己交差判定 (2次元)
@@ -293,16 +298,16 @@ class GeoUtil:
                     continue
                 line2 = line_list[j]
                 if line1.crosses(line2):
-                    logger.debug(f'line1 = {line1}')
-                    logger.debug(f'line2 = {line2}')
-                    logger.debug('  cross')
+                    logger.debug(f"line1 = {line1}")
+                    logger.debug(f"line2 = {line2}")
+                    logger.debug("  cross")
                     r_flag = True
                     if j == line_len - 1:
                         add_list = [i, i + 1, j, 0]
                     else:
                         add_list = [i, i + 1, j, j + 1]
                     err_list += add_list
-        
+
         return r_flag
 
     @classmethod
@@ -324,15 +329,15 @@ class GeoUtil:
             p1 = Point(line_list[i].coords[0])
             p2 = Point(line_list[i].coords[1])
             for j in range(0, len(p_list)):
-                if j == i or j == ((i+1) % len(p_list)):
+                if j == i or j == ((i + 1) % len(p_list)):
                     continue
                 p = Point(p_list[j].x, p_list[j].y)
                 if p.distance(line_list[i]) <= self.delta_threshold:
                     r_flag = True
-                    err_list.append(j)     
-                    
+                    err_list.append(j)
+
         return r_flag
-    
+
     @classmethod
     def is_convex_polygon(self, p_list: list) -> bool:
         """凸多角形かどうかを判定
@@ -347,7 +352,7 @@ class GeoUtil:
         pos_len = len(p_list)
         if pos_len <= 3:
             return True
-        
+
         for i in range(pos_len):
             v0 = np.array([p_list[i].x, p_list[i].y, p_list[i].z])
             base_normal = np.zeros(3)
@@ -364,12 +369,12 @@ class GeoUtil:
                 normal = np.cross(v02, v01)
                 normal = self.normalize(normal)
 
-                if (j == 2):
+                if j == 2:
                     base_normal = normal
                 else:
                     if np.dot(base_normal, normal) < 0.0:
                         return False
-        
+
         return True
 
     @classmethod
@@ -382,17 +387,17 @@ class GeoUtil:
         Returns:
             bool: True: 面積 0 と判定, False: 面積 0 ではない
         """
-        
+
         # 面の法線算出
         normal = GeoUtil.get_normal(p_list)
         # 法線の長さ算出
-        dist_square = normal[0] * normal[0] \
-            + normal[1] * normal[1] \
-            + normal[2] * normal[2]
+        dist_square = (
+            normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]
+        )
         # 長さが 0
         if abs(dist_square) < sys.float_info.epsilon:
             return True
-        
+
         return False
 
     @classmethod
@@ -428,7 +433,9 @@ class GeoUtil:
         return multi_point_list
 
     @classmethod
-    def divide_triangle_for_concave_polygon(self, p_list: list, check_intersect: bool = True) -> list:
+    def divide_triangle_for_concave_polygon(
+        self, p_list: list, check_intersect: bool = True
+    ) -> list:
         """凹ポリゴンを三角形に分割
 
         Args:
@@ -445,9 +452,9 @@ class GeoUtil:
         # 原点から一番離れている頂点を算出し、その頂点の 2 つの辺から法線算出
         dist_max = 0.0
         index = 0
-        #for i, pos in enumerate(xy_list):
+        # for i, pos in enumerate(xy_list):
         for i, pos in enumerate(p_list):
-            #dist_square = pos.x * pos.x + pos.y * pos.y
+            # dist_square = pos.x * pos.x + pos.y * pos.y
             dist_square = pos.x * pos.x + pos.y * pos.y + pos.z * pos.z
             if dist_square > dist_max:
                 dist_max = dist_square
@@ -465,8 +472,8 @@ class GeoUtil:
 
         multi_point_list = []
         vertex_list = p_list.copy()
-        
-        #cur_index = index
+
+        # cur_index = index
         cur_index = 0
         loop_ct = 0
         while len(xy_list) > 3:
@@ -483,7 +490,7 @@ class GeoUtil:
                     multi_point_list.append(triangle_list)
                 elif not self.is_cross_or_touch(triangle_list):
                     multi_point_list.append(triangle_list)
-                    
+
                 return multi_point_list
 
             cur_index %= vertex_num
@@ -516,9 +523,13 @@ class GeoUtil:
                 continue
 
             # 三角形内に他の頂点が入っている場合はスキップ
-            triangle = Polygon([(post_pos.x, post_pos.y),
-                                (cur_pos.x, cur_pos.y),
-                                (prev_pos.x, prev_pos.y)])
+            triangle = Polygon(
+                [
+                    (post_pos.x, post_pos.y),
+                    (cur_pos.x, cur_pos.y),
+                    (prev_pos.x, prev_pos.y),
+                ]
+            )
             skip = False
             for i, pos in enumerate(xy_list):
                 if i == prev_index or i == cur_index or i == post_index:
@@ -580,7 +591,7 @@ class GeoUtil:
             return self.divide_triangle_for_convec_polygon(p_list)
         else:
             return self.divide_triangle_for_concave_polygon(p_list, check_intersect)
-    
+
     @classmethod
     def get_min(self, pos1: Point, pos2: Point) -> Point:
         """入力座標の最小の座標値(x, y, z)を算出
@@ -633,7 +644,7 @@ class GeoUtil:
         for i in range(1, point_num):
             p_min = self.get_min(p_list[i], p_min)
             p_max = self.get_max(p_list[i], p_max)
-        
+
         return p_min, p_max
 
     @classmethod
@@ -647,9 +658,11 @@ class GeoUtil:
         Returns:
             bool: True: 同一座標, False: 同一座標でない
         """
-        if GeoUtil.is_same_value(pos1.x, pos2.x) \
-            and GeoUtil.is_same_value(pos1.y, pos2.y) \
-            and GeoUtil.is_same_value(pos1.z, pos2.z):  
+        if (
+            GeoUtil.is_same_value(pos1.x, pos2.x)
+            and GeoUtil.is_same_value(pos1.y, pos2.y)
+            and GeoUtil.is_same_value(pos1.z, pos2.z)
+        ):
             return True
         return False
 
@@ -658,10 +671,9 @@ class GeoUtil:
         if abs(length) < 0.01:
             return True
         return False
-    
+
     @classmethod
-    def is_in_triangle(self, normal: NDArray, pos: NDArray, triangle: list) \
-            -> bool:
+    def is_in_triangle(self, normal: NDArray, pos: NDArray, triangle: list) -> bool:
         """頂点が三角形内部にあるかどうかを判定
 
         Args:
@@ -674,15 +686,14 @@ class GeoUtil:
         """
         if len(triangle) != 3:
             return False
-        
+
         plus_flag = False
         minus_flag = False
         for i in range(3):
             next_i = (i + 1) % 3
-            vv = np.array([triangle[next_i].x,
-                           triangle[next_i].y,
-                           triangle[next_i].z]) \
-                - np.array([triangle[i].x, triangle[i].y, triangle[i].z])
+            vv = np.array(
+                [triangle[next_i].x, triangle[next_i].y, triangle[next_i].z]
+            ) - np.array([triangle[i].x, triangle[i].y, triangle[i].z])
             vp = pos - np.array([triangle[i].x, triangle[i].y, triangle[i].z])
             vv = self.normalize(vv)
             vp = self.normalize(vp)
@@ -696,15 +707,16 @@ class GeoUtil:
                 plus_flag = True
             else:
                 minus_flag = True
-        
+
         if plus_flag != minus_flag:
             return True
-        
+
         return False
 
     @classmethod
-    def is_cross_triangle(self, triangle_info1: list, triangle_info2: list,
-                          cross_point_list: list) -> bool:
+    def is_cross_triangle(
+        self, triangle_info1: list, triangle_info2: list, cross_point_list: list
+    ) -> bool:
         """2つの三角形の交差判定
            交差ありの場合には交点座標を返す
 
@@ -730,32 +742,37 @@ class GeoUtil:
         t1_max = triangle_info1.max
         t2_min = triangle_info2.min
         t2_max = triangle_info2.max
-        if (t2_max.x < t1_min.x or t2_max.y < t1_min.y
-                or t2_max.z < t1_min.z or t1_max.x < t2_min.x
-                or t1_max.y < t2_min.y or t1_max.z < t2_min.z):
+        if (
+            t2_max.x < t1_min.x
+            or t2_max.y < t1_min.y
+            or t2_max.z < t1_min.z
+            or t1_max.x < t2_min.x
+            or t1_max.y < t2_min.y
+            or t1_max.z < t2_min.z
+        ):
             return False
-        
+
         # 辺同士の接触
         for i in range(3):
             for j in range(3):
-                if (self.is_same_point(triangle1[i], triangle2[j])
-                    and self.is_same_point(triangle1[(i + 1) % 3],
-                                           triangle2[(j + 1) % 3])):
+                if self.is_same_point(
+                    triangle1[i], triangle2[j]
+                ) and self.is_same_point(
+                    triangle1[(i + 1) % 3], triangle2[(j + 1) % 3]
+                ):
                     return False
-                if (self.is_same_point(triangle1[i], triangle2[(j + 1) % 3])
-                    and self.is_same_point(triangle1[(i + 1) % 3],
-                                           triangle2[j])):
+                if self.is_same_point(
+                    triangle1[i], triangle2[(j + 1) % 3]
+                ) and self.is_same_point(triangle1[(i + 1) % 3], triangle2[j]):
                     return False
 
         if GeoUtil.is_zero_area(triangle1) or GeoUtil.is_zero_area(triangle2):
             return False
-        
+
         # 交差判定
         v1_0 = np.array([triangle1[0].x, triangle1[0].y, triangle1[0].z])
-        v1_01 = np.array([triangle1[1].x, triangle1[1].y, triangle1[1].z]) \
-            - v1_0
-        v1_02 = np.array([triangle1[2].x, triangle1[2].y, triangle1[2].z]) \
-            - v1_0
+        v1_01 = np.array([triangle1[1].x, triangle1[1].y, triangle1[1].z]) - v1_0
+        v1_02 = np.array([triangle1[2].x, triangle1[2].y, triangle1[2].z]) - v1_0
         v1_01 = self.normalize(v1_01)
         v1_02 = self.normalize(v1_02)
 
@@ -765,35 +782,32 @@ class GeoUtil:
         # 平面との符号付き距離算出
         dist_list = [0.0, 0.0, 0.0]
         for i in range(3):
-            v_p = np.array([triangle2[i].x, triangle2[i].y, triangle2[i].z]) \
-                - v1_0
+            v_p = np.array([triangle2[i].x, triangle2[i].y, triangle2[i].z]) - v1_0
             dist = np.dot(v1_normal, v_p)
             if self.is_zero(dist):
                 continue
             dist_list[i] = dist
-        
-        if (dist_list[0] >= 0
-            and dist_list[1] >= 0
-            and dist_list[2] >= 0) \
-            or (dist_list[0] <= 0
-                and dist_list[1] <= 0
-                and dist_list[2] <= 0):
+
+        if (dist_list[0] >= 0 and dist_list[1] >= 0 and dist_list[2] >= 0) or (
+            dist_list[0] <= 0 and dist_list[1] <= 0 and dist_list[2] <= 0
+        ):
             # 各頂点が平面の片側にある
             return False
 
         # v1 平面との線分の交点が、三角形内かどうか判定
         for i in range(3):
             next_i = (i + 1) % 3
-            if GeoUtil.float_is_zero(dist_list[i]) \
-                or GeoUtil.float_is_zero(dist_list[next_i]):    # 平面上に存在
+            if GeoUtil.float_is_zero(dist_list[i]) or GeoUtil.float_is_zero(
+                dist_list[next_i]
+            ):  # 平面上に存在
                 continue
-            if dist_list[i] * dist_list[next_i] > 0.0:         # 平面と交差しない
+            if dist_list[i] * dist_list[next_i] > 0.0:  # 平面と交差しない
                 continue
 
             p1 = np.array([triangle2[i].x, triangle2[i].y, triangle2[i].z])
-            p2 = np.array([triangle2[next_i].x,
-                           triangle2[next_i].y,
-                           triangle2[next_i].z])
+            p2 = np.array(
+                [triangle2[next_i].x, triangle2[next_i].y, triangle2[next_i].z]
+            )
 
             if GeoUtil.float_is_zero(dist_list[next_i] - dist_list[i]):
                 continue
@@ -805,12 +819,11 @@ class GeoUtil:
                 ret_pos = Point(cross_pos[0], cross_pos[1], cross_pos[2])
                 cross_point_list.append(ret_pos)
                 return True
-        
+
         return False
 
     @classmethod
-    def is_on_same_line(self, p1: Point, p2: Point, q1: Point, q2: Point) \
-            -> bool:
+    def is_on_same_line(self, p1: Point, p2: Point, q1: Point, q2: Point) -> bool:
         """2つの線分が同一線上且つ逆方向かどうか判定
 
         Args:
@@ -825,14 +838,24 @@ class GeoUtil:
         angle1 = GeoUtil.interior_angle(p1, q1, p2)
         angle2 = GeoUtil.interior_angle(p1, q2, p2)
         # logger.debug(f'angle1 = {angle1}, angle2 ={angle2}')
-        if (GeoUtil.is_same_value(angle1, math.pi)
-                and GeoUtil.is_same_value(angle2, math.pi)) \
-                or (GeoUtil.is_same_value(angle1, 0.0)
-                    and GeoUtil.is_same_value(angle2, 0.0)) \
-                or (GeoUtil.is_same_value(angle1, 0.0)
-                    and GeoUtil.is_same_value(angle2, math.pi)) \
-                or (GeoUtil.is_same_value(angle1, math.pi)
-                    and GeoUtil.is_same_value(angle2, 0.0)):
+        if (
+            (
+                GeoUtil.is_same_value(angle1, math.pi)
+                and GeoUtil.is_same_value(angle2, math.pi)
+            )
+            or (
+                GeoUtil.is_same_value(angle1, 0.0)
+                and GeoUtil.is_same_value(angle2, 0.0)
+            )
+            or (
+                GeoUtil.is_same_value(angle1, 0.0)
+                and GeoUtil.is_same_value(angle2, math.pi)
+            )
+            or (
+                GeoUtil.is_same_value(angle1, math.pi)
+                and GeoUtil.is_same_value(angle2, 0.0)
+            )
+        ):
             v1 = np.array([p2.x - p1.x, p2.y - p1.y, p2.z - p1.z])
             v2 = np.array([q2.x - q1.x, q2.y - q1.y, q2.z - q1.z])
             dot = GeoUtil.dot(v1, v2)
@@ -840,5 +863,5 @@ class GeoUtil:
             if GeoUtil.is_same_value(math.acos(dot), math.pi):
                 # ベクトルが逆方向 (なす角が 180°)
                 return True
-        
+
         return False

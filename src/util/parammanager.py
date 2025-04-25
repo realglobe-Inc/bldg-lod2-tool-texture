@@ -6,8 +6,7 @@ from typing import Union
 
 
 class ParamManager:
-    """ パラメータファイル管理クラス
-    """
+    """パラメータファイル管理クラス"""
 
     class ChangeParam:
         """エラー値が入力された場合にデフォルト値に変更したパラメータ通知用クラス
@@ -45,8 +44,8 @@ class ParamManager:
             self._value = value
 
     class RotateMatrixMode(IntEnum):
-        """外部標定要素から算出する回転行列のモード
-        """
+        """外部標定要素から算出する回転行列のモード"""
+
         XYZ = 0
         """R = Rx(ω)Ry(Φ)Rz(κ)
             """
@@ -59,30 +58,30 @@ class ParamManager:
 
     # クラス変数
     # jsonファイルのキー
-    KEY_LAS_COORDINATE_SYS = 'LasCoordinateSystem'
-    KEY_LAS_SWAP_XY = 'LasSwapXY'
-    KEY_DSM_FOLDER_PATH = 'DsmFolderPath'
-    KEY_CITYGML_FOLDER_PATH = 'CityGMLFolderPath'
-    KEY_TEXTURE_FOLDER_PATH = 'TextureFolderPath'
-    KEY_EX_CALIB_ELEMENT_PATH = 'ExternalCalibElementPath'
-    KEY_ROTATE_MATRIX_MODE = 'RotateMatrixMode'
-    KEY_CAMERA_INFO_PATH = 'CameraInfoPath'
-    KEY_OUTPUT_FOLDER_PATH = 'OutputFolderPath'
-    KEY_OUTPUT_OBJ = 'OutputOBJ'
-    KEY_OUTPUT_TEXTURE = 'OutputTexture'
-    KEY_OUTPUT_CITYGML = 'OutputCityGML'
-    KEY_OUTPUT_LOG_FOLDER_PATH = 'OutputLogFolderPath'
-    KEY_DEBUG_LOG_OUTPUT = 'DebugLogOutput'
-    KEY_PHASE_CONSISTENCY = 'PhaseConsistency'
-    KEY_DELETE_ERROR_OBJECT = 'DeleteErrorObject'
-    KEY_NON_PLANE_THICKNESS = 'NonPlaneThickness'
-    KEY_NON_PLANE_ANGLE = 'NonPlaneAngle'
-    KEY_DEBUG_MODE = 'DebugMode'
-    KEY_TARGET_COORD_AREAS = 'TargetCoordAreas'
-    KEY_TARGET_BUILDING_IDS = 'TargetBuildingIds'
-    KEY_TEXTURE_OUTPUT_WIDTH_MAX = 'TextureOutputWidthMax'
-    KEY_TEXTURE_OUTPUT_HEIGHT_MAX = 'TextureOutputHeightMax'
-    KEY_TEXTURE_IMAGE_FORMAT = 'TextureImageFormat'
+    KEY_LAS_COORDINATE_SYS = "LasCoordinateSystem"
+    KEY_LAS_SWAP_XY = "LasSwapXY"
+    KEY_DSM_FOLDER_PATH = "DsmFolderPath"
+    KEY_CITYGML_FOLDER_PATH = "CityGMLFolderPath"
+    KEY_TEXTURE_FOLDER_PATH = "TextureFolderPath"
+    KEY_EX_CALIB_ELEMENT_PATH = "ExternalCalibElementPath"
+    KEY_ROTATE_MATRIX_MODE = "RotateMatrixMode"
+    KEY_CAMERA_INFO_PATH = "CameraInfoPath"
+    KEY_OUTPUT_FOLDER_PATH = "OutputFolderPath"
+    KEY_OUTPUT_OBJ = "OutputOBJ"
+    KEY_OUTPUT_TEXTURE = "OutputTexture"
+    KEY_OUTPUT_CITYGML = "OutputCityGML"
+    KEY_OUTPUT_LOG_FOLDER_PATH = "OutputLogFolderPath"
+    KEY_DEBUG_LOG_OUTPUT = "DebugLogOutput"
+    KEY_PHASE_CONSISTENCY = "PhaseConsistency"
+    KEY_DELETE_ERROR_OBJECT = "DeleteErrorObject"
+    KEY_NON_PLANE_THICKNESS = "NonPlaneThickness"
+    KEY_NON_PLANE_ANGLE = "NonPlaneAngle"
+    KEY_DEBUG_MODE = "DebugMode"
+    KEY_TARGET_COORD_AREAS = "TargetCoordAreas"
+    KEY_TARGET_BUILDING_IDS = "TargetBuildingIds"
+    KEY_TEXTURE_OUTPUT_WIDTH_MAX = "TextureOutputWidthMax"
+    KEY_TEXTURE_OUTPUT_HEIGHT_MAX = "TextureOutputHeightMax"
+    KEY_TEXTURE_IMAGE_FORMAT = "TextureImageFormat"
 
     # 必須入力のキー
     REQUIRED_KEYS = [
@@ -97,12 +96,12 @@ class ParamManager:
         KEY_OUTPUT_FOLDER_PATH,
         KEY_OUTPUT_LOG_FOLDER_PATH,
         KEY_DEBUG_LOG_OUTPUT,
-        KEY_PHASE_CONSISTENCY
+        KEY_PHASE_CONSISTENCY,
     ]
     REQUIRED_KEYS_PHASECONSISTENCY = [
         KEY_DELETE_ERROR_OBJECT,
         KEY_NON_PLANE_THICKNESS,
-        KEY_NON_PLANE_ANGLE
+        KEY_NON_PLANE_ANGLE,
     ]
 
     # デバッグログ設定のデフォルト値
@@ -120,30 +119,37 @@ class ParamManager:
     DEFAULT_TEXTURE_IMAGE_FORMAT = "png"
 
     def __init__(self) -> None:
-        """ コンストラクタ
-        """
+        """コンストラクタ"""
         self.las_coordinate_system: int = 9  # LASの平面直角座標系
-        self.dsm_folder_path: str = ''  # 点群フォルダパス
-        self.citygml_folder_path: str = ''  # CityGML入力フォルダパス
-        self.texture_folder_path: str = ''  # テクスチャフォルダパス
-        self.ex_calib_element_path: str = ''  # 外部標定要素ファイルパス
-        self.camera_info_path: str = ''  # 内部標定要素ファイルパス
-        self.output_folder_path: str = ''  # CityGML出力フォルダパス
-        self.output_log_folder_path: str = ''  # ログ出力先
+        self.dsm_folder_path: str = ""  # 点群フォルダパス
+        self.citygml_folder_path: str = ""  # CityGML入力フォルダパス
+        self.texture_folder_path: str = ""  # テクスチャフォルダパス
+        self.ex_calib_element_path: str = ""  # 外部標定要素ファイルパス
+        self.camera_info_path: str = ""  # 内部標定要素ファイルパス
+        self.output_folder_path: str = ""  # CityGML出力フォルダパス
+        self.output_log_folder_path: str = ""  # ログ出力先
         # デバッグログ出力フラグ
         self.debug_log_output: bool = ParamManager.DEFALT_DEBUG_LOG_OUTPUT
         # 位相一貫性検査エラー時OBJ削除フラグ
-        self.delete_error_flag: bool = ParamManager.DEFALT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT
+        self.delete_error_flag: bool = (
+            ParamManager.DEFALT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT
+        )
         # 位相一貫性非平面厚み検査閾値
-        self.non_plane_thickness: float = ParamManager.DEFALT_PHASE_CONSISTENCY_NON_PLANE_THICKNESS
+        self.non_plane_thickness: float = (
+            ParamManager.DEFALT_PHASE_CONSISTENCY_NON_PLANE_THICKNESS
+        )
         # 位相一貫性非平面法線検査閾値
-        self.non_plane_angle: float = ParamManager.DEFALT_PHASE_CONSISTENCY_NON_PLANE_ANGLE
+        self.non_plane_angle: float = (
+            ParamManager.DEFALT_PHASE_CONSISTENCY_NON_PLANE_ANGLE
+        )
         self.output_obj: bool = ParamManager.DEFALT_OUTPUT_OBJ  # obj出力フラグ
         self.output_texture: bool = ParamManager.DEFALT_OUTPUT_TEXTURE
         # lasのxy座標のswapフラグ
         self.las_swap_xy: bool = ParamManager.DEFALT_LAS_SWAP_XY
         # 外部標定要素から算出する回転行列のモード
-        self.rotate_matrix_mode: ParamManager.RotateMatrixMode = ParamManager.RotateMatrixMode.XYZ
+        self.rotate_matrix_mode: ParamManager.RotateMatrixMode = (
+            ParamManager.RotateMatrixMode.XYZ
+        )
 
         # デバッグモード：開発のためのキャッシュ化/屋根線イメージ生成
         self.debug_mode: False
@@ -179,135 +185,176 @@ class ParamManager:
 
         if not os.path.isfile(file_path):
             # ファイルが存在しない場合
-            raise FileNotFoundError('parameter file does not exist.')
+            raise FileNotFoundError("parameter file does not exist.")
 
         # ファイルが存在する場合
-        with open(file_path, encoding='utf-8', mode='r') as jsonOpen:
+        with open(file_path, encoding="utf-8", mode="r") as jsonOpen:
             try:
                 json_load = json.load(jsonOpen)
             except json.decoder.JSONDecodeError as e:
                 # 未記入項目がある場合にデコードエラーが発生する
                 r = e.lineno
                 c = e.colno
-                raise (Exception(f'json file decoding error: {e.msg} line {r} column {c}.'))
+                raise (
+                    Exception(f"json file decoding error: {e.msg} line {r} column {c}.")
+                )
 
             # 選択値の取得
-            self.output_obj = True if json_load.get(self.KEY_OUTPUT_OBJ) is None else json_load[self.KEY_OUTPUT_OBJ]
-            self.output_texture = True if json_load.get(self.KEY_OUTPUT_TEXTURE) is None else json_load[
-                self.KEY_OUTPUT_TEXTURE]
-            self.output_citygml = True if json_load.get(self.KEY_OUTPUT_CITYGML) is None else json_load[
-                self.KEY_OUTPUT_CITYGML]
-            self.debug_mode = False if json_load.get(self.KEY_DEBUG_MODE) is None else json_load[self.KEY_DEBUG_MODE]
-            self.target_coord_areas = None if json_load.get(self.KEY_TARGET_COORD_AREAS) is None else json_load[
-                self.KEY_TARGET_COORD_AREAS]
-            self.target_building_ids = None if json_load.get(self.KEY_TARGET_BUILDING_IDS) is None else json_load[
-                self.KEY_TARGET_BUILDING_IDS]
-            self.texture_output_width_max = self.TEXTURE_OUTPUT_WIDTH_MAX if json_load.get(
-                self.KEY_TEXTURE_OUTPUT_WIDTH_MAX) is None else json_load[self.KEY_TEXTURE_OUTPUT_WIDTH_MAX]
-            self.texture_output_height_max = self.TEXTURE_OUTPUT_HEIGHT_MAX if json_load.get(
-                self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX) is None else json_load[self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX]
-            self.texture_image_format = self.DEFAULT_TEXTURE_IMAGE_FORMAT if json_load.get(
-                self.KEY_TEXTURE_IMAGE_FORMAT) is None else json_load[self.KEY_TEXTURE_IMAGE_FORMAT]
+            self.output_obj = (
+                True
+                if json_load.get(self.KEY_OUTPUT_OBJ) is None
+                else json_load[self.KEY_OUTPUT_OBJ]
+            )
+            self.output_texture = (
+                True
+                if json_load.get(self.KEY_OUTPUT_TEXTURE) is None
+                else json_load[self.KEY_OUTPUT_TEXTURE]
+            )
+            self.output_citygml = (
+                True
+                if json_load.get(self.KEY_OUTPUT_CITYGML) is None
+                else json_load[self.KEY_OUTPUT_CITYGML]
+            )
+            self.debug_mode = (
+                False
+                if json_load.get(self.KEY_DEBUG_MODE) is None
+                else json_load[self.KEY_DEBUG_MODE]
+            )
+            self.target_coord_areas = (
+                None
+                if json_load.get(self.KEY_TARGET_COORD_AREAS) is None
+                else json_load[self.KEY_TARGET_COORD_AREAS]
+            )
+            self.target_building_ids = (
+                None
+                if json_load.get(self.KEY_TARGET_BUILDING_IDS) is None
+                else json_load[self.KEY_TARGET_BUILDING_IDS]
+            )
+            self.texture_output_width_max = (
+                self.TEXTURE_OUTPUT_WIDTH_MAX
+                if json_load.get(self.KEY_TEXTURE_OUTPUT_WIDTH_MAX) is None
+                else json_load[self.KEY_TEXTURE_OUTPUT_WIDTH_MAX]
+            )
+            self.texture_output_height_max = (
+                self.TEXTURE_OUTPUT_HEIGHT_MAX
+                if json_load.get(self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX) is None
+                else json_load[self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX]
+            )
+            self.texture_image_format = (
+                self.DEFAULT_TEXTURE_IMAGE_FORMAT
+                if json_load.get(self.KEY_TEXTURE_IMAGE_FORMAT) is None
+                else json_load[self.KEY_TEXTURE_IMAGE_FORMAT]
+            )
 
             # 必須キーの確認
             for key in ParamManager.REQUIRED_KEYS:
                 if key not in json_load:
                     # キーがない場合エラーとする
-                    raise ValueError(f'{key} key does not exist in json file.')
+                    raise ValueError(f"{key} key does not exist in json file.")
                 if key is ParamManager.KEY_PHASE_CONSISTENCY:
                     phase_param = json_load.get(self.KEY_PHASE_CONSISTENCY)
                     for phase_key in ParamManager.REQUIRED_KEYS_PHASECONSISTENCY:
                         if phase_key not in phase_param:
                             # 位相一貫性補正用のキーがない場合エラーとする
-                            raise ValueError(f'{phase_key} key does not exist in json file.')
+                            raise ValueError(
+                                f"{phase_key} key does not exist in json file."
+                            )
 
             # 必須値の取得
             self.las_coordinate_system = json_load[self.KEY_LAS_COORDINATE_SYS]
-            self.dsm_folder_path = os.path.expanduser(json_load[self.KEY_DSM_FOLDER_PATH])
-            self.citygml_folder_path = os.path.expanduser(json_load[self.KEY_CITYGML_FOLDER_PATH])
-            self.texture_folder_path = os.path.expanduser(json_load[self.KEY_TEXTURE_FOLDER_PATH])
-            self.ex_calib_element_path = os.path.expanduser(json_load[self.KEY_EX_CALIB_ELEMENT_PATH])
-            self.camera_info_path = os.path.expanduser(json_load[self.KEY_CAMERA_INFO_PATH])
-            self.output_folder_path = os.path.expanduser(json_load[self.KEY_OUTPUT_FOLDER_PATH])
-            self.output_log_folder_path = os.path.expanduser(json_load[self.KEY_OUTPUT_LOG_FOLDER_PATH])
+            self.dsm_folder_path = os.path.expanduser(
+                json_load[self.KEY_DSM_FOLDER_PATH]
+            )
+            self.citygml_folder_path = os.path.expanduser(
+                json_load[self.KEY_CITYGML_FOLDER_PATH]
+            )
+            self.texture_folder_path = os.path.expanduser(
+                json_load[self.KEY_TEXTURE_FOLDER_PATH]
+            )
+            self.ex_calib_element_path = os.path.expanduser(
+                json_load[self.KEY_EX_CALIB_ELEMENT_PATH]
+            )
+            self.camera_info_path = os.path.expanduser(
+                json_load[self.KEY_CAMERA_INFO_PATH]
+            )
+            self.output_folder_path = os.path.expanduser(
+                json_load[self.KEY_OUTPUT_FOLDER_PATH]
+            )
+            self.output_log_folder_path = os.path.expanduser(
+                json_load[self.KEY_OUTPUT_LOG_FOLDER_PATH]
+            )
             self.debug_log_output = json_load[self.KEY_DEBUG_LOG_OUTPUT]
             self.las_swap_xy = json_load[self.KEY_LAS_SWAP_XY]
             self.rotate_matrix_mode = json_load[self.KEY_ROTATE_MATRIX_MODE]
-            self.delete_error_flag = json_load[self.KEY_PHASE_CONSISTENCY][self.KEY_DELETE_ERROR_OBJECT]
-            self.non_plane_thickness = json_load[self.KEY_PHASE_CONSISTENCY][self.KEY_NON_PLANE_THICKNESS]
-            self.non_plane_angle = json_load[self.KEY_PHASE_CONSISTENCY][self.KEY_NON_PLANE_ANGLE]
+            self.delete_error_flag = json_load[self.KEY_PHASE_CONSISTENCY][
+                self.KEY_DELETE_ERROR_OBJECT
+            ]
+            self.non_plane_thickness = json_load[self.KEY_PHASE_CONSISTENCY][
+                self.KEY_NON_PLANE_THICKNESS
+            ]
+            self.non_plane_angle = json_load[self.KEY_PHASE_CONSISTENCY][
+                self.KEY_NON_PLANE_ANGLE
+            ]
 
-        if (
-                type(self.las_coordinate_system) is not int
-                or not (0 < self.las_coordinate_system < 20)
+        if type(self.las_coordinate_system) is not int or not (
+            0 < self.las_coordinate_system < 20
         ):
-            raise ValueError(f'{ParamManager.KEY_LAS_COORDINATE_SYS} is invalid. (input value range : 1 - 19)')
+            raise ValueError(
+                f"{ParamManager.KEY_LAS_COORDINATE_SYS} is invalid. (input value range : 1 - 19)"
+            )
 
-        if (
-                type(self.dsm_folder_path) is not str
-                or not self.dsm_folder_path
-        ):
+        if type(self.dsm_folder_path) is not str or not self.dsm_folder_path:
             # 文字列ではない or 空文字の場合
-            raise Exception(f'{ParamManager.KEY_DSM_FOLDER_PATH} is invalid.')
+            raise Exception(f"{ParamManager.KEY_DSM_FOLDER_PATH} is invalid.")
 
-        if (
-                type(self.citygml_folder_path) is not str
-                or not self.citygml_folder_path
-        ):
+        if type(self.citygml_folder_path) is not str or not self.citygml_folder_path:
             # 文字列ではない or 空文字の場合
-            raise Exception(f'{ParamManager.KEY_CITYGML_FOLDER_PATH} is invalid.')
+            raise Exception(f"{ParamManager.KEY_CITYGML_FOLDER_PATH} is invalid.")
 
         if not os.path.isdir(self.citygml_folder_path):
             # 入力CityGMLフォルダが存在しない場合
-            raise Exception(f'{ParamManager.KEY_CITYGML_FOLDER_PATH} not found.')
+            raise Exception(f"{ParamManager.KEY_CITYGML_FOLDER_PATH} not found.")
+
+        if type(self.texture_folder_path) is not str or not self.texture_folder_path:
+            # 文字列ではない or 空文字の場合
+            raise Exception(f"{ParamManager.KEY_TEXTURE_FOLDER_PATH} is invalid.")
 
         if (
-                type(self.texture_folder_path) is not str
-                or not self.texture_folder_path
+            type(self.ex_calib_element_path) is not str
+            or not self.ex_calib_element_path
         ):
             # 文字列ではない or 空文字の場合
-            raise Exception(f'{ParamManager.KEY_TEXTURE_FOLDER_PATH} is invalid.')
+            raise Exception(f"{ParamManager.KEY_EX_CALIB_ELEMENT_PATH} is invalid.")
 
-        if (
-                type(self.ex_calib_element_path) is not str
-                or not self.ex_calib_element_path
-        ):
+        if type(self.camera_info_path) is not str or not self.camera_info_path:
             # 文字列ではない or 空文字の場合
-            raise Exception(f'{ParamManager.KEY_EX_CALIB_ELEMENT_PATH} is invalid.')
+            raise Exception(f"{ParamManager.KEY_CAMERA_INFO_PATH} is invalid.")
 
-        if (
-                type(self.camera_info_path) is not str
-                or not self.camera_info_path
-        ):
+        if type(self.output_folder_path) is not str or not self.output_folder_path:
             # 文字列ではない or 空文字の場合
-            raise Exception(f'{ParamManager.KEY_CAMERA_INFO_PATH} is invalid.')
-
-        if (
-                type(self.output_folder_path) is not str
-                or not self.output_folder_path
-        ):
-            # 文字列ではない or 空文字の場合
-            raise Exception(f'{ParamManager.KEY_OUTPUT_FOLDER_PATH} is invalid.')
+            raise Exception(f"{ParamManager.KEY_OUTPUT_FOLDER_PATH} is invalid.")
 
         input_folder_name = os.path.basename(self.citygml_folder_path)
-        time_str = self.time.strftime('%Y%m%d_%H%M')
-        output_folder_path = os.path.join(self.output_folder_path, f'{input_folder_name}_{time_str}')
+        time_str = self.time.strftime("%Y%m%d_%H%M")
+        output_folder_path = os.path.join(
+            self.output_folder_path, f"{input_folder_name}_{time_str}"
+        )
         if not os.path.exists(output_folder_path):
             # CityGML出力ファイルの格納フォルダがない場合
             try:
                 os.makedirs(output_folder_path)
                 self.output_folder_path = output_folder_path  # 更新
             except Exception:
-                raise Exception(f'{output_folder_path} cannot make.')
+                raise Exception(f"{output_folder_path} cannot make.")
 
         if (
-                type(self.output_log_folder_path) is not str
-                or not self.output_log_folder_path
+            type(self.output_log_folder_path) is not str
+            or not self.output_log_folder_path
         ):
             # 文字列ではない or 空文字の場合
             self.output_log_folder_path = None
             # エラー対応(途中終了)に変更
-            raise Exception(f'{ParamManager.KEY_OUTPUT_LOG_FOLDER_PATH} is invalid.')
+            raise Exception(f"{ParamManager.KEY_OUTPUT_LOG_FOLDER_PATH} is invalid.")
         else:
             try:
                 # 作成不能なパスであるかの確認
@@ -315,74 +362,62 @@ class ParamManager:
             except Exception:
                 self.output_log_folder_path = None
                 # エラー対応(途中終了)に変更
-                raise Exception(f'{ParamManager.KEY_OUTPUT_LOG_FOLDER_PATH} is invalid.')
+                raise Exception(
+                    f"{ParamManager.KEY_OUTPUT_LOG_FOLDER_PATH} is invalid."
+                )
 
         if type(self.debug_log_output) is not bool:
-            raise Exception(f'{ParamManager.KEY_DEBUG_LOG_OUTPUT} is invalid.')
+            raise Exception(f"{ParamManager.KEY_DEBUG_LOG_OUTPUT} is invalid.")
 
         if type(self.delete_error_flag) is not bool:
-            raise Exception(f'{ParamManager.KEY_DELETE_ERROR_OBJECT} is invalid.')
+            raise Exception(f"{ParamManager.KEY_DELETE_ERROR_OBJECT} is invalid.")
 
         if (
-                (
-                        type(self.non_plane_thickness) is not int
-                        and type(self.non_plane_thickness) is not float
-                )
-                or self.non_plane_thickness < 0.0
-        ):
-            raise Exception(f'{ParamManager.KEY_NON_PLANE_THICKNESS} is invalid.')
+            type(self.non_plane_thickness) is not int
+            and type(self.non_plane_thickness) is not float
+        ) or self.non_plane_thickness < 0.0:
+            raise Exception(f"{ParamManager.KEY_NON_PLANE_THICKNESS} is invalid.")
 
         if (
-                (
-                        type(self.non_plane_angle) is not int
-                        and type(self.non_plane_angle) is not float
-                )
-                or not (0 < self.non_plane_angle < 90)
-        ):
-            raise Exception(f'{ParamManager.KEY_NON_PLANE_ANGLE} is invalid.')
+            type(self.non_plane_angle) is not int
+            and type(self.non_plane_angle) is not float
+        ) or not (0 < self.non_plane_angle < 90):
+            raise Exception(f"{ParamManager.KEY_NON_PLANE_ANGLE} is invalid.")
 
         if type(self.output_obj) is not bool:
-            raise Exception(f'{ParamManager.KEY_OUTPUT_OBJ} is invalid.')
+            raise Exception(f"{ParamManager.KEY_OUTPUT_OBJ} is invalid.")
 
         if type(self.output_texture) is not bool:
-            raise Exception(f'{ParamManager.KEY_OUTPUT_TEXTURE} is invalid.')
+            raise Exception(f"{ParamManager.KEY_OUTPUT_TEXTURE} is invalid.")
 
         if type(self.output_citygml) is not bool:
-            raise Exception(f'{ParamManager.KEY_OUTPUT_TEXTURE} is invalid.')
+            raise Exception(f"{ParamManager.KEY_OUTPUT_TEXTURE} is invalid.")
 
         if type(self.las_swap_xy) is not bool:
-            raise Exception(f'{ParamManager.KEY_LAS_SWAP_XY} is invalid.')
+            raise Exception(f"{ParamManager.KEY_LAS_SWAP_XY} is invalid.")
 
-        if (
-                type(self.rotate_matrix_mode) is not int
-                or not (
-                self.rotate_matrix_mode is int(ParamManager.RotateMatrixMode.XYZ)
-                or self.rotate_matrix_mode is int(ParamManager.RotateMatrixMode.ZYX)
-        )
+        if type(self.rotate_matrix_mode) is not int or not (
+            self.rotate_matrix_mode is int(ParamManager.RotateMatrixMode.XYZ)
+            or self.rotate_matrix_mode is int(ParamManager.RotateMatrixMode.ZYX)
         ):
-            raise Exception(f'{ParamManager.KEY_ROTATE_MATRIX_MODE} is invalid.')
+            raise Exception(f"{ParamManager.KEY_ROTATE_MATRIX_MODE} is invalid.")
         else:
             if self.rotate_matrix_mode is int(ParamManager.RotateMatrixMode.XYZ):
                 self.rotate_matrix_mode = ParamManager.RotateMatrixMode.XYZ
             elif self.rotate_matrix_mode is int(ParamManager.RotateMatrixMode.ZYX):
                 self.rotate_matrix_mode = ParamManager.RotateMatrixMode.ZYX
 
-        if (
-                type(self.texture_output_width_max) is not int
-                or not (0 < self.texture_output_width_max <= 4096)
+        if type(self.texture_output_width_max) is not int or not (
+            0 < self.texture_output_width_max <= 4096
         ):
-            raise Exception(f'{ParamManager.KEY_TEXTURE_OUTPUT_WIDTH_MAX} is invalid.')
+            raise Exception(f"{ParamManager.KEY_TEXTURE_OUTPUT_WIDTH_MAX} is invalid.")
 
-        if (
-                type(self.texture_output_height_max) is not int
-                or not (0 < self.texture_output_height_max <= 4096)
+        if type(self.texture_output_height_max) is not int or not (
+            0 < self.texture_output_height_max <= 4096
         ):
-            raise Exception(f'{ParamManager.KEY_TEXTURE_OUTPUT_HEIGHT_MAX} is invalid.')
+            raise Exception(f"{ParamManager.KEY_TEXTURE_OUTPUT_HEIGHT_MAX} is invalid.")
 
-        if (
-                type(self.texture_image_format) is not str
-                or not self.texture_image_format
-        ):
-            raise Exception(f'{ParamManager.KEY_TEXTURE_IMAGE_FORMAT} is invalid.')
+        if type(self.texture_image_format) is not str or not self.texture_image_format:
+            raise Exception(f"{ParamManager.KEY_TEXTURE_IMAGE_FORMAT} is invalid.")
 
         return change_params

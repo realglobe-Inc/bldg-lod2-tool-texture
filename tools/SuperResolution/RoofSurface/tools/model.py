@@ -19,14 +19,14 @@ class SRModule(pl.LightningModule):
         self.save_hyperparameters()
 
         cfg_py = os.path.join(str(output_root), "config.py")
-        with open(cfg_py, 'w', encoding='utf-8') as file:
+        with open(cfg_py, "w", encoding="utf-8") as file:
             file.write(config)
- 
+
         if isinstance(config, str):
             config = Config.fromfile(cfg_py)
             os.remove(cfg_py)
 
-        delete_cfg(config.model, 'init_cfg')
+        delete_cfg(config.model, "init_cfg")
         register_all_modules()
         self.model = MODELS.build(config.model)
 
@@ -35,7 +35,7 @@ class SRModule(pl.LightningModule):
         self.model.eval()
 
         self.pred_results = []
-    
+
     def forward(self, batch) -> torch.Tensor:
         data = self.model.data_preprocessor(batch, False)
         return self.model(**data, mode="predict")

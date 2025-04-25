@@ -17,12 +17,19 @@ def read_mtl(mtl_path: pathlib.Path):
     return mtl.materials
 
 
-def seitaika_main(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, pixel_per_meter: float, z_threshold=0.02):
+def seitaika_main(
+    logger,
+    obj_path: pathlib.Path,
+    output_dir: pathlib.Path,
+    pixel_per_meter: float,
+    z_threshold=0.02,
+):
     if logger is not None:
         logger.info(f"input_obj_path = {obj_path}")
 
-    seitaika_info, seitaika_figs, roof_info = process_obj_file(logger, obj_path, output_dir, z_threshold,
-                                                               pixel_per_meter)
+    seitaika_info, seitaika_figs, roof_info = process_obj_file(
+        logger, obj_path, output_dir, z_threshold, pixel_per_meter
+    )
 
     return seitaika_info, seitaika_figs, roof_info
 
@@ -55,11 +62,7 @@ def rotateToXZ(vs):
     c = np.cos(theta)
     s = np.sin(theta)
 
-    Rz = np.array([
-        [c, -s, 0],
-        [s, c, 0],
-        [0, 0, 1]
-    ])
+    Rz = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
     normal = Rz @ normal
 
@@ -71,11 +74,7 @@ def rotateToXZ(vs):
 
     cX = np.cos(thetaX)
     sX = np.sin(thetaX)
-    Rx = np.array([
-        [1, 0, 0],
-        [0, cX, -sX],
-        [0, sX, cX]
-    ])
+    Rx = np.array([[1, 0, 0], [0, cX, -sX], [0, sX, cX]])
 
     normal = Rx @ normal
 
@@ -89,8 +88,13 @@ def rotateToXZ(vs):
     return new_vs, normal_save
 
 
-def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z_threshold: float,
-                     pixel_per_meter: float):
+def process_obj_file(
+    logger,
+    obj_path: pathlib.Path,
+    output_dir: pathlib.Path,
+    z_threshold: float,
+    pixel_per_meter: float,
+):
     if logger is not None:
         logger.info(f"filepath: {obj_path}")
 
@@ -110,7 +114,7 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
     with codecs.open(str(obj_path), "r", "utf-8", "ignore") as f:
         mtl: Optional[dict[str, Material]] = None
         for s_line in f:
-            if s_line == '\n' or s_line == "":
+            if s_line == "\n" or s_line == "":
                 continue
             elems = s_line.split()
 
@@ -148,7 +152,7 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                         "obj_filename": str(obj_path.resolve()),
                         "texture_file_path": str(texture_filepath.resolve()),
                         "normal": normal.tolist(),
-                        "texture": us.tolist()
+                        "texture": us.tolist(),
                     }
 
                     roof_logs.append(roof_log)
@@ -193,7 +197,9 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
 
                 for i in range(len(us)):
                     ni = (i + 1) % len(us)
-                    if (src_points[i][0] - src_points[ni][0]) * (new_vs[i][0] - new_vs[ni][0]) < 0:
+                    if (src_points[i][0] - src_points[ni][0]) * (
+                        new_vs[i][0] - new_vs[ni][0]
+                    ) < 0:
                         reverse_x = True
                     # if (src_points[i][1] - src_points[ni][1]) * (new_vs[i][1] - new_vs[ni][1]) < 0:
                     #   reverse_y = True
@@ -212,14 +218,20 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                 dst_points = dst_points.reshape(len(vs), 2)
 
                 if len(src_points) == 3:
-                    tf = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
-                                                dst_points[:, :2].astype(np.float32))
+                    tf = cv2.getAffineTransform(
+                        src_points[:, :2].astype(np.float32),
+                        dst_points[:, :2].astype(np.float32),
+                    )
                     dst_image = cv2.warpAffine(image, tf, (new_w, new_h))
                 else:
                     tf, _ = cv2.findHomography(src_points, dst_points)
                     dst_image = cv2.warpPerspective(image, tf, (new_w, new_h))
                 mask = np.zeros_like(dst_image)
-                cv2.fillPoly(mask, [dst_points.reshape((-1, 1, 2)).astype(np.int32)], (255, 255, 255))
+                cv2.fillPoly(
+                    mask,
+                    [dst_points.reshape((-1, 1, 2)).astype(np.int32)],
+                    (255, 255, 255),
+                )
                 dst_image = cv2.bitwise_and(dst_image, mask)
                 h_dst, w_dst, _ = dst_image.shape
 
@@ -228,20 +240,21 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                 if logger is not None:
                     cv2.imwrite(str(output_face_path), dst_image)
 
-                d = {"obj_filename": str(obj_path.resolve()),
-                     "texture_file_path": str(texture_filepath.resolve()),
-                     "pixel_per_meter": pixel_per_meter,
-                     "face_index": s_line,
-                     "normal": normal.tolist(),
-                     "homo": tf.tolist(),
-                     "texture": us.tolist(),
-                     "src": src_points.tolist(),
-                     "dst": dst_points.tolist(),
-                     "h": h,
-                     "w": w,
-                     "h_dst": h_dst,
-                     "w_dst": w_dst
-                     }
+                d = {
+                    "obj_filename": str(obj_path.resolve()),
+                    "texture_file_path": str(texture_filepath.resolve()),
+                    "pixel_per_meter": pixel_per_meter,
+                    "face_index": s_line,
+                    "normal": normal.tolist(),
+                    "homo": tf.tolist(),
+                    "texture": us.tolist(),
+                    "src": src_points.tolist(),
+                    "dst": dst_points.tolist(),
+                    "h": h,
+                    "w": w,
+                    "h_dst": h_dst,
+                    "w_dst": w_dst,
+                }
 
                 seitaika_logs.append(d)
                 json_filepath = output_face_path.with_suffix(".log")
@@ -269,7 +282,9 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                 assert texture is not None
 
                 texture_path_raw = texture.texture_name
-                texture_filepath = obj_path.parent.joinpath(texture_path_raw.replace('\\', os.path.sep))
+                texture_filepath = obj_path.parent.joinpath(
+                    texture_path_raw.replace("\\", os.path.sep)
+                )
             elif command == "v":
                 geo_vs.append([float(elems[0]), float(elems[1]), float(elems[2])])
             elif command == "vt":
@@ -278,7 +293,7 @@ def process_obj_file(logger, obj_path: pathlib.Path, output_dir: pathlib.Path, z
                 if logger is not None:
                     logger.warning("unknown command %s", command)
 
-    seitaika_info = {'log': seitaika_logs, 'path': seitaika_log_paths}
-    roof_info = {'log': roof_logs, 'path': roof_log_paths}
+    seitaika_info = {"log": seitaika_logs, "path": seitaika_log_paths}
+    roof_info = {"log": roof_logs, "path": roof_log_paths}
 
     return seitaika_info, seitaika_figs, roof_info
