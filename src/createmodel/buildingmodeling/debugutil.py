@@ -15,7 +15,8 @@ from typing import Tuple
 from numpy.typing import NDArray
 from .clusterinfo import ClusterInfo
 from .geoutil import GeoUtil
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 
 
 # 定数
@@ -26,8 +27,8 @@ WIN_SIZE = (W, H)
 
 
 class DebugUtil:
-    """デバッグユーティリティ
-    """
+    """デバッグユーティリティ"""
+
     @staticmethod
     def sigmoid(x: float, gain=10.0, offset=0.2):
         """sigmoid method
@@ -40,7 +41,7 @@ class DebugUtil:
         Returns:
             float: sigmoid関数値
         """
-        return ((np.tanh(((x + offset) * gain) / 2.0) + 1.0) / 2.0)
+        return (np.tanh(((x + offset) * gain) / 2.0) + 1.0) / 2.0
 
     @staticmethod
     def sigmoid_color(x: float):
@@ -60,11 +61,13 @@ class DebugUtil:
         tmp = x * 2.0 - 1.0
         r = DebugUtil.sigmoid(tmp, gain=gain, offset=-offset)
         b = 1.0 - DebugUtil.sigmoid(tmp, gain=gain, offset=offset)
-        g = (DebugUtil.sigmoid(tmp, offset=green_offset)
-             + (1.0 - DebugUtil.sigmoid(tmp, offset=-green_offset))
-             - 1.0)
+        g = (
+            DebugUtil.sigmoid(tmp, offset=green_offset)
+            + (1.0 - DebugUtil.sigmoid(tmp, offset=-green_offset))
+            - 1.0
+        )
         return r, g, b
-    
+
     @staticmethod
     def get_color(x: int):
         """固定色またはランダムによるカラー
@@ -76,7 +79,7 @@ class DebugUtil:
             float: 赤
             float: 緑
             float: 青
-        
+
         Note:
             x < 20までは固定色、20 <= xからはランダムカラー
         """
@@ -84,20 +87,80 @@ class DebugUtil:
         # 赤, 緑, 青, 橙, 黄, 紫, 桃, 黄緑, 水色, 赤紫,
         # 山吹, 青紫, 茶, 深緑, 葡萄, 空, 臙脂, 紺, 鮭, 薄茶
 
-        red = np.array([1.0, 0.0, 0.0, 1.0, 1.0,
-                        0.8, 1.0, 0.8, 0.8, 1.0,
-                        1.0, 0.6, 0.6, 0.2, 0.4,
-                        0.4, 0.8, 0.0, 1.0, 0.8])
-        
-        green = np.array([0.0, 1.0, 0.0, 0.6, 1.0,
-                          0.0, 0.6, 1.0, 1.0, 0.0,
-                          0.8, 0.6, 0.2, 0.2, 0.0,
-                          0.8, 0.0, 0.0, 0.6, 0.6])
+        red = np.array(
+            [
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                1.0,
+                0.8,
+                1.0,
+                0.8,
+                0.8,
+                1.0,
+                1.0,
+                0.6,
+                0.6,
+                0.2,
+                0.4,
+                0.4,
+                0.8,
+                0.0,
+                1.0,
+                0.8,
+            ]
+        )
 
-        blue = np.array([0.0, 0.0, 1.0, 0.0, 0.0,
-                         1.0, 1.0, 0.4, 1.0, 0.6,
-                         0.0, 1.0, 0.0, 0.0, 0.4,
-                         1.0, 0.2, 0.4, 0.6, 0.0])
+        green = np.array(
+            [
+                0.0,
+                1.0,
+                0.0,
+                0.6,
+                1.0,
+                0.0,
+                0.6,
+                1.0,
+                1.0,
+                0.0,
+                0.8,
+                0.6,
+                0.2,
+                0.2,
+                0.0,
+                0.8,
+                0.0,
+                0.0,
+                0.6,
+                0.6,
+            ]
+        )
+
+        blue = np.array(
+            [
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                1.0,
+                0.4,
+                1.0,
+                0.6,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.4,
+                1.0,
+                0.2,
+                0.4,
+                0.6,
+                0.0,
+            ]
+        )
 
         if x > -1 and x < len(red):
             return red[x], green[x], blue[x]
@@ -130,7 +193,7 @@ class DebugUtil:
         r = int(255 * r_ratio)
         g = int(255 * g_ratio)
         b = int(255 * b_ratio)
-        color_code = '#{:02X}{:02X}{:02X}'.format(r, g, b)
+        color_code = "#{:02X}{:02X}{:02X}".format(r, g, b)
         return color_code
 
     @staticmethod
@@ -167,6 +230,7 @@ class DebugUtil:
         Args:
             polygon (geo.base.BaseGeometry): ポリゴン
         """
+
         def coding(polygon):
             coods = np.ones(len(polygon.coords), Path.code_type) * Path.LINETO
             coods[0] = Path.MOVETO
@@ -174,19 +238,25 @@ class DebugUtil:
 
         points = np.concatenate(
             [np.asarray(polygon.exterior)[:, :2]]
-            + [np.asarray(inner)[:, :2] for inner in polygon.interiors])
+            + [np.asarray(inner)[:, :2] for inner in polygon.interiors]
+        )
 
         codes = np.concatenate(
-            [coding(polygon.exterior)]
-            + [coding(inner) for inner in polygon.interiors])
+            [coding(polygon.exterior)] + [coding(inner) for inner in polygon.interiors]
+        )
 
         return Path(points, codes)
 
     @staticmethod
-    def draw_cloud(cloud: NDArray, colors: NDArray = None,
-                   ignore_z=False, swapxy=True,
-                   title: str = None, save=False,
-                   save_folder_path: str = None):
+    def draw_cloud(
+        cloud: NDArray,
+        colors: NDArray = None,
+        ignore_z=False,
+        swapxy=True,
+        title: str = None,
+        save=False,
+        save_folder_path: str = None,
+    ):
         """点群描画
 
         Args:
@@ -205,7 +275,7 @@ class DebugUtil:
         if len(cloud) == 0:
             return
 
-        name = 'points' if title is None else title
+        name = "points" if title is None else title
         if ignore_z:
             points = DebugUtil.ignorez_points(cloud)
         else:
@@ -225,7 +295,7 @@ class DebugUtil:
 
         if save:
             # 画像保存
-            filename = '{}.png'.format(name)
+            filename = "{}.png".format(name)
             if save_folder_path:
                 if not os.path.isdir(save_folder_path):
                     os.makedirs(save_folder_path)
@@ -244,11 +314,15 @@ class DebugUtil:
             o3d.visualization.draw_geometries([o3d_cloud], window_name=name)
 
     @staticmethod
-    def draw_clusters(clusters: list[ClusterInfo],
-                      base_polygon: geo.Polygon = None,
-                      ignore_z=False, swapxy=True,
-                      title=None, save=False,
-                      save_folder_path: str = None):
+    def draw_clusters(
+        clusters: list[ClusterInfo],
+        base_polygon: geo.Polygon = None,
+        ignore_z=False,
+        swapxy=True,
+        title=None,
+        save=False,
+        save_folder_path: str = None,
+    ):
         """クラスタの描画
 
         Args:
@@ -268,7 +342,7 @@ class DebugUtil:
 
         linewidth = 1.5
         alpha = 0.5
-        name = 'ransac' if title is None else title
+        name = "ransac" if title is None else title
         fig = plt.figure(figsize=WIN_SIZE, dpi=90)
         plt.subplots_adjust(wspace=0.6, hspace=0.6)
         fig.set_frameon(True)
@@ -300,11 +374,11 @@ class DebugUtil:
             colors.append([r, g, b])
 
             if ignore_z:
-                ax.scatter(x, y, color=(r, g, b), marker='.')
+                ax.scatter(x, y, color=(r, g, b), marker=".")
             else:
                 z = points[:, 2:3]
-                ax.scatter(x, y, z, color=(r, g, b), marker='.')
-            
+                ax.scatter(x, y, z, color=(r, g, b), marker=".")
+
             if init_flag:
                 xmin = x.min()
                 ymin = y.min()
@@ -324,10 +398,9 @@ class DebugUtil:
                     zmax = z.max() if zmax < z.max() else zmax
 
         if base_polygon is not None:
-            tmp_xmin, tmp_ymin, tmp_xmax, tmp_ymax \
-                = DebugUtil.plot_geometry(
-                    base_polygon, ax, swapxy, '#FFFFFF', '#000000',
-                    linewidth, alpha, 0)
+            tmp_xmin, tmp_ymin, tmp_xmax, tmp_ymax = DebugUtil.plot_geometry(
+                base_polygon, ax, swapxy, "#FFFFFF", "#000000", linewidth, alpha, 0
+            )
             if init_flag:
                 xmin = tmp_xmin
                 ymin = tmp_ymin
@@ -355,20 +428,20 @@ class DebugUtil:
             zmax += offset
             ax.set_zlim(zmin, zmax)
             ax.set_zticks(np.arange(zmin, zmax + 1, step))
-            ax.set_aspect('auto')
+            ax.set_aspect("auto")
         else:
-            ax.set_aspect('equal')
+            ax.set_aspect("equal")
 
         if swapxy:
-            ax.set_xlabel('y')
-            ax.set_ylabel('x')
+            ax.set_xlabel("y")
+            ax.set_ylabel("x")
         else:
-            ax.set_xlabel('x')
-            ax.set_ylabel('y')
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
 
         if save:
             # 画像保存
-            filename = '{}.png'.format(name)
+            filename = "{}.png".format(name)
             if save_folder_path:
                 if not os.path.isdir(save_folder_path):
                     os.makedirs(save_folder_path)
@@ -377,14 +450,18 @@ class DebugUtil:
         else:
             # window表示
             plt.show(block=True)
-        
+
         plt.clf()
         plt.close(fig=fig)
 
     @staticmethod
     def draw_clusters_open3d(
-            clusters: list[ClusterInfo], ignore_z=False,
-            title=None, save=False, save_folder_path: str = None):
+        clusters: list[ClusterInfo],
+        ignore_z=False,
+        title=None,
+        save=False,
+        save_folder_path: str = None,
+    ):
         """クラスタの描画
 
         Args:
@@ -399,7 +476,7 @@ class DebugUtil:
         if len(clusters) == 0:
             return
 
-        name = 'cluster' if title is None else title
+        name = "cluster" if title is None else title
 
         if save:
             vis = o3d.visualization.Visualizer()
@@ -409,8 +486,7 @@ class DebugUtil:
             for cluster in clusters:
                 o3d_cloud = o3d.geometry.PointCloud()
                 if ignore_z:
-                    cloud = DebugUtil.ignorez_points(
-                        cluster.points.get_points())
+                    cloud = DebugUtil.ignorez_points(cluster.points.get_points())
                 else:
                     cloud = cluster.points.get_points()
                 o3d_cloud.points = o3d.utility.Vector3dVector(cloud)
@@ -427,7 +503,7 @@ class DebugUtil:
                 vis.add_geometry(o3d_cloud)
                 vis.update_geometry(o3d_cloud)
 
-            filename = '{}.png'.format(name)
+            filename = "{}.png".format(name)
             if save_folder_path:
                 if not os.path.isdir(save_folder_path):
                     os.makedirs(save_folder_path)
@@ -445,8 +521,7 @@ class DebugUtil:
             for cluster in clusters:
                 o3d_cloud = o3d.geometry.PointCloud()
                 if ignore_z:
-                    cloud = DebugUtil.ignorez_points(
-                        cluster.points.get_points())
+                    cloud = DebugUtil.ignorez_points(cluster.points.get_points())
                 else:
                     cloud = cluster.points.get_points()
                 o3d_cloud.points = o3d.utility.Vector3dVector(cloud)
@@ -466,9 +541,15 @@ class DebugUtil:
 
     @staticmethod
     def plot_polygon(
-            polygon: geo.Polygon, ax, swapxy=True, facecolor='#FFFFFF',
-            edgecolor='#000000', linewidth=1.5,
-            alpha=0.5, zorder=1) -> Tuple[float, float, float, float]:
+        polygon: geo.Polygon,
+        ax,
+        swapxy=True,
+        facecolor="#FFFFFF",
+        edgecolor="#000000",
+        linewidth=1.5,
+        alpha=0.5,
+        zorder=1,
+    ) -> Tuple[float, float, float, float]:
         """ポリゴンの描画
 
         Args:
@@ -499,9 +580,14 @@ class DebugUtil:
 
         polygon = geo.Polygon(points, inners)
         path = DebugUtil.create_path(polygon)
-        patch = PathPatch(path, facecolor=facecolor,
-                          edgecolor=edgecolor, linewidth=linewidth,
-                          alpha=alpha, zorder=zorder)
+        patch = PathPatch(
+            path,
+            facecolor=facecolor,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            alpha=alpha,
+            zorder=zorder,
+        )
 
         ax.add_patch(patch)
         xmin, ymin, xmax, ymax = polygon.bounds
@@ -509,8 +595,8 @@ class DebugUtil:
 
     @staticmethod
     def plot_point(
-            pt: geo.Point, ax, swapxy=True, color='#000000',
-            alpha=0.5, zorder=1) -> Tuple[float, float, float, float]:
+        pt: geo.Point, ax, swapxy=True, color="#000000", alpha=0.5, zorder=1
+    ) -> Tuple[float, float, float, float]:
         """点の描画
 
         Args:
@@ -528,13 +614,13 @@ class DebugUtil:
         x, y = pt.xy
         if swapxy:
             x, y = y, x
-        ax.plot(x, y, 'o', color=color, alpha=alpha, zorder=zorder)
+        ax.plot(x, y, "o", color=color, alpha=alpha, zorder=zorder)
         return x[0], y[0], x[0], y[0]
 
     @staticmethod
     def plot_line(
-            line, ax, swapxy=True, color='#000000', linewidth=1.5,
-            alpha=0.5, zorder=1) -> Tuple[float, float, float, float]:
+        line, ax, swapxy=True, color="#000000", linewidth=1.5, alpha=0.5, zorder=1
+    ) -> Tuple[float, float, float, float]:
         """線の描画
 
         Args:
@@ -553,16 +639,21 @@ class DebugUtil:
         x, y = line.xy
         if swapxy:
             x, y = y, x
-        ax.plot(x, y, color=color, linewidth=linewidth,
-                alpha=alpha, zorder=zorder)
+        ax.plot(x, y, color=color, linewidth=linewidth, alpha=alpha, zorder=zorder)
 
         return min(x), min(y), max(x), max(y)
 
     @staticmethod
     def plot_geometry(
-            geometry, ax, swapxy=True, facecolor='#FFFFFF',
-            edgecolor='#000000', linewidth=1.5,
-            alpha=0.5, zorder=1) -> Tuple[float, float, float, float]:
+        geometry,
+        ax,
+        swapxy=True,
+        facecolor="#FFFFFF",
+        edgecolor="#000000",
+        linewidth=1.5,
+        alpha=0.5,
+        zorder=1,
+    ) -> Tuple[float, float, float, float]:
         """ジオメトリの描画
 
         Args:
@@ -585,24 +676,30 @@ class DebugUtil:
         ymax = 0
         if type(geometry) is geo.Polygon:
             xmin, ymin, xmax, ymax = DebugUtil.plot_polygon(
-                geometry, ax, swapxy, facecolor, edgecolor,
-                linewidth, alpha, zorder)
+                geometry, ax, swapxy, facecolor, edgecolor, linewidth, alpha, zorder
+            )
 
-        elif (type(geometry) is geo.LineString
-                or type(geometry) is geo.LinearRing):
+        elif type(geometry) is geo.LineString or type(geometry) is geo.LinearRing:
             xmin, ymin, xmax, ymax = DebugUtil.plot_line(
-                geometry, ax, swapxy, edgecolor, linewidth, alpha, zorder)
+                geometry, ax, swapxy, edgecolor, linewidth, alpha, zorder
+            )
 
         elif type(geometry) is geo.Point:
             xmin, ymin, xmax, ymax = DebugUtil.plot_point(
-                geometry, ax, swapxy, facecolor, alpha, zorder)
+                geometry, ax, swapxy, facecolor, alpha, zorder
+            )
 
         return xmin, ymin, xmax, ymax
 
     @staticmethod
-    def draw_geometries(geometries: list, base_polygon: geo.Polygon = None,
-                        swapxy=True, title=None, save=False,
-                        save_folder_path: str = None) -> None:
+    def draw_geometries(
+        geometries: list,
+        base_polygon: geo.Polygon = None,
+        swapxy=True,
+        title=None,
+        save=False,
+        save_folder_path: str = None,
+    ) -> None:
         """ジオメトリの描画
 
         Args:
@@ -616,11 +713,11 @@ class DebugUtil:
             save_folder_path (str, optional):
                 保存先フォルダパス. Defaults to None.
         """
-        
+
         if len(geometries) == 0:
             return
 
-        name = 'geometries' if title is None else title
+        name = "geometries" if title is None else title
 
         linewidth = 1.5
         alpha = 0.5
@@ -638,26 +735,43 @@ class DebugUtil:
         for i in np.arange(len(geometries)):
             color_code = DebugUtil.get_color_code(i)
 
-            if (type(geometries[i]) is geo.Polygon
-                    or type(geometries[i]) is geo.LineString
-                    or type(geometries[i]) is geo.LinearRing
-                    or type(geometries[i]) is geo.Point):
+            if (
+                type(geometries[i]) is geo.Polygon
+                or type(geometries[i]) is geo.LineString
+                or type(geometries[i]) is geo.LinearRing
+                or type(geometries[i]) is geo.Point
+            ):
                 # ポリゴン、線、リング、点の場合
-                tmp_xmin, tmp_ymin, tmp_xmax, tmp_ymax \
-                    = DebugUtil.plot_geometry(
-                        geometries[i], ax, swapxy, color_code, color_code,
-                        linewidth, alpha, zorder)
-            elif (type(geometries[i]) is geo.MultiPolygon
-                    or type(geometries[i]) is geo.MultiLineString
-                    or type(geometries[i]) is geo.MultiPoint
-                    or type(geometries[i]) is geo.GeometryCollection):
+                tmp_xmin, tmp_ymin, tmp_xmax, tmp_ymax = DebugUtil.plot_geometry(
+                    geometries[i],
+                    ax,
+                    swapxy,
+                    color_code,
+                    color_code,
+                    linewidth,
+                    alpha,
+                    zorder,
+                )
+            elif (
+                type(geometries[i]) is geo.MultiPolygon
+                or type(geometries[i]) is geo.MultiLineString
+                or type(geometries[i]) is geo.MultiPoint
+                or type(geometries[i]) is geo.GeometryCollection
+            ):
                 # 複数ポリゴン、複数線、複数点、複数ジオメトリの場合の場合
                 tmp_init_flag = True
                 for geom in geometries[i].geoms:
 
                     x1, y1, x2, y2 = DebugUtil.plot_geometry(
-                        geom, ax, swapxy, color_code, color_code,
-                        linewidth, alpha, zorder)
+                        geom,
+                        ax,
+                        swapxy,
+                        color_code,
+                        color_code,
+                        linewidth,
+                        alpha,
+                        zorder,
+                    )
 
                     if tmp_init_flag:
                         tmp_xmax = x2
@@ -684,10 +798,9 @@ class DebugUtil:
                 ymax = tmp_ymax if ymax < tmp_ymax else ymax
 
         if base_polygon is not None:
-            tmp_xmin, tmp_ymin, tmp_xmax, tmp_ymax \
-                = DebugUtil.plot_geometry(
-                    base_polygon, ax, swapxy, '#FFFFFF', '#000000',
-                    linewidth, alpha, 0)
+            tmp_xmin, tmp_ymin, tmp_xmax, tmp_ymax = DebugUtil.plot_geometry(
+                base_polygon, ax, swapxy, "#FFFFFF", "#000000", linewidth, alpha, 0
+            )
             if init_flag:
                 xmin = tmp_xmin
                 ymin = tmp_ymin
@@ -708,17 +821,17 @@ class DebugUtil:
         ax.set_xticks(np.arange(xmin, xmax + 1, step))
         ax.set_ylim(ymin, ymax)
         ax.set_yticks(np.arange(ymin, ymax + 1, step))
-        ax.set_aspect('equal')
+        ax.set_aspect("equal")
         if swapxy:
-            ax.set_xlabel('y')
-            ax.set_ylabel('x')
+            ax.set_xlabel("y")
+            ax.set_ylabel("x")
         else:
-            ax.set_xlabel('x')
-            ax.set_ylabel('y')
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
 
         if save:
             # 画像保存
-            filename = '{}.png'.format(name)
+            filename = "{}.png".format(name)
             if save_folder_path:
                 if not os.path.isdir(save_folder_path):
                     os.makedirs(save_folder_path)
@@ -732,9 +845,14 @@ class DebugUtil:
         plt.close(fig=fig)
 
     @staticmethod
-    def capture_cloud_sigmoid_color(cloud: NDArray, value: NDArray,
-                                    ignore_z=False, swapxy=True, title=None,
-                                    save_folder_path: str = None):
+    def capture_cloud_sigmoid_color(
+        cloud: NDArray,
+        value: NDArray,
+        ignore_z=False,
+        swapxy=True,
+        title=None,
+        save_folder_path: str = None,
+    ):
         """点群のキャプチャ画像取得
 
         Args:
@@ -750,7 +868,7 @@ class DebugUtil:
         if len(cloud) == 0:
             return
 
-        name = 'points' if title is None else title
+        name = "points" if title is None else title
 
         if ignore_z:
             points = DebugUtil.ignorez_points(cloud)
@@ -770,7 +888,7 @@ class DebugUtil:
             o3d_cloud.points.append(points[i])
             o3d_cloud.colors.append(DebugUtil.sigmoid_color(value[i]))
 
-        filename = '{}.png'.format(name)
+        filename = "{}.png".format(name)
         if save_folder_path:
             if not os.path.isdir(save_folder_path):
                 os.makedirs(save_folder_path)
@@ -793,13 +911,17 @@ class DebugUtil:
             str: 現在日時(YYYYmmdd_HHMMSS)の文字列
         """
         now = datetime.datetime.now()
-        str_now = now.strftime('%Y%m%d_%H%M%S_%f')
+        str_now = now.strftime("%Y%m%d_%H%M%S_%f")
         return str_now
 
     @staticmethod
-    def draw_lines(line_lists: list[list[geo.LineString]],
-                   swapxy=True, title: str = None,
-                   save=False, save_folder_path: str = None):
+    def draw_lines(
+        line_lists: list[list[geo.LineString]],
+        swapxy=True,
+        title: str = None,
+        save=False,
+        save_folder_path: str = None,
+    ):
         """線の描画
 
         Args:
@@ -815,7 +937,7 @@ class DebugUtil:
         if len(line_lists) == 0:
             return
 
-        name = 'lines' if title is None else title
+        name = "lines" if title is None else title
 
         offset = 10
         step = 10
@@ -840,14 +962,21 @@ class DebugUtil:
 
                 x = points[:, 0:1]
                 y = points[:, 1:2]
-                ax.plot(x, y, color=color_code, linewidth=2.0,
-                        solid_capstyle='round', zorder=2, alpha=0.7)
+                ax.plot(
+                    x,
+                    y,
+                    color=color_code,
+                    linewidth=2.0,
+                    solid_capstyle="round",
+                    zorder=2,
+                    alpha=0.7,
+                )
                 if init_flag:
                     xmin, ymin, xmax, ymax = line.bounds
                     init_flag = False
                 else:
                     tmp_xmin, tmp_ymin, tmp_xmax, tmp_ymax = line.bounds
-                    
+
                     xmin = tmp_xmin if xmin > tmp_xmin else xmin
                     ymin = tmp_ymin if ymin > tmp_ymin else ymin
                     xmax = tmp_xmax if xmax < tmp_xmax else xmax
@@ -861,18 +990,18 @@ class DebugUtil:
         ax.set_xticks(np.arange(xmin, xmax + 1, step))
         ax.set_ylim(ymin, ymax)
         ax.set_yticks(np.arange(ymin, ymax + 1, step))
-        ax.set_aspect('equal')
+        ax.set_aspect("equal")
 
         if swapxy:
-            ax.set_xlabel('y')
-            ax.set_ylabel('x')
+            ax.set_xlabel("y")
+            ax.set_ylabel("x")
         else:
-            ax.set_xlabel('x')
-            ax.set_ylabel('y')
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
 
         if save:
             # 画像保存
-            filename = '{}.png'.format(name)
+            filename = "{}.png".format(name)
             if save_folder_path:
                 if not os.path.isdir(save_folder_path):
                     os.makedirs(save_folder_path)
@@ -887,8 +1016,12 @@ class DebugUtil:
 
     @staticmethod
     def draw_color_corner(
-            points: NDArray, swapxy=True, title: str = None,
-            save=False, save_folder_path: str = None):
+        points: NDArray,
+        swapxy=True,
+        title: str = None,
+        save=False,
+        save_folder_path: str = None,
+    ):
         """角度による色つきコーナー点の描画
 
         Args:
@@ -904,7 +1037,7 @@ class DebugUtil:
         if len(points) == 0:
             return
 
-        name = 'corners' if title is None else title
+        name = "corners" if title is None else title
 
         offset = 10
         step = 10
@@ -920,11 +1053,18 @@ class DebugUtil:
             y = points[:, 1:2]
             points = np.hstack([y, x])
 
-        color_code = '#000000'  # black
+        color_code = "#000000"  # black
         x = points[:, 0:1]
         y = points[:, 1:2]
-        ax.plot(x, y, color=color_code, linewidth=2.0,
-                solid_capstyle='round', zorder=2, alpha=0.7)
+        ax.plot(
+            x,
+            y,
+            color=color_code,
+            linewidth=2.0,
+            solid_capstyle="round",
+            zorder=2,
+            alpha=0.7,
+        )
         xmin = x.min()
         xmax = x.max()
         ymin = y.min()
@@ -941,10 +1081,10 @@ class DebugUtil:
 
         x = points[:, 0:1]
         y = points[:, 1:2]
-        sc = ax.scatter(x, y, c=angles, marker='.', cmap='jet', zorder=3)
+        sc = ax.scatter(x, y, c=angles, marker=".", cmap="jet", zorder=3)
         clb = plt.colorbar(sc)
-        clb.set_label('degree')
-        
+        clb.set_label("degree")
+
         xmin = int(np.floor(xmin) - offset)
         ymin = int(np.floor(ymin) - offset)
         xmax = int(np.floor(xmax) + offset)
@@ -953,22 +1093,22 @@ class DebugUtil:
         ax.set_xticks(np.arange(xmin, xmax + 1, step))
         ax.set_ylim(ymin, ymax)
         ax.set_yticks(np.arange(ymin, ymax + 1, step))
-        ax.set_aspect('equal')
+        ax.set_aspect("equal")
 
         if swapxy:
-            ax.set_xlabel('y')
-            ax.set_ylabel('x')
+            ax.set_xlabel("y")
+            ax.set_ylabel("x")
         else:
-            ax.set_xlabel('x')
-            ax.set_ylabel('y')
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
 
         if save:
             # 画像保存
-            filename = '{}.png'.format(name)
+            filename = "{}.png".format(name)
             if save_folder_path:
                 if not os.path.isdir(save_folder_path):
                     os.makedirs(save_folder_path)
-                filename = os.path.join(save_folder_path, + filename)
+                filename = os.path.join(save_folder_path, +filename)
             plt.savefig(filename)
         else:
             # window表示

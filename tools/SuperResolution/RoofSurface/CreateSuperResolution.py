@@ -14,7 +14,7 @@ from tools.inference import Inferencer
 from tools.image_processing import *
 
 
-def setup_logging(log_filename='debug.log', log_flag=False):
+def setup_logging(log_filename="debug.log", log_flag=False):
     """
     Set up logging configurations.
 
@@ -27,7 +27,7 @@ def setup_logging(log_filename='debug.log', log_flag=False):
 
     # If DebugLogOutput is set to 'true', configure the logging
     if log_flag:
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         file_handler = logging.FileHandler(log_filename)
         file_handler.setFormatter(formatter)
 
@@ -48,10 +48,12 @@ def write_log(log_root, action, filename=None):
     - action: The action to log.
     - filename: Optional filename for additional information.
     """
-    log_file = open(log_root, 'a')
+    log_file = open(log_root, "a")
 
     if filename is not None:
-        log_file.write(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} : Execution of {filename}\n")
+        log_file.write(
+            f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} : Execution of {filename}\n"
+        )
 
     log_file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} : {action}\n")
     log_file.close()
@@ -98,7 +100,7 @@ def handle_error(error, cfg, logger):
     - cfg: Configuration information.
     - logger: Logger for logging messages.
     """
-    if cfg.get('DebugLogOutput') == 'true':
+    if cfg.get("DebugLogOutput") == "true":
         logger.error(f"Error: {error}")
     print(f"Error: {error}")
     raise SystemExit(1)
@@ -113,7 +115,7 @@ def handle_warning(warning, cfg, logger):
     - cfg: Configuration information.
     - logger: Logger for logging messages.
     """
-    if cfg.get('DebugLogOutput') == 'true':
+    if cfg.get("DebugLogOutput") == "true":
         logger.warning(f"UserWarning: {warning}")
     print(f"UserWarning: {warning}")
 
@@ -131,42 +133,48 @@ def check_error(cfg):
     """
     try:
         log_root, logger = None, None
-        if not cfg.get('OutputLogDir'):
+        if not cfg.get("OutputLogDir"):
             log_root = Path("main_log.txt")
             bug_root = Path("debug.log")
         else:
-            cfg['OutputLogDir'] = os.path.expanduser(cfg['OutputLogDir'])
-            log_dir = os.path.join(cfg['OutputLogDir'], f"outputlog_{time.strftime('%Y%m%d_%H%M%S')}")
+            cfg["OutputLogDir"] = os.path.expanduser(cfg["OutputLogDir"])
+            log_dir = os.path.join(
+                cfg["OutputLogDir"], f"outputlog_{time.strftime('%Y%m%d_%H%M%S')}"
+            )
             Path(log_dir).mkdir(parents=True, exist_ok=True)
             log_root = Path(os.path.join(log_dir, "main_log.txt"))
             bug_root = Path(os.path.join(log_dir, "debug.log"))
 
-        if not cfg.get('DebugLogOutput'):
-            cfg['DebugLogOutput'] = 'false'
-        if cfg.get('DebugLogOutput') not in ['true', 'false']:
-            cfg['DebugLogOutput'] = 'false'
+        if not cfg.get("DebugLogOutput"):
+            cfg["DebugLogOutput"] = "false"
+        if cfg.get("DebugLogOutput") not in ["true", "false"]:
+            cfg["DebugLogOutput"] = "false"
 
         # Initialize the logger conditionally based on DebugLogOutput
-        logger = setup_logging(bug_root, (cfg['DebugLogOutput'] == 'true'))
+        logger = setup_logging(bug_root, (cfg["DebugLogOutput"] == "true"))
 
-        if not cfg.get('InputDir') or not cfg.get('OutputDir'):
-            raise ValueError("'InputDir' and 'OutputDir' must be specified in the JSON file.")
+        if not cfg.get("InputDir") or not cfg.get("OutputDir"):
+            raise ValueError(
+                "'InputDir' and 'OutputDir' must be specified in the JSON file."
+            )
 
-        cfg['OutputDir'] = os.path.expanduser(cfg['OutputDir'])
-        cfg['InputDir'] = os.path.expanduser(cfg['InputDir'])
-        Path(cfg['OutputDir']).mkdir(parents=True, exist_ok=True)
+        cfg["OutputDir"] = os.path.expanduser(cfg["OutputDir"])
+        cfg["InputDir"] = os.path.expanduser(cfg["InputDir"])
+        Path(cfg["OutputDir"]).mkdir(parents=True, exist_ok=True)
 
-        if not cfg.get('GSD'):
-            cfg['GSD'] = '0.25'
+        if not cfg.get("GSD"):
+            cfg["GSD"] = "0.25"
             warning_text = "'GSD' is not defined in the JSON file. Set the ground resolution to 0.25[m]."
             handle_warning(warning_text, cfg, logger)
-        elif float(cfg['GSD']) < 0.1 or 0.25 < float(cfg['GSD']):
-            raise ValueError(f"'GSD':{cfg['GSD']} is out of the target range. (0.1[m] ~ 0.25[m])")
+        elif float(cfg["GSD"]) < 0.1 or 0.25 < float(cfg["GSD"]):
+            raise ValueError(
+                f"'GSD':{cfg['GSD']} is out of the target range. (0.1[m] ~ 0.25[m])"
+            )
 
-        if not cfg.get('Device'):
-            cfg["Device"] = 'cuda'
-        elif cfg.get('Device') not in ['cuda', 'cpu']:
-            cfg["Device"] = 'cuda'
+        if not cfg.get("Device"):
+            cfg["Device"] = "cuda"
+        elif cfg.get("Device") not in ["cuda", "cpu"]:
+            cfg["Device"] = "cuda"
 
     except ValueError as ve:
         handle_error(ve, cfg, logger)
@@ -195,65 +203,87 @@ if __name__ == "__main__":
 
     # Create execution log
     start_time = time.time()
-    with open(log_root, 'w') as log_file:
-        log_file.write(f"処理開始時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}\n")
+    with open(log_root, "w") as log_file:
+        log_file.write(
+            f"処理開始時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}\n"
+        )
         log_file.write(f"指定パラメータ内容 : {json.dumps(cfg)}\n")
 
     # Load a trained model
-    inferencer = Inferencer(Path(cfg['InputDir']), Path(cfg['OutputDir']), log_root,
-                            checkpoint_path, cfg['Device'], cfg['DebugLogOutput'])
+    inferencer = Inferencer(
+        Path(cfg["InputDir"]),
+        Path(cfg["OutputDir"]),
+        log_root,
+        checkpoint_path,
+        cfg["Device"],
+        cfg["DebugLogOutput"],
+    )
 
     # Process all images in the specified folder
-    for filename in tqdm(os.listdir(cfg['InputDir']), desc='Status of Processing', position=0):
-        if filename.endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-            input_path = os.path.join(cfg['InputDir'], filename)
+    for filename in tqdm(
+        os.listdir(cfg["InputDir"]), desc="Status of Processing", position=0
+    ):
+        if filename.endswith((".jpg", ".jpeg", ".png", ".tif", ".tiff")):
+            input_path = os.path.join(cfg["InputDir"], filename)
             # Check if the file is present
             check_path(input_path, cfg, logger)
 
             # Image Segmentation and Storage
-            if cfg.get('DebugLogOutput') == 'true':
+            if cfg.get("DebugLogOutput") == "true":
                 logger.info(f"Split processing (filename): {filename}")
             write_log(log_root, "分割処理開始", filename)
-            ori_size, images = split_image(input_path, float(cfg['GSD']), size=120)
-            split_list = save_images(images, Path(cfg['OutputDir']), filename)
+            ori_size, images = split_image(input_path, float(cfg["GSD"]), size=120)
+            split_list = save_images(images, Path(cfg["OutputDir"]), filename)
 
-            if cfg.get('DebugLogOutput') == 'true':
+            if cfg.get("DebugLogOutput") == "true":
                 logger.debug(f"Number of images after splitting: {len(images)}")
 
             # Process each segmented image
             write_log(log_root, "高解像度化・統合処理開始")
-            merged_image = np.zeros((ori_size[0]*4, ori_size[1]*4, ori_size[2]), dtype=np.uint8)
-            for num, split_path in tqdm(enumerate(split_list), desc=f'FileName({filename})', position=1, leave=False, total=len(split_list)):
+            merged_image = np.zeros(
+                (ori_size[0] * 4, ori_size[1] * 4, ori_size[2]), dtype=np.uint8
+            )
+            for num, split_path in tqdm(
+                enumerate(split_list),
+                desc=f"FileName({filename})",
+                position=1,
+                leave=False,
+                total=len(split_list),
+            ):
                 # Check if the file is present
                 check_path(split_path, cfg, logger)
-                if cfg.get('DebugLogOutput') == 'true':
-                    logger.info(f"Super-resolution processing (filename): {os.path.basename(split_path)}")
+                if cfg.get("DebugLogOutput") == "true":
+                    logger.info(
+                        f"Super-resolution processing (filename): {os.path.basename(split_path)}"
+                    )
 
                 # Super-Resolution of segmented images
                 result = inferencer.inference(split_path)
                 result = np.transpose(result, (1, 2, 0))
 
                 # Integration of Super-Resolution images
-                if cfg.get('DebugLogOutput') == 'true':
-                    logger.info(f"Merged image processing (filename): {os.path.basename(split_path)}")
+                if cfg.get("DebugLogOutput") == "true":
+                    logger.info(
+                        f"Merged image processing (filename): {os.path.basename(split_path)}"
+                    )
                 merged_image = merge_images(merged_image, result, num, size=480)
 
             # Check if the folder is present
-            check_path(cfg['OutputDir'], cfg, logger)
+            check_path(cfg["OutputDir"], cfg, logger)
 
             # Save merged images
-            output_path = os.path.join(Path(cfg['OutputDir']), filename)
+            output_path = os.path.join(Path(cfg["OutputDir"]), filename)
             cv2.imwrite(output_path, merged_image)
-            shutil.rmtree(os.path.join(Path(cfg['OutputDir']), 'split_images'))
-
+            shutil.rmtree(os.path.join(Path(cfg["OutputDir"]), "split_images"))
 
     end_time = time.time()
     process_time = end_time - start_time
-    with open(log_root, 'a') as log_file:
-        log_file.write(f"\n処理終了時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}\n")
+    with open(log_root, "a") as log_file:
+        log_file.write(
+            f"\n処理終了時刻 : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))}\n"
+        )
         log_file.write(f"トータル処理時間 : {format_elapsed_time(process_time)}\n")
 
     # debug log
-    if cfg.get('DebugLogOutput') == 'true':
+    if cfg.get("DebugLogOutput") == "true":
         logger.info(f"Total processing time: {format_elapsed_time(process_time)}")
- 

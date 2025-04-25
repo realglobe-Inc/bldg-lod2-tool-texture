@@ -2,8 +2,7 @@ from typing import Final
 
 
 class DisjointSetUnion:
-    """素集合データ構造
-    """
+    """素集合データ構造"""
 
     _parent: list[int]
     _size: Final[int]

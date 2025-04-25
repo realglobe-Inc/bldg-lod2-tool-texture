@@ -20,29 +20,24 @@ from ..thirdparty import plateaupy as plapy
 
 
 class CityGmlManager:
-    """CityGML建物情報クラス
-    """
+    """CityGML建物情報クラス"""
 
     class BuildInfo:
-        """CityGML出力建物形状情報クラス(建物毎)
-        """
+        """CityGML出力建物形状情報クラス(建物毎)"""
 
         class Lod2Info:
-            """CityGML建物形状座標クラス(ポリゴン毎)
-            """
+            """CityGML建物形状座標クラス(ポリゴン毎)"""
 
             def __init__(self):
-                """コンストラクタ
-                """
-                self.face_type = ''  # ポリゴン種別
-                self.id_base = ''  # idベース
+                """コンストラクタ"""
+                self.face_type = ""  # ポリゴン種別
+                self.id_base = ""  # idベース
                 self.poslist = []  # 建物形状座標リスト
                 self.tex_coordlist = []  # テクスチャ画像座標リスト
 
         def __init__(self):
-            """コンストラクタ
-            """
-            self.build_id = ''  # 建物ID(OBJファイル名は同一)
+            """コンストラクタ"""
+            self.build_id = ""  # 建物ID(OBJファイル名は同一)
             self.lod0_poslist = []
             self.lod2_info = []
             self.tex_img_uri = None
@@ -57,7 +52,7 @@ class CityGmlManager:
             self.face_intersection = ProcessResult.SKIP  # 地物内面同士交差検査結果
             self.paste_texture = ProcessResult.SKIP  # テクスチャ貼付け結果
             # CityGMLファイル名(サマリーファイルの出力用(複数ファイル対応で追加))
-            self.citygml_filename = ''
+            self.citygml_filename = ""
 
         def append_Lod2Info(self, face_type, poslist, coordlist, id):
             """ポリゴン情報追加
@@ -83,12 +78,12 @@ class CityGmlManager:
         """
         self.param_manager = param_manager  # パラメータ情報
         self.citygml_info: list[self.BuildInfo] = []
-        self.lod1_file_path = ''
+        self.lod1_file_path = ""
         self._obj_info = ObjInfo()
         self._nsmap = None
-        self._app_ns = ''
-        self._bldg_ns = ''
-        self._gml_ns = ''
+        self._app_ns = ""
+        self._bldg_ns = ""
+        self._gml_ns = ""
 
         self._face_type = {
             BldElementType.ROOF: ["RoofSurface", "roof_"],
@@ -97,11 +92,11 @@ class CityGmlManager:
         }
 
     def read_file(
-            self,
-            file_name: str,
-            target_coord_areas: Union[list[list[list[float]]], None] = None,
-            target_building_ids: Union[list[str], None] = None,
-            debug_mode: bool = False
+        self,
+        file_name: str,
+        target_coord_areas: Union[list[list[list[float]]], None] = None,
+        target_building_ids: Union[list[str], None] = None,
+        debug_mode: bool = False,
     ) -> tuple[ResultType, Union[list[BuildInfo], None]]:
         """CityGMLファイル読み込み
 
@@ -118,9 +113,12 @@ class CityGmlManager:
 
             # 平面直角座標系から経緯度座標系に変換
             self._dsm_coord_city_gml_coord_converter = DsmCoordCityGmlCoordConverter(
-                self.param_manager.las_coordinate_system)
+                self.param_manager.las_coordinate_system
+            )
 
-            input_file_path = os.path.join(self.param_manager.citygml_folder_path, file_name)
+            input_file_path = os.path.join(
+                self.param_manager.citygml_folder_path, file_name
+            )
             if not os.path.isfile(input_file_path):
                 # 入力CityGMLファイルなし
                 raise FileNotFoundError
@@ -135,12 +133,14 @@ class CityGmlManager:
                 with open(city_gml_cache_file_path, "rb") as f:
                     self.citygml_info = pickle.load(f)
 
-                return restype, self._filter_buildings_by_target_building_ids(self.citygml_info, target_building_ids)
+                return restype, self._filter_buildings_by_target_building_ids(
+                    self.citygml_info, target_building_ids
+                )
 
             plbld = plapy.plbldg(self.lod1_file_path)
 
             if not plbld.buildings:
-                raise Exception('Get err lod1citygml')
+                raise Exception("Get err lod1citygml")
 
             target_geo_areas = None
             if target_coord_areas is not None:
@@ -170,7 +170,11 @@ class CityGmlManager:
                     # 建物外形が見つからない場合
                     binfo.read_lod0_model = ProcessResult.ERROR
                     not_found_outline_num += 1
-                    Log.output_log_write(LogLevel.WARN, ModuleType.INPUT_CITYGML, f"Outline not found {bldg.id}")
+                    Log.output_log_write(
+                        LogLevel.WARN,
+                        ModuleType.INPUT_CITYGML,
+                        f"Outline not found {bldg.id}",
+                    )
                     restype = ResultType.WARN
 
                 if target_geo_areas is None:
@@ -195,30 +199,38 @@ class CityGmlManager:
 
                         # 建物の領域と検索領域が被っているか
                         if (
-                                target_geo_area_lat_max >= binfo_lat_min
-                                and target_geo_area_lat_min <= binfo_lat_max
-                                and target_geo_area_lon_max >= binfo_lon_min
-                                and target_geo_area_lon_min <= binfo_lon_max
+                            target_geo_area_lat_max >= binfo_lat_min
+                            and target_geo_area_lat_min <= binfo_lat_max
+                            and target_geo_area_lon_max >= binfo_lon_min
+                            and target_geo_area_lon_min <= binfo_lon_max
                         ):
                             self.citygml_info.append(binfo)
                             break
 
             if len(self.citygml_info) == not_found_outline_num:
-                raise Exception('All outline not found')
+                raise Exception("All outline not found")
 
             # デバッグ : CityGMLファイル読み込みを早くするため、pickle でキャッシュ化
             if debug_mode:
                 with open(city_gml_cache_file_path, "wb") as f:
                     pickle.dump(self.citygml_info, f)
 
-            return restype, self._filter_buildings_by_target_building_ids(self.citygml_info, target_building_ids)
+            return restype, self._filter_buildings_by_target_building_ids(
+                self.citygml_info, target_building_ids
+            )
 
         except FileNotFoundError:
-            Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.INPUT_CITYGML, 'File not found')
+            Log.output_log_write(
+                LogLevel.MODEL_ERROR, ModuleType.INPUT_CITYGML, "File not found"
+            )
             return ResultType.ERROR, None
 
         except DsmCoordCityGmlCoordConverterException:
-            Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.INPUT_CITYGML, 'Las coordinate system error')
+            Log.output_log_write(
+                LogLevel.MODEL_ERROR,
+                ModuleType.INPUT_CITYGML,
+                "Las coordinate system error",
+            )
             return ResultType.ERROR, None
 
         except Exception as e:
@@ -260,7 +272,9 @@ class CityGmlManager:
         """
         try:
             # 出力CityGMLファイルパス
-            output_file_path = os.path.join(self.param_manager.output_folder_path, file_name)
+            output_file_path = os.path.join(
+                self.param_manager.output_folder_path, file_name
+            )
 
             # OBJ→CityGMLへ情報コピー
             ret = self._copy_objdata(Config.OUTPUT_TEX_OBJDIR)
@@ -269,32 +283,45 @@ class CityGmlManager:
             if ret != ResultType.ERROR:
                 plobj = plapy.plobj()
                 tree, root = plobj.loadFile(self.lod1_file_path)
-                if not 'app' in root.nsmap:
+                if not "app" in root.nsmap:
                     # バージョン指定しちゃってるけど本当にこれで大丈夫か？
-                    tree, root = CityGmlManager._add_namespace(tree, 'app',
-                                                               "http://www.opengis.net/citygml/appearance/2.0")
-                if not 'bldg' in root.nsmap:
-                    tree, root = CityGmlManager._add_namespace(tree, 'bldg',
-                                                               "http://www.opengis.net/citygml/building/2.0")
-                if not 'gml' in root.nsmap:
-                    tree, root = CityGmlManager._add_namespace(tree, 'gml', "http://www.opengis.net/gml")
-                if not 'xlink' in root.nsmap:
-                    tree, root = CityGmlManager._add_namespace(tree, 'xlink', "http://www.w3.org/1999/xlink")
+                    tree, root = CityGmlManager._add_namespace(
+                        tree, "app", "http://www.opengis.net/citygml/appearance/2.0"
+                    )
+                if not "bldg" in root.nsmap:
+                    tree, root = CityGmlManager._add_namespace(
+                        tree, "bldg", "http://www.opengis.net/citygml/building/2.0"
+                    )
+                if not "gml" in root.nsmap:
+                    tree, root = CityGmlManager._add_namespace(
+                        tree, "gml", "http://www.opengis.net/gml"
+                    )
+                if not "xlink" in root.nsmap:
+                    tree, root = CityGmlManager._add_namespace(
+                        tree, "xlink", "http://www.w3.org/1999/xlink"
+                    )
                 self._nsmap = plobj.removeNoneKeyFromDic(root.nsmap)
 
-                self._app_ns = "{" + self._nsmap['app'] + "}"
-                self._bldg_ns = "{" + self._nsmap['bldg'] + "}"
-                self._gml_ns = "{" + self._nsmap['gml'] + "}"
+                self._app_ns = "{" + self._nsmap["app"] + "}"
+                self._bldg_ns = "{" + self._nsmap["bldg"] + "}"
+                self._gml_ns = "{" + self._nsmap["gml"] + "}"
 
                 wr_idx = 0
                 surf_ret = []
 
-                blds = tree.xpath('/core:CityModel/core:cityObjectMember/bldg:Building', namespaces=self._nsmap)
+                blds = tree.xpath(
+                    "/core:CityModel/core:cityObjectMember/bldg:Building",
+                    namespaces=self._nsmap,
+                )
 
                 # テクスチャ情報がある場合
                 tex_appmem_elem = lxml.etree.Element(f"{self._app_ns}appearanceMember")
-                tex_app_elem = lxml.etree.SubElement(tex_appmem_elem, f"{self._app_ns}Appearance")
-                tex_theme_elem = lxml.etree.SubElement(tex_app_elem, f"{self._app_ns}theme")
+                tex_app_elem = lxml.etree.SubElement(
+                    tex_appmem_elem, f"{self._app_ns}Appearance"
+                )
+                tex_theme_elem = lxml.etree.SubElement(
+                    tex_app_elem, f"{self._app_ns}theme"
+                )
                 tex_theme_elem.text = "rgbTexture"
 
                 for bld in blds:
@@ -305,23 +332,24 @@ class CityGmlManager:
                             # LOD0データの取得に失敗しているものは除外
                             continue
 
-                        if bld.get(f"{self._gml_ns}id") \
-                                == citygml.build_id:
+                        if bld.get(f"{self._gml_ns}id") == citygml.build_id:
                             target_cgml = citygml
                             break
                     if target_cgml is None:
                         continue
 
                     # lod2Solidの追加位置検索(lod1Solidの次)
-                    for num, bld_elem, in enumerate(list(bld)):
+                    for (
+                        num,
+                        bld_elem,
+                    ) in enumerate(list(bld)):
                         if "lod1Solid" in bld_elem.tag:
                             wr_idx = num
                             break
 
                     # lod2Solidのエレメント作成と追加
                     if len(target_cgml.lod2_info):
-                        lod2_elem = self._create_lod2solid_elem(
-                            target_cgml.lod2_info)
+                        lod2_elem = self._create_lod2solid_elem(target_cgml.lod2_info)
                         wr_idx += 1
                         bld.insert(wr_idx, lod2_elem)
 
@@ -334,8 +362,12 @@ class CityGmlManager:
                     # app:surfaceDataMemberのエレメント作成
                     if target_cgml.tex_img_uri is not None:
                         surf_ret.append(
-                            self._create_surfacedata_elem(tex_app_elem, target_cgml.tex_img_uri, target_cgml.lod2_info,
-                                                          image_format)
+                            self._create_surfacedata_elem(
+                                tex_app_elem,
+                                target_cgml.tex_img_uri,
+                                target_cgml.lod2_info,
+                                image_format,
+                            )
                         )
 
                 # app:surfaceDataMemberエレメント追加
@@ -344,19 +376,23 @@ class CityGmlManager:
 
                 # LoD2 CityGML書き出し
                 lxml.etree.indent(root, space="\t")  # tab区切り
-                tree.write(output_file_path, pretty_print=True, xml_declaration=True, encoding="utf-8")
+                tree.write(
+                    output_file_path,
+                    pretty_print=True,
+                    xml_declaration=True,
+                    encoding="utf-8",
+                )
             else:
                 shutil.copy(self.lod1_file_path, self.param_manager.output_folder_path)
 
             # LoD1 テクスチャデータがある場合は出力先にコピー
             in_dir = self.param_manager.citygml_folder_path
             out_dir = self.param_manager.output_folder_path
-            base_name = (os.path.splitext(file_name)[0]).split('_op')[0]
+            base_name = (os.path.splitext(file_name)[0]).split("_op")[0]
 
             # 入力ディレクトリ内からフォルダ検索
             in_files = os.listdir(in_dir)
-            files_dir = [f for f in in_files
-                         if os.path.isdir(os.path.join(in_dir, f))]
+            files_dir = [f for f in in_files if os.path.isdir(os.path.join(in_dir, f))]
             # 該当フォルダの検索
             in_texdir = f"${base_name}_appearance"
             l_in = [s for s in files_dir if in_texdir == s]
@@ -395,7 +431,7 @@ class CityGmlManager:
                 raise FileNotFoundError
             num_noobj = 0
             for num, citygml in enumerate(self.citygml_info, 1):
-                obj_path = os.path.join(obj_dir, f'{citygml.build_id}.obj')
+                obj_path = os.path.join(obj_dir, f"{citygml.build_id}.obj")
                 if os.path.exists(obj_path):
                     self._obj_info.read_file(obj_path)
                     # 建物形状座標・テクスチャ座標の取得
@@ -406,17 +442,23 @@ class CityGmlManager:
                         citygml.tex_img_uri = mtl_info[citygml.build_id].map_kd
                 else:
                     # OBJファイルが見つからない場合
-                    Log.output_log_write(LogLevel.WARN, ModuleType.OUTPUT_CITYGML, f"Objfile not found {obj_path}")
+                    Log.output_log_write(
+                        LogLevel.WARN,
+                        ModuleType.OUTPUT_CITYGML,
+                        f"Objfile not found {obj_path}",
+                    )
                     num_noobj += 1
 
             if num == num_noobj:
                 # 全てのOBJファイルが見つからない場合
-                raise Exception('All objfile not found')
+                raise Exception("All objfile not found")
             else:
                 return ResultType.SUCCESS
 
         except FileNotFoundError:
-            Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.OUTPUT_CITYGML, 'Folder not found')
+            Log.output_log_write(
+                LogLevel.MODEL_ERROR, ModuleType.OUTPUT_CITYGML, "Folder not found"
+            )
             return ResultType.ERROR
 
         except Exception as e:
@@ -434,7 +476,7 @@ class CityGmlManager:
             texture_list_w = self._obj_info.get_texture_list(facetype)
             polygon_list_w = self._obj_info.get_polygon_list(facetype)
             if polygon_list_w:
-                for (poly, tex) in zip(polygon_list_w, texture_list_w):
+                for poly, tex in zip(polygon_list_w, texture_list_w):
                     id = citygml.build_id + "_" + str(num)
                     citygml.append_Lod2Info(facetype, poly, tex, id)
                     num += 1
@@ -456,7 +498,12 @@ class CityGmlManager:
             lxml.etree.SubElement(
                 elem4,
                 f"{self._gml_ns}surfaceMember",
-                {lxml.etree.QName(self._nsmap['xlink'], 'href'): f"#texture_{info.id_base}"})
+                {
+                    lxml.etree.QName(
+                        self._nsmap["xlink"], "href"
+                    ): f"#texture_{info.id_base}"
+                },
+            )
         return elem1
 
     def _create_boundedby_elem(self, info):
@@ -478,10 +525,17 @@ class CityGmlManager:
         elem3 = lxml.etree.SubElement(elem2, f"{self._bldg_ns}lod2MultiSurface")
         elem4 = lxml.etree.SubElement(elem3, f"{self._gml_ns}MultiSurface")
         elem5 = lxml.etree.SubElement(elem4, f"{self._gml_ns}surfaceMember")
-        elem6 = lxml.etree.SubElement(elem5, f"{self._gml_ns}Polygon", {f"{self._gml_ns}id": f"texture_{info.id_base}"})
+        elem6 = lxml.etree.SubElement(
+            elem5,
+            f"{self._gml_ns}Polygon",
+            {f"{self._gml_ns}id": f"texture_{info.id_base}"},
+        )
         elem7 = lxml.etree.SubElement(elem6, f"{self._gml_ns}exterior")
-        elem8 = lxml.etree.SubElement(elem7, f"{self._gml_ns}LinearRing",
-                                      {f"{self._gml_ns}id": f"shape_{info.id_base}"})
+        elem8 = lxml.etree.SubElement(
+            elem7,
+            f"{self._gml_ns}LinearRing",
+            {f"{self._gml_ns}id": f"shape_{info.id_base}"},
+        )
         elem9 = lxml.etree.SubElement(elem8, f"{self._gml_ns}posList")
 
         for pos in info.poslist:
@@ -492,12 +546,14 @@ class CityGmlManager:
             str_list.append(str(pos.z))
 
         # 先頭座標を末尾に追加する
-        lat, lon = self._dsm_coord_city_gml_coord_converter.to_polar(info.poslist[0].x, info.poslist[0].y)
+        lat, lon = self._dsm_coord_city_gml_coord_converter.to_polar(
+            info.poslist[0].x, info.poslist[0].y
+        )
         str_list.append(str(lat))
         str_list.append(str(lon))
         str_list.append(str(info.poslist[0].z))
 
-        elem9.text = ' '.join(str_list)
+        elem9.text = " ".join(str_list)
 
         return elem1
 
@@ -533,11 +589,16 @@ class CityGmlManager:
                 str_list.append(str(info.tex_coordlist[0].y))
 
             if str_list:
-                elem5 = lxml.etree.SubElement(elem2, f"{self._app_ns}target", {'uri': f"#texture_{info.id_base}"})
+                elem5 = lxml.etree.SubElement(
+                    elem2, f"{self._app_ns}target", {"uri": f"#texture_{info.id_base}"}
+                )
                 elem6 = lxml.etree.SubElement(elem5, f"{self._app_ns}TexCoordList")
-                elem7 = lxml.etree.SubElement(elem6, f"{self._app_ns}textureCoordinates",
-                                              {'ring': f"#shape_{info.id_base}"})
-                elem7.text = ' '.join(str_list)
+                elem7 = lxml.etree.SubElement(
+                    elem6,
+                    f"{self._app_ns}textureCoordinates",
+                    {"ring": f"#shape_{info.id_base}"},
+                )
+                elem7.text = " ".join(str_list)
 
         # 一つでも座標配列が見つかれば成功
         if elem5 is not None:
@@ -545,7 +606,9 @@ class CityGmlManager:
         else:
             return False
 
-    def _get_target_geo_area(self, target_coord_area: list[list[float]]) -> NDArray[np.float_]:
+    def _get_target_geo_area(
+        self, target_coord_area: list[list[float]]
+    ) -> NDArray[np.float_]:
         """建築物検索範囲から緯度経度範囲に変換
 
         Args:
@@ -564,18 +627,24 @@ class CityGmlManager:
 
             # 平面直角座標 -> 緯度経度座標
             else:
-                polar_trans = Transformer.from_crs(f'epsg:{epsg_code}', 'epsg:6668', always_xy=True)
+                polar_trans = Transformer.from_crs(
+                    f"epsg:{epsg_code}", "epsg:6668", always_xy=True
+                )
                 lon, lat = polar_trans.transform(pos_a, pos_b)
                 target_geo_area.append([lat, lon])
 
         return np.array(target_geo_area, dtype=np.float_)
 
     def _filter_buildings_by_target_building_ids(
-            self,
-            buildings: list[BuildInfo],
-            target_building_ids: Union[list[str], None],
+        self,
+        buildings: list[BuildInfo],
+        target_building_ids: Union[list[str], None],
     ):
         if target_building_ids is None:
             return buildings
 
-        return [building for building in buildings if building.build_id in target_building_ids]
+        return [
+            building
+            for building in buildings
+            if building.build_id in target_building_ids
+        ]

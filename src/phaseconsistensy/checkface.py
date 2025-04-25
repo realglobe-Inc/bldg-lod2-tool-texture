@@ -14,17 +14,16 @@ logger = getLogger(__name__)
 
 
 class TestResultType(IntEnum):
-    """検査・補正結果
-    """
-    NO_ERROR = 0                    # エラーなし
-    ERROR = 1                       # エラー有り
-    AUTO_CORRECTED = 2              # エラー有り、自動補正に成功
-    AUTO_CORRECTION_FAILURE = 3     # エラー有り、自動補正に失敗
+    """検査・補正結果"""
+
+    NO_ERROR = 0  # エラーなし
+    ERROR = 1  # エラー有り
+    AUTO_CORRECTED = 2  # エラー有り、自動補正に成功
+    AUTO_CORRECTION_FAILURE = 3  # エラー有り、自動補正に失敗
 
 
 class CheckFace:
-    """面情報検査処理クラス
-    """
+    """面情報検査処理クラス"""
 
     def __init__(self, obj_info: ObjInfo, face: FaceInfo, param: ParamManager):
         """コンストラクタ
@@ -34,12 +33,12 @@ class CheckFace:
             face (FaceInfo): 面情報
             param (PramManager): パラメータ情報
         """
-        self._obj_info = obj_info       # 建物情報
-        self._face = face               # 面情報(インデックス値リスト)の参照
-        self._v_list = obj_info.v_list_manger          # 座標リストの参照
-        self._err_list = []             # エラー座標リスト
-        self._param = param             # パラメータ情報
-    
+        self._obj_info = obj_info  # 建物情報
+        self._face = face  # 面情報(インデックス値リスト)の参照
+        self._v_list = obj_info.v_list_manger  # 座標リストの参照
+        self._err_list = []  # エラー座標リスト
+        self._param = param  # パラメータ情報
+
     @property
     def err_list(self) -> list:
         return self._err_list
@@ -51,20 +50,24 @@ class CheckFace:
             TestResultType: 検査・補正結果
         """
 
-        ret = TestResultType.NO_ERROR   # エラー無し
+        ret = TestResultType.NO_ERROR  # エラー無し
 
-        logger.debug(f'len(self._face.indx) = {len(self._face.indx)}')
-        logger.debug(f'self._v_list.get_point_num() = \
-                        {self._v_list.get_point_num()}')
+        logger.debug(f"len(self._face.indx) = {len(self._face.indx)}")
+        logger.debug(
+            f"self._v_list.get_point_num() = \
+                        {self._v_list.get_point_num()}"
+        )
 
         delete_list = list()
-        for i in range(len(self._face.indx)):                
+        for i in range(len(self._face.indx)):
             cur_pos = self._v_list.get_pos(self._face.indx[i].pos)
-            pre_pos = self._v_list.get_pos(self._face.indx[i-1].pos)
+            pre_pos = self._v_list.get_pos(self._face.indx[i - 1].pos)
 
-            if GeoUtil.is_zero(pre_pos.x - cur_pos.x) \
-                and GeoUtil.is_zero(pre_pos.y - cur_pos.y) \
-                and GeoUtil.is_zero(pre_pos.z - cur_pos.z):
+            if (
+                GeoUtil.is_zero(pre_pos.x - cur_pos.x)
+                and GeoUtil.is_zero(pre_pos.y - cur_pos.y)
+                and GeoUtil.is_zero(pre_pos.z - cur_pos.z)
+            ):
                 delete_list.append(i)
 
                 # エラーリストに追加
@@ -80,7 +83,7 @@ class CheckFace:
 
                 # エラー有り、自動補正済み
                 ret = TestResultType.AUTO_CORRECTED
-       
+
         return ret
 
     def check_intersection(self) -> bool:
@@ -107,7 +110,7 @@ class CheckFace:
             for index in err_index:
                 pos = self._face.indx[index].pos
                 self._err_list.append(self._v_list.get_pos(pos))
-        
+
         # 自己接触チェック
         err_index = []
         if GeoUtil.is_touch_2d(xy_list, err_index):
@@ -120,7 +123,7 @@ class CheckFace:
         if len(self._err_list) > 0:
             # エラー情報設定
             return False
-        
+
         return True
 
     def check_non_plane(self) -> TestResultType:
@@ -137,7 +140,7 @@ class CheckFace:
         # 面の法線算出
         normal = GeoUtil.get_normal(p_list)
 
-        r_flag = TestResultType.NO_ERROR    # エラー無し
+        r_flag = TestResultType.NO_ERROR  # エラー無し
         # 厚み検査
         if not self._check_non_plane_thickness(p_list, normal):
             r_flag = TestResultType.ERROR
@@ -159,11 +162,20 @@ class CheckFace:
                     dp_flag = False
                     for j in range(3):
                         # 三角形に連続頂点がないか確認,ある場合は出力しない
-                        #if (multi_point_list[i][j]
+                        # if (multi_point_list[i][j]
                         #        == multi_point_list[i][(j + 1) % 3]):
-                        if abs(multi_point_list[i][j].x - multi_point_list[i][j-1].x) < 1e-06 \
-                            and abs(multi_point_list[i][j].y - multi_point_list[i][j-1].y) < 1e-06 \
-                            and abs(multi_point_list[i][j].z - multi_point_list[i][j-1].z) < 1e-06:
+                        if (
+                            abs(multi_point_list[i][j].x - multi_point_list[i][j - 1].x)
+                            < 1e-06
+                            and abs(
+                                multi_point_list[i][j].y - multi_point_list[i][j - 1].y
+                            )
+                            < 1e-06
+                            and abs(
+                                multi_point_list[i][j].z - multi_point_list[i][j - 1].z
+                            )
+                            < 1e-06
+                        ):
                             dp_flag = True
                         pos_list.append(multi_point_list[i][j])
                     if not dp_flag:
@@ -174,8 +186,7 @@ class CheckFace:
                                 # インデックス値更新
                                 self._face.append(IndexInfo(index_no))
                         else:
-                            self._obj_info.append_point_list(
-                                element_type, pos_list)
+                            self._obj_info.append_point_list(element_type, pos_list)
 
                 self._err_list.extend(p_list)
             except Exception:
@@ -184,8 +195,7 @@ class CheckFace:
 
         return r_flag
 
-    def _check_non_plane_thickness(self, p_list: list,
-                                   normal: NDArray) -> bool:
+    def _check_non_plane_thickness(self, p_list: list, normal: NDArray) -> bool:
         """非平面厚み検査
 
         Args:
@@ -207,18 +217,17 @@ class CheckFace:
             height = np.dot(vec, normal)
             height_min = GeoUtil.min(height, height_min)
             height_max = GeoUtil.max(height, height_max)
-        
+
         # 厚み算出
         thickness = abs(height_max - height_min)
-        
+
         if thickness > self._param.non_plane_thickness:
-            logger.debug(f'thickness = {thickness}')
+            logger.debug(f"thickness = {thickness}")
             return False
-        
+
         return True
 
-    def _check_non_plane_normal(self, p_list: list,
-                                normal: NDArray) -> bool:
+    def _check_non_plane_normal(self, p_list: list, normal: NDArray) -> bool:
         """非平面法線角度検査
 
         Args:
@@ -237,12 +246,14 @@ class CheckFace:
             for j in range(1, point_num - 1):
                 index1 = (i + j) % point_num
                 index2 = (i + j + 1) % point_num
-                v1 = np.array([p_list[index1].x,
-                               p_list[index1].y,
-                               p_list[index1].z]) - v0
-                v2 = np.array([p_list[index2].x,
-                               p_list[index2].y,
-                               p_list[index2].z]) - v0
+                v1 = (
+                    np.array([p_list[index1].x, p_list[index1].y, p_list[index1].z])
+                    - v0
+                )
+                v2 = (
+                    np.array([p_list[index2].x, p_list[index2].y, p_list[index2].z])
+                    - v0
+                )
                 v1 = GeoUtil.normalize(v1)
                 v2 = GeoUtil.normalize(v2)
 
@@ -257,7 +268,7 @@ class CheckFace:
                 if np.dot(cross, normal) < 0.0:
                     cross *= -1.0
                 cross_list.append(cross)
-        
+
         cross_len = len(cross_list)
         angle_max = 0.0
         for i in range(cross_len):
@@ -268,9 +279,9 @@ class CheckFace:
                     angle_max = angle
 
         if angle_max > self._param.non_plane_angle:
-            logger.debug(f'angle = {angle}')
+            logger.debug(f"angle = {angle}")
             return False
-        
+
         return True
 
     def check_zero_area(self) -> bool:
@@ -284,17 +295,16 @@ class CheckFace:
         p_list = []
         for index in self._face.indx:
             p_list.append(self._v_list.get_pos(index.pos))
-        
+
         if GeoUtil.is_zero_area(p_list):
             self._err_list.extend(p_list)
             return False
-        
+
         return True
 
 
 class CheckFaces:
-    """面情報群検査処理クラス
-    """
+    """面情報群検査処理クラス"""
 
     _element_angle_margin = 2.0
 
@@ -304,14 +314,14 @@ class CheckFaces:
         Args:
             obj_info (ObjInfo): 建物情報
         """
-        self._obj_info = obj_info        # 建物情報
-        self._err_list = []              # エラー座標リスト
-        self._param = param              # パラメータ情報
-   
+        self._obj_info = obj_info  # 建物情報
+        self._err_list = []  # エラー座標リスト
+        self._param = param  # パラメータ情報
+
     @property
     def err_list(self) -> list:
         return self._err_list
-    
+
     def check_face_intersection(self) -> bool:
         """面同士交差処理
 
@@ -320,10 +330,10 @@ class CheckFaces:
         """
         # 三角形分割
         multi_triangle_list = []  # 分割前のポリゴン x 三角形分割のリスト格納用
-        triangle_list = []    # 分割三角形のリスト格納用
+        triangle_list = []  # 分割三角形のリスト格納用
         for f_key, f_value in self._obj_info.faces_list.items():
             multi_polygon_list = self._obj_info.get_polygon_list(f_key)
-            logger.debug(f'multi_polygon_list len = {len(multi_polygon_list)}')
+            logger.debug(f"multi_polygon_list len = {len(multi_polygon_list)}")
             for point_list in multi_polygon_list:
                 triangle_list = GeoUtil.divide_triangle(point_list)
                 triangle_info_list = []
@@ -335,10 +345,10 @@ class CheckFaces:
         ret_flag = True
         # 交差チェック
         polygon_num = len(multi_triangle_list)
-        logger.debug(f'polygon_num = {polygon_num}')
+        logger.debug(f"polygon_num = {polygon_num}")
         for i in range(polygon_num):
             triangle_list1 = multi_triangle_list[i]
-            logger.debug(f'i = {i}')
+            logger.debug(f"i = {i}")
             for j in range(i + 1, polygon_num):
                 # logger.debug(f'j = {j}')
                 triangle_list2 = multi_triangle_list[j]
@@ -346,13 +356,14 @@ class CheckFaces:
                 for triangle1 in triangle_list1:
                     for triangle2 in triangle_list2:
                         cross_point_list = []
-                        if GeoUtil.is_cross_triangle(triangle1, triangle2,
-                                                     cross_point_list):
+                        if GeoUtil.is_cross_triangle(
+                            triangle1, triangle2, cross_point_list
+                        ):
                             # エラーあり
                             for pos in cross_point_list:
                                 self._err_list.append(pos)
                                 ret_flag = False
-        
+
         return ret_flag
 
     def check_solid(self) -> TestResultType:
@@ -367,7 +378,9 @@ class CheckFaces:
         for f_key in self._obj_info.faces_list.keys():
             multi_polygon_list = self._obj_info.get_polygon_list(f_key)
             for point_list in multi_polygon_list:
-                triangle_list = GeoUtil.divide_triangle(point_list, check_intersect=False)
+                triangle_list = GeoUtil.divide_triangle(
+                    point_list, check_intersect=False
+                )
                 for triangle in triangle_list:
                     line_manager.append_polygon(triangle)
 
@@ -399,11 +412,11 @@ class CheckFaces:
         #     logger.debug(f'delete overlap   = {line.str()}')
 
         # 残った線分を開口部と判定
-        ret = TestResultType.NO_ERROR   # エラー無し
+        ret = TestResultType.NO_ERROR  # エラー無し
         line_num = len(line_list)
         if line_num != 0:
             for i in range(line_num):
-                logger.debug(f'i = {i}, line = {line_list[i].str()}')
+                logger.debug(f"i = {i}, line = {line_list[i].str()}")
 
             try:
                 # 補正処理
@@ -414,8 +427,8 @@ class CheckFaces:
                     line_info = line_list[i]
                     line_list[i].get_polygon_set(line_list, polygon_list)
                     polygon_line_len = len(polygon_list)
-                    logger.debug(f'polygon_line_len = {polygon_line_len}')
-                    logger.debug(f'polygon_list = {polygon_list}')
+                    logger.debug(f"polygon_line_len = {polygon_line_len}")
+                    logger.debug(f"polygon_list = {polygon_list}")
 
                     # for line in polygon_list:
                     #     logger.debug(f'poly line = {line.str()}')
@@ -423,9 +436,13 @@ class CheckFaces:
                     if polygon_line_len != 0:
 
                         # 始終点が一致しているかどうか
-                        if GeoUtil.is_same_point(
+                        if (
+                            GeoUtil.is_same_point(
                                 polygon_list[0].pos1,
-                                polygon_list[polygon_line_len - 1].pos2) is False:
+                                polygon_list[polygon_line_len - 1].pos2,
+                            )
+                            is False
+                        ):
                             continue
 
                         # 開口部分のポリゴン作成
@@ -441,16 +458,15 @@ class CheckFaces:
                         element_type = self._get_element_type(point_list)
                         if element_type != BldElementType.NONE:
                             # ポリゴンを ObjInfo に追加
-                            self._obj_info.append_point_list(
-                                element_type, point_list)
-                        
+                            self._obj_info.append_point_list(element_type, point_list)
+
                         line_list[i] = None
 
                 ret = TestResultType.AUTO_CORRECTED  # 自動補正
             except Exception:
                 # 予期せぬ例外が発生して、自動補正が失敗
                 ret = TestResultType.AUTO_CORRECTION_FAILURE
-        
+
         return ret
 
     @classmethod

@@ -11,9 +11,16 @@ from lxml import etree
 from tqdm import tqdm
 
 
-def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
-             face_vertices_list_map: dict[str, list[list[tuple[float, float]]]]):
-    area_label = os.path.splitext(os.path.basename(glob(os.path.join(input_dir, f"{area_id}*.gml"))[0]))[0]
+def copy_gml(
+    input_dir: str,
+    area_id: str,
+    output_dir: str,
+    output_format: str,
+    face_vertices_list_map: dict[str, list[list[tuple[float, float]]]],
+):
+    area_label = os.path.splitext(
+        os.path.basename(glob(os.path.join(input_dir, f"{area_id}*.gml"))[0])
+    )[0]
     input_path = os.path.join(input_dir, f"{area_label}.gml")
 
     # GMLファイルを解析
@@ -21,41 +28,54 @@ def copy_gml(input_dir: str, area_id: str, output_dir: str, output_format: str,
     root = tree.getroot()
 
     # app:surfaceDataMemberのnamespaceを取得
-    namespaces = {'app': 'http://www.opengis.net/citygml/appearance/2.0'}
+    namespaces = {"app": "http://www.opengis.net/citygml/appearance/2.0"}
 
     # app:Appearance要素を取得
     for appearance in root.findall(".//app:Appearance", namespaces):
-        for surface_data_member in appearance.findall("app:surfaceDataMember", namespaces):
-            parameterized_texture = surface_data_member.find('app:ParameterizedTexture', namespaces)
+        for surface_data_member in appearance.findall(
+            "app:surfaceDataMember", namespaces
+        ):
+            parameterized_texture = surface_data_member.find(
+                "app:ParameterizedTexture", namespaces
+            )
             if parameterized_texture is not None:
-                image_uri = parameterized_texture.find('app:imageURI', namespaces)
+                image_uri = parameterized_texture.find("app:imageURI", namespaces)
                 if image_uri is None or image_uri.text is None:
                     continue
                 bldg_id = os.path.splitext(os.path.basename(image_uri.text))[0]
-                if bldg_id not in face_vertices_list_map or os.path.dirname(image_uri.text) != f"{area_id}_appearance":
+                if (
+                    bldg_id not in face_vertices_list_map
+                    or os.path.dirname(image_uri.text) != f"{area_id}_appearance"
+                ):
                     continue
                 image_uri.text = f"{area_id}_appearance/{bldg_id}.{output_format}"
 
                 face_vertices_list = face_vertices_list_map[bldg_id]
 
-                mime_type = parameterized_texture.find('app:mimeType', namespaces)
+                mime_type = parameterized_texture.find("app:mimeType", namespaces)
                 if mime_type is not None:
-                    mime_type.text = f'image/{output_format}'
+                    mime_type.text = f"image/{output_format}"
 
-                targets = parameterized_texture.findall('app:target', namespaces)
+                targets = parameterized_texture.findall("app:target", namespaces)
                 for i, target in enumerate(targets):
                     if i >= len(face_vertices_list):
                         break
                     face_vertices = face_vertices_list[i]
-                    texture_coordinates = target.find('.//app:textureCoordinates', namespaces)
+                    texture_coordinates = target.find(
+                        ".//app:textureCoordinates", namespaces
+                    )
                     if texture_coordinates is not None:
                         texture_coordinates.text = " ".join(
-                            [f"{x} {y}" for (x, y) in face_vertices + face_vertices[0:1]])
+                            [
+                                f"{x} {y}"
+                                for (x, y) in face_vertices + face_vertices[0:1]
+                            ]
+                        )
 
     output_path = os.path.join(output_dir, f"{area_label}.gml")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     # print("output:", output_path)
-    tree.write(output_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
+    tree.write(output_path, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
 
 def rotate_to_xz(vs):
@@ -86,11 +106,7 @@ def rotate_to_xz(vs):
     c = np.cos(theta)
     s = np.sin(theta)
 
-    rz = np.array([
-        [c, -s, 0],
-        [s, c, 0],
-        [0, 0, 1]
-    ])
+    rz = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
     normal = rz @ normal
 
@@ -102,11 +118,7 @@ def rotate_to_xz(vs):
 
     c_x = np.cos(theta_x)
     s_x = np.sin(theta_x)
-    r_x = np.array([
-        [1, 0, 0],
-        [0, c_x, -s_x],
-        [0, s_x, c_x]
-    ])
+    r_x = np.array([[1, 0, 0], [0, c_x, -s_x], [0, s_x, c_x]])
 
     new_vs = np.empty(0)
 
@@ -135,7 +147,9 @@ def read_mtl(mtl_path: str):
     return mtl
 
 
-def calc_width_and_height(image_sizes: [tuple[int, int]], n_row: int) -> tuple[tuple[int, int], list[int]]:
+def calc_width_and_height(
+    image_sizes: [tuple[int, int]], n_row: int
+) -> tuple[tuple[int, int], list[int]]:
     """
     :return: 返り値の最後は行ごとの高さ
     """
@@ -151,7 +165,9 @@ def calc_width_and_height(image_sizes: [tuple[int, int]], n_row: int) -> tuple[t
     return (width, height), heights
 
 
-def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[tuple[int, int]]]:
+def calc_offsets(
+    image_sizes: [tuple[int, int]],
+) -> tuple[tuple[int, int], list[tuple[int, int]]]:
     # # 横に長い順
     # indices = sorted(range(len(image_sizes)), key=lambda i: image_sizes[i][0], reverse=True)
     # そのまま
@@ -164,8 +180,11 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
     best_hs: Optional[list[int]] = None
     for n_row in range(1, len(image_sizes)):
         (w, h), hs = calc_width_and_height(image_sizes, n_row)
-        if (best_w is None or best_h is None) or w * h < best_w * best_h or (
-                w * h == best_w * best_h and w + h < best_w + best_h):
+        if (
+            (best_w is None or best_h is None)
+            or w * h < best_w * best_h
+            or (w * h == best_w * best_h and w + h < best_w + best_h)
+        ):
             best_n_row = n_row
             best_w = w
             best_h = h
@@ -186,10 +205,18 @@ def calc_offsets(image_sizes: [tuple[int, int]]) -> tuple[tuple[int, int], list[
     return (best_w, best_h), offsets
 
 
-def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, output_format: str,
-                   pixel_per_meter: float, margin_px: int = 4) -> list[
-    list[tuple[float, float]]]:
-    area_label = os.path.basename(glob(os.path.join(input_dir, "obj", f"{area_id}*"))[0])
+def rectify_images(
+    input_dir: str,
+    area_id: str,
+    bldg_id: str,
+    output_dir: str,
+    output_format: str,
+    pixel_per_meter: float,
+    margin_px: int = 4,
+) -> list[list[tuple[float, float]]]:
+    area_label = os.path.basename(
+        glob(os.path.join(input_dir, "obj", f"{area_id}*"))[0]
+    )
     output_obj_path: str = os.path.join(input_dir, "obj", area_label, f"{bldg_id}.obj")
 
     mtllib_value: Optional[str] = None
@@ -235,11 +262,15 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
     mtl: {str, str} = {}
     texture_path: Optional[str] = None
     if mtllib_value is not None:
-        mtl_path = os.path.abspath(os.path.join(os.path.dirname(output_obj_path), mtllib_value))
+        mtl_path = os.path.abspath(
+            os.path.join(os.path.dirname(output_obj_path), mtllib_value)
+        )
         mtl: {str, str} = read_mtl(mtl_path)
     if usemtl_value is not None and usemtl_value in mtl:
         texture_rel_path = mtl[usemtl_value]
-        texture_path = os.path.abspath(os.path.join(os.path.dirname(mtl_path), texture_rel_path))
+        texture_path = os.path.abspath(
+            os.path.join(os.path.dirname(mtl_path), texture_rel_path)
+        )
 
     # 正対化した面画像
     rectified_images: list[np.ndarray] = []
@@ -251,8 +282,12 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
         f = 0
         for v_vt_indices in f_values:
             f += 1
-            vs = np.array([np.array(v_values[v_index - 1]) for v_index, _ in v_vt_indices])
-            vts = np.array([np.array(vt_values[vt_index - 1]) for _, vt_index in v_vt_indices])
+            vs = np.array(
+                [np.array(v_values[v_index - 1]) for v_index, _ in v_vt_indices]
+            )
+            vts = np.array(
+                [np.array(vt_values[vt_index - 1]) for _, vt_index in v_vt_indices]
+            )
 
             src_points = vts * np.array([orig_w, orig_h])
             # objファイルは左下が始点だが、OpenCVは左上が始点
@@ -284,7 +319,9 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
 
             for i in range(len(vts)):
                 ni = (i + 1) % len(vts)
-                if (src_points[i][0] - src_points[ni][0]) * (new_vs[i][0] - new_vs[ni][0]) < 0:
+                if (src_points[i][0] - src_points[ni][0]) * (
+                    new_vs[i][0] - new_vs[ni][0]
+                ) < 0:
                     reverse_x = True
 
             dst_points = np.empty(0)
@@ -304,14 +341,26 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             dst_h = int(max_y + margin_px)
 
             if len(src_points) == 3:
-                af = cv2.getAffineTransform(src_points[:, :2].astype(np.float32),
-                                            dst_points[:, :2].astype(np.float32))
-                dst_image = cv2.warpAffine(src_image, af, (dst_w, dst_h), borderMode=cv2.BORDER_CONSTANT,
-                                           borderValue=(255, 255, 255))
+                af = cv2.getAffineTransform(
+                    src_points[:, :2].astype(np.float32),
+                    dst_points[:, :2].astype(np.float32),
+                )
+                dst_image = cv2.warpAffine(
+                    src_image,
+                    af,
+                    (dst_w, dst_h),
+                    borderMode=cv2.BORDER_CONSTANT,
+                    borderValue=(255, 255, 255),
+                )
             else:
                 homo, _ = cv2.findHomography(src_points, dst_points)
-                dst_image = cv2.warpPerspective(orig_image, homo, (dst_w, dst_h), borderMode=cv2.BORDER_CONSTANT,
-                                                borderValue=(255, 255, 255))
+                dst_image = cv2.warpPerspective(
+                    orig_image,
+                    homo,
+                    (dst_w, dst_h),
+                    borderMode=cv2.BORDER_CONSTANT,
+                    borderValue=(255, 255, 255),
+                )
 
             image_h, image_w, _ = dst_image.shape
             x_coords = dst_points[:, 0]
@@ -321,7 +370,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
             max_x = min(int(np.ceil(x_coords.max())) + margin_px, image_w)
             max_y = min(int(np.ceil(y_coords.max())) + margin_px, image_h)
 
-            cropped_image = dst_image[min_y: max_y, min_x:max_x]
+            cropped_image = dst_image[min_y:max_y, min_x:max_x]
             rectified_images.append(cropped_image)
             dst_points -= np.array([min_x, min_y])
             rectified_texture_points.append(dst_points)
@@ -342,7 +391,7 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
         f_value = f_values[i]
 
         h, w, _ = image.shape
-        combined_image[offset_y:offset_y + h, offset_x:offset_x + w] = image
+        combined_image[offset_y : offset_y + h, offset_x : offset_x + w] = image
         # 新しいvtを計算
         new_vt_index = len(new_vt_values)
         texture_points = rel_texture_points + np.array([offset_x, offset_y])
@@ -350,11 +399,15 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
         texture_points[:, 1] = texture_height - texture_points[:, 1]
         new_vt_value = texture_points / np.array([texture_width, texture_height])
         new_vt_values.extend(new_vt_value)
-        new_f_value = [(f_value[j][0], 1 + new_vt_index + j) for j in range(len(f_value))]
+        new_f_value = [
+            (f_value[j][0], 1 + new_vt_index + j) for j in range(len(f_value))
+        ]
         new_f_values.append(new_f_value)
         face_vertices_list.append(new_vt_value.tolist())
 
-    output_image_path = os.path.join(output_dir, f"{area_id}_appearance", f"{bldg_id}.{output_format}")
+    output_image_path = os.path.join(
+        output_dir, f"{area_id}_appearance", f"{bldg_id}.{output_format}"
+    )
     # print("output:", output_image_path)
     os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
     cv2.imwrite(output_image_path, combined_image)
@@ -388,7 +441,9 @@ def rectify_images(input_dir: str, area_id: str, bldg_id: str, output_dir: str, 
     return face_vertices_list
 
 
-def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter: float):
+def process(
+    input_dir: str, output_dir: str, output_format: str, pixel_per_meter: float
+):
     # {input_dir}/{area_id}_op.gml
     # {input_dir}/{area_id}_appearance/{bldg_id}.jpg もしくは png
     # {input_dir}/obj/{area_id}_op/{area_id}_op.mtl
@@ -408,7 +463,13 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
             face_vertices_list_map: dict[str, list[list[tuple[float, float]]]] = {}
             for _, _, obj_names in os.walk(area_path):
                 isatty = sys.stdout.isatty()
-                pbar = tqdm(total=len(obj_names), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
+                pbar = tqdm(
+                    total=len(obj_names),
+                    unit="file",
+                    leave=False,
+                    dynamic_ncols=isatty,
+                    disable=not isatty,
+                )
 
                 for obj_name in obj_names:
                     if not obj_name.endswith(".obj"):
@@ -421,32 +482,52 @@ def process(input_dir: str, output_dir: str, output_format: str, pixel_per_meter
 
                     bldg_id = obj_name.removesuffix(".obj")
                     bldg_ids.append(bldg_id)
-                    face_vertices_list_map[bldg_id] = rectify_images(input_dir, area_id, bldg_id, output_dir,
-                                                                     output_format, pixel_per_meter)
+                    face_vertices_list_map[bldg_id] = rectify_images(
+                        input_dir,
+                        area_id,
+                        bldg_id,
+                        output_dir,
+                        output_format,
+                        pixel_per_meter,
+                    )
                     pbar.update(1)
                 pbar.close()
 
-            mtl_output_path = os.path.join(output_dir, "obj", area_label, f"{area_label}.mtl")
+            mtl_output_path = os.path.join(
+                output_dir, "obj", area_label, f"{area_label}.mtl"
+            )
             mtl_output_dir = os.path.dirname(mtl_output_path)
             os.makedirs(mtl_output_dir, exist_ok=True)
             # print("output:", mtl_output_path)
             with open(mtl_output_path, "w") as mtl_file:
                 for bldg_id in bldg_ids:
-                    texture_path = os.path.join(output_dir, f"{area_id}_appearance", f"{bldg_id}.{output_format}")
+                    texture_path = os.path.join(
+                        output_dir,
+                        f"{area_id}_appearance",
+                        f"{bldg_id}.{output_format}",
+                    )
                     kd = os.path.relpath(texture_path, start=mtl_output_dir)
                     mtl_file.write(f"newmtl {bldg_id}\n")
                     mtl_file.write(f"map_Kd {kd}\n")
 
-            copy_gml(input_dir, area_id, output_dir, output_format, face_vertices_list_map)
+            copy_gml(
+                input_dir, area_id, output_dir, output_format, face_vertices_list_map
+            )
 
 
 def main():
     parser = argparse.ArgumentParser(description="JPEG画像を再保存するスクリプト")
     parser.add_argument("-i", "--input", required=True, help="入力ディレクトリのパス")
     parser.add_argument("-o", "--output", required=True, help="出力ディレクトリのパス")
-    parser.add_argument('--format', type=str, default='png', help='出力するテクスチャ画像の拡張子')
-    parser.add_argument('--meter-per-pixel', type=float, default=0.16,
-                        help='出力するテクスチャ画像の1ピクセルが何メートルに相当するか')
+    parser.add_argument(
+        "--format", type=str, default="png", help="出力するテクスチャ画像の拡張子"
+    )
+    parser.add_argument(
+        "--meter-per-pixel",
+        type=float,
+        default=0.16,
+        help="出力するテクスチャ画像の1ピクセルが何メートルに相当するか",
+    )
     args = parser.parse_args()
 
     pixel_per_meter = 1 / args.meter_per_pixel

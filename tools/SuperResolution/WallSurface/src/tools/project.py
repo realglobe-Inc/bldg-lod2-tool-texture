@@ -39,9 +39,9 @@ def get_hw(src):
 class CalcInvProj:
     """逆射影変換を施すクラス
 
-        Attributes:
-            image_seitaika (Path): 正対化された画像パス
-            json_log (dict): ログ情報
+    Attributes:
+        image_seitaika (Path): 正対化された画像パス
+        json_log (dict): ログ情報
 
     """
 
@@ -68,8 +68,12 @@ class CalcInvProj:
         h_atlas, w_atlas, _ = im_atlas.shape
 
         v_max, v_min, u_max, u_min = get_hw(src)
-        v_max, v_min, u_max, u_min = math.ceil(v_max), math.floor(
-            v_min), math.ceil(u_max), math.floor(u_min)
+        v_max, v_min, u_max, u_min = (
+            math.ceil(v_max),
+            math.floor(v_min),
+            math.ceil(u_max),
+            math.floor(u_min),
+        )
 
         # 外側の色が薄くなるのを防ぐため、外側も塗りつぶしマスクで切り取る
         image = self.image_seitaika
@@ -77,33 +81,49 @@ class CalcInvProj:
         # Return value as is when image size is 1 x 1
         if image.shape[0] == 1 and image.shape[1] == 1:
             if self.logger is not None:
-                self.logger.info(f"Warning: Return value as is when image size is 1 x 1")
+                self.logger.info(
+                    f"Warning: Return value as is when image size is 1 x 1"
+                )
             return image
 
         if len(src) == 3:
             af = cv2.getAffineTransform(
-                dst.clip([0, 0], [self.json_log["w_dst"], self.json_log["h_dst"]])[:, :2].astype(np.float32),
-                src[:, :2].astype(np.float32))
-            dst_image = cv2.warpAffine(image, af, (w_atlas, h_atlas), borderMode=cv2.BORDER_REPLICATE,
-                                       borderValue=(255, 255, 255))
-            mask_image = cv2.warpAffine(np.full(image.shape[:2], 255, dtype=np.uint8), af, (w_atlas, h_atlas),
-                                        borderValue=0)
+                dst.clip([0, 0], [self.json_log["w_dst"], self.json_log["h_dst"]])[
+                    :, :2
+                ].astype(np.float32),
+                src[:, :2].astype(np.float32),
+            )
+            dst_image = cv2.warpAffine(
+                image,
+                af,
+                (w_atlas, h_atlas),
+                borderMode=cv2.BORDER_REPLICATE,
+                borderValue=(255, 255, 255),
+            )
+            mask_image = cv2.warpAffine(
+                np.full(image.shape[:2], 255, dtype=np.uint8),
+                af,
+                (w_atlas, h_atlas),
+                borderValue=0,
+            )
         else:
             homo, _ = cv2.findHomography(
                 # 座標がはみ出ている場合は内側に入るように調整する(ずれは発生する)
                 dst.clip([0, 0], [self.json_log["w_dst"], self.json_log["h_dst"]]),
-                src
+                src,
             )
             dst_image = cv2.warpPerspective(
-                image, homo, (w_atlas, h_atlas),
+                image,
+                homo,
+                (w_atlas, h_atlas),
                 borderMode=cv2.BORDER_REPLICATE,
-                borderValue=(255, 255, 255)
+                borderValue=(255, 255, 255),
             )
             mask_image = cv2.warpPerspective(
                 np.full(image.shape[:2], 255, dtype=np.uint8),
                 homo,
                 (w_atlas, h_atlas),
-                borderValue=0
+                borderValue=0,
             )
         dst_image[mask_image == 0] = 255
         dst_image = dst_image[v_min:v_max, u_min:u_max]

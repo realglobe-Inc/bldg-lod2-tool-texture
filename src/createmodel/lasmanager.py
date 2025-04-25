@@ -15,8 +15,8 @@ from ..util.log import Log, LogLevel, ModuleType
 
 
 class PointCloud:
-    """点群データ管理クラス
-    """
+    """点群データ管理クラス"""
+
     _cloud: NDArray[np.float_]
     _colors: NDArray[np.float_]
     _init: bool
@@ -42,8 +42,7 @@ class PointCloud:
         self._index = value
 
     def __init__(self) -> None:
-        """コンストラクタ
-        """
+        """コンストラクタ"""
         self._cloud = np.empty([0, 0])
         self._colors = np.empty([0, 0])
         self._init = False
@@ -128,7 +127,7 @@ class PointCloud:
 
         return np.max(self._cloud, axis=0)
 
-    def thin_out(self, n: int) -> 'PointCloud':
+    def thin_out(self, n: int) -> "PointCloud":
         """点群データを間引く
 
         Args:
@@ -148,8 +147,7 @@ class PointCloud:
 
 
 class LasFileInfo:
-    """LASファイル情報クラス
-    """
+    """LASファイル情報クラス"""
 
     @property
     def path(self) -> str:
@@ -241,7 +239,9 @@ class LasFileInfo:
         """
         self._max_y = value
 
-    def __init__(self, path: str, min_x: float, min_y: float, max_x: float, max_y: float):
+    def __init__(
+        self, path: str, min_x: float, min_y: float, max_x: float, max_y: float
+    ):
         """コンストラクタ
 
         Args:
@@ -268,8 +268,7 @@ class LasFileInfo:
 
 
 class LasManager:
-    """LASデータマネージャー
-    """
+    """LASデータマネージャー"""
 
     def __init__(self, swap_xy=False) -> None:
         """コンストラクタ
@@ -318,17 +317,19 @@ class LasManager:
         self._target_files = []  # 初期化
         if not os.path.isdir(folder_path):
             # フォルダが存在しない場合
-            msg = '{}.{}, {}'.format(
-                class_name, func_name,
-                ModelingMessage.ERR_MSG_LAS_MNG_LAS_FOLDER_NOT_FOUND)
+            msg = "{}.{}, {}".format(
+                class_name,
+                func_name,
+                ModelingMessage.ERR_MSG_LAS_MNG_LAS_FOLDER_NOT_FOUND,
+            )
             raise ModelingException(msg)
 
-        files = glob.glob(os.path.join(folder_path, '*.las'))
+        files = glob.glob(os.path.join(folder_path, "*.las"))
         if len(files) == 0:
             # lasファイルが存在しない場合
-            msg = '{}.{}, {}'.format(
-                class_name, func_name,
-                ModelingMessage.ERR_MSG_LAS_MNG_LAS_NOT_FOUND)
+            msg = "{}.{}, {}".format(
+                class_name, func_name, ModelingMessage.ERR_MSG_LAS_MNG_LAS_NOT_FOUND
+            )
             raise ModelingException(msg)
 
         min_pos = np.array([sys.float_info.max, sys.float_info.max])
@@ -352,11 +353,17 @@ class LasManager:
 
                     # polygonとの重畳確認
                     las_polygon = geo.Polygon(
-                        [(x_min, y_min), (x_min, y_max),
-                         (x_max, y_max), (x_max, y_min), (x_min, y_min)])
+                        [
+                            (x_min, y_min),
+                            (x_min, y_max),
+                            (x_max, y_max),
+                            (x_max, y_min),
+                            (x_min, y_min),
+                        ]
+                    )
 
                     # 重畳しない場合はskip
-                    if (las_polygon.disjoint(polygon)):
+                    if las_polygon.disjoint(polygon):
                         continue
 
                     file_info = LasFileInfo(file, x_min, y_min, x_max, y_max)
@@ -373,26 +380,28 @@ class LasManager:
                         max_pos[0] = y_max
             except Exception:
                 # ヘッダ情報取得時のエラー
-                msg = '{}.{}, {} ({})'.format(
-                    class_name, func_name,
+                msg = "{}.{}, {} ({})".format(
+                    class_name,
+                    func_name,
                     ModelingMessage.ERR_MSG_FAILED_TO_READ_LAS_FILE,
-                    os.path.basename(file))
+                    os.path.basename(file),
+                )
                 Log.output_log_write(
-                    LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION,
-                    msg)
+                    LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION, msg
+                )
 
-        if (len(self._target_files) == 0):
+        if len(self._target_files) == 0:
             # 点群データ取得対象のデータがない場合
-            msg = '{}.{}, {}'.format(
-                class_name, func_name,
-                ModelingMessage.ERR_MSG_LAS_MNG_NO_LAS_FILE)
+            msg = "{}.{}, {}".format(
+                class_name, func_name, ModelingMessage.ERR_MSG_LAS_MNG_NO_LAS_FILE
+            )
             raise ModelingException(msg)
 
         self._min_pos = min_pos
         self._max_pos = max_pos
 
     def get_points(
-            self, bilding_polygon: geo.Polygon, ground_polygon: geo.Polygon = None
+        self, bilding_polygon: geo.Polygon, ground_polygon: geo.Polygon = None
     ) -> tuple[PointCloud, Union[float, None], Union[float, None]]:
         """点群データの取得
 
@@ -430,53 +439,55 @@ class LasManager:
         min_height = None
         for file in self._target_files:
             box = file.get_area_polygon()
-            if (not self._building_polygon.disjoint(box)
-                    or (self._is_search_ground
-                        and not self._ground_polygon.disjoint(box))):
+            if not self._building_polygon.disjoint(box) or (
+                self._is_search_ground and not self._ground_polygon.disjoint(box)
+            ):
                 # 建物外形/地面探索範囲とLASデータ範囲が接している場合
 
                 las = laspy.read(file.path)
                 # 座標値の取得
                 if self._swap_xy:
                     # xy座標を入れ替える
-                    points = np.stack(
-                        [las.y, las.x, las.z], axis=0).transpose((1, 0))
+                    points = np.stack([las.y, las.x, las.z], axis=0).transpose((1, 0))
                 else:
                     # 入力値をそのまま使用する
-                    points = np.stack(
-                        [las.x, las.y, las.z], axis=0).transpose((1, 0))
+                    points = np.stack([las.x, las.y, las.z], axis=0).transpose((1, 0))
 
                 # 色情報の取得
                 pf: laspy.PointFormat = las.header.point_format
                 if pf.id in self._COLOR_RECORD_FORMATS:
-                    colors = np.stack(
-                        [las.red, las.green, las.blue],
-                        axis=0).transpose((1, 0))
+                    colors = np.stack([las.red, las.green, las.blue], axis=0).transpose(
+                        (1, 0)
+                    )
 
                     # 8bitデータ対応
                     if np.max(colors) < 256:  # 8bit画像？
                         colors *= 256
                 else:
-                    msg = '{}.{}, {}'.format(
-                        class_name, func_name,
-                        ModelingMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT)
+                    msg = "{}.{}, {}".format(
+                        class_name,
+                        func_name,
+                        ModelingMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT,
+                    )
                     raise ModelingException(msg)
 
                 # polygonの最小外接長方形でpointをfilterする
                 polygon_mbr: tuple[float, float, float, float] = (
                     self._ground_polygon
-                    if self._is_search_ground else self._building_polygon
+                    if self._is_search_ground
+                    else self._building_polygon
                 ).bounds  # type: ignore
-                in_mbr = ((polygon_mbr[0] <= points[:, 0])
-                          & (points[:, 0] <= polygon_mbr[2])
-                          & (polygon_mbr[1] <= points[:, 1])
-                          & (points[:, 1] <= polygon_mbr[3]))
+                in_mbr = (
+                    (polygon_mbr[0] <= points[:, 0])
+                    & (points[:, 0] <= polygon_mbr[2])
+                    & (polygon_mbr[1] <= points[:, 1])
+                    & (points[:, 1] <= polygon_mbr[3])
+                )
 
                 # 並列化処理
                 try:
                     # 屋根点取得 + 地面探索
-                    ret = pool.map(
-                        self._check_point_in_polygon, points[in_mbr])
+                    ret = pool.map(self._check_point_in_polygon, points[in_mbr])
                     conv_ret = np.zeros((len(points), 2), dtype=np.int_)
                     # list -> NDArray
                     conv_ret[in_mbr] = np.array(ret, dtype=np.int_)
@@ -489,16 +500,18 @@ class LasManager:
                         ex_colors = colors[conv_ret[:, 0] == 1]
                         cloud.add_colors(colors=ex_colors)
                     else:
-                        msg = '{}.{}, {}'.format(
-                            class_name, func_name,
-                            ModelingMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT)
+                        msg = "{}.{}, {}".format(
+                            class_name,
+                            func_name,
+                            ModelingMessage.ERR_MSG_LAS_MNG_UNSUPPORTED_LAS_FORMAT,
+                        )
                         raise ModelingException(msg)
 
                     if self._is_search_ground:
                         # 地面探索範囲内の点のみ取得
                         target_points = points[
-                            np.logical_and(conv_ret[:, 0] == 0,
-                                           conv_ret[:, 1] == 1)]
+                            np.logical_and(conv_ret[:, 0] == 0, conv_ret[:, 1] == 1)
+                        ]
                         cloud_ground.add_points(target_points)
 
                         if len(target_points) > 0:
@@ -515,16 +528,16 @@ class LasManager:
                     # 点群取得時のエラー
                     class_name = self.__class__.__name__
                     func_name = sys._getframe().f_code.co_name
-                    msg = '{}.{}, {}'.format(class_name, func_name, e)
+                    msg = "{}.{}, {}".format(class_name, func_name, e)
                     Log.output_log_write(
-                        LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION,
-                        msg)
+                        LogLevel.WARN, ModuleType.MODEL_ELEMENT_GENERATION, msg
+                    )
 
         if len(cloud.get_points()) == 0:
             # 建物点群がない場合
-            msg = '{}.{}, {}'.format(
-                class_name, func_name,
-                ModelingMessage.ERR_MSG_LAS_MNG_NO_POINTS)
+            msg = "{}.{}, {}".format(
+                class_name, func_name, ModelingMessage.ERR_MSG_LAS_MNG_NO_POINTS
+            )
             raise ModelingException(msg)
 
         ground_height = None
@@ -532,9 +545,11 @@ class LasManager:
             points_xyz = cloud_ground.get_points()
             if len(points_xyz) == 0:
                 # 地面点群がない場合
-                msg = '{}.{}, {}'.format(
-                    class_name, func_name,
-                    ModelingMessage.ERR_MSG_LAS_MNG_NO_GROUOND_POINTS)
+                msg = "{}.{}, {}".format(
+                    class_name,
+                    func_name,
+                    ModelingMessage.ERR_MSG_LAS_MNG_NO_GROUOND_POINTS,
+                )
                 raise ModelingException(msg)
 
             zs = points_xyz[:, 2]

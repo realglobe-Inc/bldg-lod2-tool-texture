@@ -17,8 +17,7 @@ from .util.resulttype import ResultType
 
 
 def _delete_module_tmp_folder() -> None:
-    """中間フォルダの削除(モジュールごと)
-    """
+    """中間フォルダの削除(モジュールごと)"""
     if os.path.isdir(Config.OUTPUT_MODEL_OBJDIR):
         shutil.rmtree(Config.OUTPUT_MODEL_OBJDIR)
     if os.path.isdir(Config.OUTPUT_PHASE_OBJDIR):
@@ -28,12 +27,9 @@ def _delete_module_tmp_folder() -> None:
 
 
 def main():
-    """メイン関数
-    """
+    """メイン関数"""
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'param', help='パラメータ'
-    )
+    parser.add_argument("param", help="パラメータ")
 
     args = parser.parse_args()
 
@@ -64,15 +60,19 @@ def main():
 
         # パラメータがデフォルトに変更された場合
         for change_param in change_params:
-            message = f'{change_param.name} Value change to {change_param.value}'
+            message = f"{change_param.name} Value change to {change_param.value}"
             log.output_log_write(LogLevel.WARN, ModuleType.NONE, message)
 
         # CityGMLファイル一覧の取得
-        citygml_files = glob.glob(os.path.join(param_manager.citygml_folder_path, '*.gml'))
+        citygml_files = glob.glob(
+            os.path.join(param_manager.citygml_folder_path, "*.gml")
+        )
 
         if len(citygml_files) == 0:
             # 入力CityGMLファイルがない場合
-            log.output_log_write(LogLevel.ERROR, ModuleType.NONE, 'CityGML file not found')
+            log.output_log_write(
+                LogLevel.ERROR, ModuleType.NONE, "CityGML file not found"
+            )
 
         buildings_for_summary = []
         for citygml_file_path in citygml_files:
@@ -103,15 +103,21 @@ def main():
                 log.module_start_log(ModuleType.MODEL_ELEMENT_GENERATION, file_name)
 
                 model_creator = ModelCreator(param_manager)
-                ret_model_element_generation = model_creator.create(buildings, debug_mode=param_manager.debug_mode)
+                ret_model_element_generation = model_creator.create(
+                    buildings, debug_mode=param_manager.debug_mode
+                )
 
-                log.module_result_log(ModuleType.MODEL_ELEMENT_GENERATION, ret_model_element_generation)
+                log.module_result_log(
+                    ModuleType.MODEL_ELEMENT_GENERATION, ret_model_element_generation
+                )
 
                 # モデル要素生成中間出力フォルダ確認
-                files = glob.glob(os.path.join(Config.OUTPUT_MODEL_OBJDIR, '*.obj'))
+                files = glob.glob(os.path.join(Config.OUTPUT_MODEL_OBJDIR, "*.obj"))
                 if not files:
                     log.output_log_write(
-                        LogLevel.ERROR, ModuleType.NONE, "ModelElementGeneration Module Not Output Obj File"
+                        LogLevel.ERROR,
+                        ModuleType.NONE,
+                        "ModelElementGeneration Module Not Output Obj File",
                     )
                     buildings_for_summary.extend(buildings)
                     _delete_module_tmp_folder()  # 中間フォルダの削除
@@ -121,16 +127,22 @@ def main():
                 log.module_start_log(ModuleType.CHECK_PHASE_CONSISTENSY, file_name)
 
                 main_manager = MainManager(param_manager)
-                ret_check_phaseconsistensy = main_manager.check_and_correction(buildings)
+                ret_check_phaseconsistensy = main_manager.check_and_correction(
+                    buildings
+                )
 
-                log.module_result_log(ModuleType.CHECK_PHASE_CONSISTENSY, ret_check_phaseconsistensy)
+                log.module_result_log(
+                    ModuleType.CHECK_PHASE_CONSISTENSY, ret_check_phaseconsistensy
+                )
 
                 # 位相一貫性補正中間出力フォルダ確認
-                files = glob.glob(os.path.join(Config.OUTPUT_PHASE_OBJDIR, '*.obj'))
+                files = glob.glob(os.path.join(Config.OUTPUT_PHASE_OBJDIR, "*.obj"))
 
                 if not files:
                     log.output_log_write(
-                        LogLevel.ERROR, ModuleType.NONE, "CheckPhaseConsistensy Module Not Output Obj File"
+                        LogLevel.ERROR,
+                        ModuleType.NONE,
+                        "CheckPhaseConsistensy Module Not Output Obj File",
                     )
                     buildings_for_summary.extend(buildings)
                     _delete_module_tmp_folder()  # 中間フォルダの削除
@@ -141,8 +153,9 @@ def main():
                     log.module_start_log(ModuleType.PASTE_TEXTURE, file_name)
 
                     texture_main = TextureMain(param_manager)
-                    ret_paste_texture = texture_main.texture_main(buildings, file_name,
-                                                                  param_manager.texture_image_format)
+                    ret_paste_texture = texture_main.texture_main(
+                        buildings, file_name, param_manager.texture_image_format
+                    )
 
                     log.module_result_log(ModuleType.PASTE_TEXTURE, ret_paste_texture)
 
@@ -154,32 +167,51 @@ def main():
                     os.mkdir(output_objdir)
 
                     pathlist = sorted(
-                        [p for p in Path(input_objdir).glob('**/*') if re.search(r'/*\.obj', str(p))]
+                        [
+                            p
+                            for p in Path(input_objdir).glob("**/*")
+                            if re.search(r"/*\.obj", str(p))
+                        ]
                     )
                     for path in pathlist:
-                        shutil.copyfile(path, os.path.join(output_objdir, os.path.basename(path)))
+                        shutil.copyfile(
+                            path, os.path.join(output_objdir, os.path.basename(path))
+                        )
 
                     # 最終出力にOBJファイルを出力する場合
                     if param_manager.output_obj:
                         # 出力フォルダの作成
                         optional_output_objdir = os.path.join(
-                            param_manager.output_folder_path, 'obj', os.path.splitext(file_name)[0]
+                            param_manager.output_folder_path,
+                            "obj",
+                            os.path.splitext(file_name)[0],
                         )
                         if not os.path.isdir(optional_output_objdir):
                             os.makedirs(optional_output_objdir)
 
                         pathlist = sorted(
-                            [p for p in Path(input_objdir).glob('**/*') if re.search(r'/*\.obj', str(p))]
+                            [
+                                p
+                                for p in Path(input_objdir).glob("**/*")
+                                if re.search(r"/*\.obj", str(p))
+                            ]
                         )
                         for path in pathlist:
-                            shutil.copyfile(path, os.path.join(optional_output_objdir, os.path.basename(path)))
+                            shutil.copyfile(
+                                path,
+                                os.path.join(
+                                    optional_output_objdir, os.path.basename(path)
+                                ),
+                            )
 
                 if param_manager.output_citygml:
                     # CityGML出力
                     log.module_start_log(ModuleType.OUTPUT_CITYGML, file_name)
                     # CityGML書き込み
-                    ret_citygml_write = citygml.write_file(file_name=file_name,
-                                                           image_format=param_manager.texture_image_format)
+                    ret_citygml_write = citygml.write_file(
+                        file_name=file_name,
+                        image_format=param_manager.texture_image_format,
+                    )
                     log.module_result_log(ModuleType.OUTPUT_CITYGML, ret_citygml_write)
 
                 # summary用にモデル化結果を保存

@@ -22,24 +22,34 @@ def sorted_glob(patterns):
 
 def main(input_dir: str, out_dir: str, input_format: str, output_format: str):
     img_patterns = [
-        os.path.join(fix_relative_path(input_dir), '**', f'*.{input_format}')
+        os.path.join(fix_relative_path(input_dir), "**", f"*.{input_format}")
     ]
     imgs = sorted_glob(img_patterns)
     os.makedirs(out_dir, exist_ok=True)
 
     Image.MAX_IMAGE_PIXELS = 933120000
     isatty = sys.stdout.isatty()
-    pbar = tqdm(total=len(imgs), unit="file", leave=False, dynamic_ncols=isatty, disable=not isatty)
+    pbar = tqdm(
+        total=len(imgs),
+        unit="file",
+        leave=False,
+        dynamic_ncols=isatty,
+        disable=not isatty,
+    )
     for img_path in imgs:
         pbar.set_description(os.path.basename(img_path))
         if not isatty:
-            print(f'Processing {os.path.basename(img_path)}')
+            print(f"Processing {os.path.basename(img_path)}")
 
         image = Image.open(img_path)
 
-        sharpened_image = image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+        sharpened_image = image.filter(
+            ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3)
+        )
         relative_path = os.path.relpath(img_path, start=Path(input_dir))
-        save_path = os.path.join(out_dir, os.path.splitext(relative_path)[0] + f'.{output_format}')
+        save_path = os.path.join(
+            out_dir, os.path.splitext(relative_path)[0] + f".{output_format}"
+        )
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
         sharpened_image.save(save_path)
@@ -48,24 +58,27 @@ def main(input_dir: str, out_dir: str, input_format: str, output_format: str):
     pbar.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-i', '--input', type=str, required=True, help='Input image or folder'
+        "-i", "--input", type=str, required=True, help="Input image or folder"
+    )
+    parser.add_argument("-o", "--output", type=str, required=True, help="Output folder")
+    parser.add_argument(
+        "--input-format", type=str, default="png", help="Input image extension"
     )
     parser.add_argument(
-        '-o', '--output', type=str, required=True, help='Output folder'
-    )
-    parser.add_argument(
-        '--input-format', type=str, default='png', help='Input image extension'
-    )
-    parser.add_argument(
-        '--output-format', type=str, default='png', help='Output image extension'
+        "--output-format", type=str, default="png", help="Output image extension"
     )
 
     args = parser.parse_args()
     args.input = fix_relative_path(args.input)
     args.output = fix_relative_path(args.output)
 
-    main(input_dir=args.input, out_dir=args.output, input_format=args.input_format, output_format=args.output_format)
+    main(
+        input_dir=args.input,
+        out_dir=args.output,
+        input_format=args.input_format,
+        output_format=args.output_format,
+    )

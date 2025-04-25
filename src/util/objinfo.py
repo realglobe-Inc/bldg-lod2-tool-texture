@@ -16,8 +16,8 @@ logger = getLogger(__name__)
 
 
 class BldElementType(Enum):
-    """部材タイプ
-    """
+    """部材タイプ"""
+
     NONE = 0  # 未定義
     ROOF = 1  # 屋根
     WALL = 2  # 壁
@@ -25,11 +25,13 @@ class BldElementType(Enum):
 
 
 class BldElement:
-    """部材情報管理クラス
-    """
-    _element_dict = {'Roof': BldElementType.ROOF,
-                     'Wall': BldElementType.WALL,
-                     'Ground': BldElementType.GROUND}
+    """部材情報管理クラス"""
+
+    _element_dict = {
+        "Roof": BldElementType.ROOF,
+        "Wall": BldElementType.WALL,
+        "Ground": BldElementType.GROUND,
+    }
 
     @classmethod
     def get_element_type(self, str) -> BldElementType:
@@ -40,24 +42,22 @@ class BldElement:
 
     @classmethod
     def get_element_str(self, element_type) -> string:
-        r_str = ''
+        r_str = ""
         for key, value in self._element_dict.items():
-            if (value == element_type):
+            if value == element_type:
                 r_str = key
 
         return r_str
 
 
 class ObjInfo:
-    """建物情報クラス
-    """
+    """建物情報クラス"""
 
     def __init__(self):
-        """コンストラクタ
-        """
+        """コンストラクタ"""
         self._faces_list = dict()  # 部材毎の面情報リスト
-        self._file_name = ''  # ファイル名
-        self._mtl_file_name = ''  # マテリアルファイル名
+        self._file_name = ""  # ファイル名
+        self._mtl_file_name = ""  # マテリアルファイル名
         self._mtl_list = dict()  # マテリアル情報リスト
 
         self._v_list = PointManager()
@@ -113,8 +113,7 @@ class ObjInfo:
             return None
 
     def reset_faces(self):
-        """面情報リストリセット
-        """
+        """面情報リストリセット"""
         self._faces_list.clear()
 
     # def set_vlist(self, point_list):
@@ -193,8 +192,7 @@ class ObjInfo:
             self._faces_list[element_type] = FaceInfos()
         self._faces_list[element_type].append(face)
 
-    def append_faces(self, element_type: BldElementType,
-                     polygon_list: list):
+    def append_faces(self, element_type: BldElementType, polygon_list: list):
         """指定した部材に面情報群を追加
 
         Args:
@@ -211,8 +209,7 @@ class ObjInfo:
             self.append_face(element_type, face)  # 面情報を追加
         logger.debug(self._v_list)
 
-    def append_point_list(self, element_type: BldElementType,
-                          point_list: list):
+    def append_point_list(self, element_type: BldElementType, point_list: list):
         """指定した部材に面情報を追加
 
         Args:
@@ -225,8 +222,7 @@ class ObjInfo:
             face.append(IndexInfo(index))
         self.append_face(element_type, face)  # 面情報を追加
 
-    def append_textures(self, element_type: BldElementType,
-                        multi_point_list: list):
+    def append_textures(self, element_type: BldElementType, multi_point_list: list):
         """指定した部材にテクスチャ座標情報を付加
 
         Args:
@@ -243,8 +239,9 @@ class ObjInfo:
                 tex_list.append(index)
             faces.append_texture(i, tex_list)  # 面情報更新
 
-    def append_texture(self, element_type: BldElementType, face_no: int,
-                       point_list: list):
+    def append_texture(
+        self, element_type: BldElementType, face_no: int, point_list: list
+    ):
         """指定した部材の指定した面にテクスチャ座標を付加
 
         Args:
@@ -283,55 +280,57 @@ class ObjInfo:
 
         if not os.path.isfile(file_path):
             # ファイルが存在しない場合
-            raise FileNotFoundError(f'{file_path} : obj file does not exist.')
+            raise FileNotFoundError(f"{file_path} : obj file does not exist.")
 
         # obj ファイル入力
         cur_parts = BldElementType.NONE
         line_ct = 0
-        with open(file_path, mode='r') as f:
+        with open(file_path, mode="r") as f:
             for line in f:
                 line_ct += 1
-                s_list = line.strip().split(' ')
+                s_list = line.strip().split(" ")
                 if len(s_list) == 0 or not s_list[0]:
                     continue
 
                 try:
-                    if s_list[0] == 'v':  # 頂点座標
+                    if s_list[0] == "v":  # 頂点座標
                         p = self._get_v(s_list)
                         if p is not None:
                             self._tmp_v_list.append(p)
 
-                    elif s_list[0] == 'vt':  # テクスチャ座標
+                    elif s_list[0] == "vt":  # テクスチャ座標
                         tp = self._get_vt(s_list)
                         if tp is not None:
                             self._tmp_vt_list.append(tp)
 
-                    elif s_list[0] == 'vn':  # 法線
+                    elif s_list[0] == "vn":  # 法線
                         continue
 
-                    elif s_list[0] == 'mtllib':  # マテリアルファイル名
+                    elif s_list[0] == "mtllib":  # マテリアルファイル名
                         self._set_mtllib(s_list)
 
-                    elif s_list[0] == 'usemtl':  # マテリアル名
+                    elif s_list[0] == "usemtl":  # マテリアル名
                         self._set_usemtl(s_list)
 
-                    elif s_list[0] == 'f':  # インデックス情報
+                    elif s_list[0] == "f":  # インデックス情報
                         if cur_parts in self._faces_list:
-                            index_list, tex_list \
-                                = self._faces_list[cur_parts].append_by_str(
-                                s_list)
+                            index_list, tex_list = self._faces_list[
+                                cur_parts
+                            ].append_by_str(s_list)
                             for index in index_list:
                                 if index > len(self._tmp_v_list):
                                     raise ValueError(
-                                        f'{index} :index value exceeds'
-                                        ' coordinates num.')
+                                        f"{index} :index value exceeds"
+                                        " coordinates num."
+                                    )
                             for tex in tex_list:
                                 if tex > len(self._tmp_vt_list):
                                     raise ValueError(
-                                        f'{tex}: tex index value '
-                                        'exceeds coordinates num.')
+                                        f"{tex}: tex index value "
+                                        "exceeds coordinates num."
+                                    )
 
-                    elif s_list[0][0] == '#':
+                    elif s_list[0][0] == "#":
                         if len(s_list) > 1:
                             cur_parts = BldElement.get_element_type(s_list[1])
                             if cur_parts != BldElementType.NONE:
@@ -339,19 +338,21 @@ class ObjInfo:
                                 self._faces_list[cur_parts] = FaceInfos()
 
                 except (SyntaxError, ValueError) as e:
-                    message = 'Line ' + str(line_ct) + ', ' + e.msg
+                    message = "Line " + str(line_ct) + ", " + e.msg
                     if err_message is None:
                         print(message)
-                        e.msg = ''
+                        e.msg = ""
                     else:
                         # err_message = message
                         e.msg = message
                     raise (e)
 
-        if BldElementType.ROOF not in self._faces_list \
-                or BldElementType.WALL not in self._faces_list \
-                or BldElementType.GROUND not in self._faces_list:
-            message = 'element information (ex. # ROOF) does not exist.'
+        if (
+            BldElementType.ROOF not in self._faces_list
+            or BldElementType.WALL not in self._faces_list
+            or BldElementType.GROUND not in self._faces_list
+        ):
+            message = "element information (ex. # ROOF) does not exist."
             if err_message is None:
                 print(message)
             else:
@@ -368,7 +369,7 @@ class ObjInfo:
             mtl_file = os.path.join(folder_path, self._mtl_file_name)
 
             if not os.path.exists(mtl_file):
-                message = mtl_file + ': mtl file does not exist.'
+                message = mtl_file + ": mtl file does not exist."
                 if err_message is None:
                     print(message)
                 else:
@@ -376,20 +377,20 @@ class ObjInfo:
                 raise FileNotFoundError()
 
             cur_mtl = None
-            with open(mtl_file, mode='r') as f:
+            with open(mtl_file, mode="r") as f:
                 for line in f:
                     line_ct += 1
-                    s_list = line.strip().split(' ')
+                    s_list = line.strip().split(" ")
                     if len(s_list) == 0 or not s_list[0]:
                         continue
 
                     try:
-                        if s_list[0] == 'newmtl':
-                            mtl_name = ''
+                        if s_list[0] == "newmtl":
+                            mtl_name = ""
                             if len(s_list) > 1:
                                 mtl_name = s_list[1]
                             else:
-                                err_str = 'newmtl: material name required.'
+                                err_str = "newmtl: material name required."
                                 raise SyntaxError(err_str)
                             if mtl_name in self._mtl_list:
                                 cur_mtl = self._mtl_list[mtl_name]
@@ -398,14 +399,14 @@ class ObjInfo:
                                 cur_mtl.set_by_str(s_list)
                                 cur_mtl = None
                     except (SyntaxError, ValueError) as e:
-                        message = 'Line ' + str(line_ct) + ', ' + e.msg
+                        message = "Line " + str(line_ct) + ", " + e.msg
                         if err_message is None:
                             print(message)
                         else:
                             err_message += message
                         raise (e)
 
-    def write_file(self, file_path='', swap_xy=False):
+    def write_file(self, file_path="", swap_xy=False):
         """OBJファイル出力
 
         Args:
@@ -419,17 +420,17 @@ class ObjInfo:
         if not path:
             path = self._file_name
 
-        logger.debug(f'out path = {path}')
+        logger.debug(f"out path = {path}")
 
         # obj ファイル出力
         try:
-            with open(path, mode='w', encoding='UTF-8') as f:
+            with open(path, mode="w", encoding="UTF-8") as f:
                 # マテリアルファイル名
                 if self._mtl_file_name:
-                    f.write(f'mtllib {self._mtl_file_name}\n\n')
+                    f.write(f"mtllib {self._mtl_file_name}\n\n")
 
                 # 頂点座標出力
-                f.write('#Vertex\n')
+                f.write("#Vertex\n")
                 f.writelines(self._get_v_str(swap_xy))
 
                 # テクスチャ座標出力
@@ -437,22 +438,23 @@ class ObjInfo:
 
                 # usemtl 出力
                 for mtl_info in self._mtl_list.values():
-                    f.write(f'usemtl {mtl_info.name}\n\n')
+                    f.write(f"usemtl {mtl_info.name}\n\n")
 
                 # 部材毎の面情報出力
-                f.write('#Face Index\n')
+                f.write("#Face Index\n")
                 for f_key, f_value in self._faces_list.items():
-                    f.write(f'# {BldElement.get_element_str(f_key)}\n')
+                    f.write(f"# {BldElement.get_element_str(f_key)}\n")
                     faces_str = f_value.get_str(swap_xy)
                     f.writelines(faces_str)
-                    f.write('\n')
+                    f.write("\n")
 
             # mtl ファイル出力
             if self._mtl_file_name:
-                path = os.path.join(os.path.dirname(path),
-                                    os.path.basename(self._mtl_file_name))
+                path = os.path.join(
+                    os.path.dirname(path), os.path.basename(self._mtl_file_name)
+                )
 
-                with open(path, mode='a', encoding='UTF-8') as f:
+                with open(path, mode="a", encoding="UTF-8") as f:
                     for mtl_value in self._mtl_list.values():
                         f.writelines(mtl_value.get_str())
         except Exception as e:
@@ -472,16 +474,16 @@ class ObjInfo:
         list_len = len(s_list)
 
         if list_len < 4:
-            join_str = ' '.join(s_list)
-            raise SyntaxError(f'{join_str} : x y z values required.')
+            join_str = " ".join(s_list)
+            raise SyntaxError(f"{join_str} : x y z values required.")
 
         float_list = []
         for s in s_list[1:]:
             try:
                 float_list.append(float(s))
             except ValueError:
-                join_str = ' '.join(s_list)
-                raise SyntaxError(f'{join_str} : purse error.')
+                join_str = " ".join(s_list)
+                raise SyntaxError(f"{join_str} : purse error.")
 
         return Point(float_list[0], float_list[1], float_list[2])
 
@@ -506,16 +508,16 @@ class ObjInfo:
         for v_point in v_list[1:]:
             if swap_xy:
                 # r_str = 'v ' + str(v_point.y) + ' ' + str(v_point.x)
-                r_str = 'v {:.06f} {:.06f}'.format(v_point.y, v_point.x)
+                r_str = "v {:.06f} {:.06f}".format(v_point.y, v_point.x)
             else:
                 # r_str = 'v ' + str(v_point.x) + ' ' + str(v_point.y)
-                r_str = 'v {:.06f} {:.06f}'.format(v_point.x, v_point.y)
+                r_str = "v {:.06f} {:.06f}".format(v_point.x, v_point.y)
 
             # r_str = r_str + ' ' + str(v_point.z) + '\n'
-            r_str = r_str + ' ' + '{:.06f}'.format(v_point.z) + '\n'
+            r_str = r_str + " " + "{:.06f}".format(v_point.z) + "\n"
             r_list.append(r_str)
 
-        r_list.append('\n')
+        r_list.append("\n")
 
         return r_list
 
@@ -533,16 +535,16 @@ class ObjInfo:
         list_len = len(s_list)
 
         if list_len < 3:
-            join_str = ' '.join(s_list)
-            raise SyntaxError(f'{join_str} : x y values required.')
+            join_str = " ".join(s_list)
+            raise SyntaxError(f"{join_str} : x y values required.")
 
         float_list = []
         for s in s_list[1:]:
             try:
                 float_list.append(float(s))
             except ValueError:
-                join_str = ' '.join(s_list)
-                raise SyntaxError(f'{join_str} : purse error.')
+                join_str = " ".join(s_list)
+                raise SyntaxError(f"{join_str} : purse error.")
 
         return Point(float_list[0], float_list[1])
 
@@ -560,11 +562,11 @@ class ObjInfo:
         vt_list = self._vt_list.get_list()
 
         for vt_point in vt_list[1:]:
-            r_str = 'vt ' + str(vt_point.x) + ' ' + str(vt_point.y) + '\n'
+            r_str = "vt " + str(vt_point.x) + " " + str(vt_point.y) + "\n"
             # r_str = 'vt {:.06f} {:.06f}\n'.format(vt_point.x, vt_point.y)
             r_list.append(r_str)
 
-        r_list.append('\n')
+        r_list.append("\n")
 
         return r_list
 
@@ -577,7 +579,7 @@ class ObjInfo:
         if len(s_list) > 1:
             self._mtl_file_name = s_list[1]
         else:
-            raise SyntaxError('mtllib : texture file name required.')
+            raise SyntaxError("mtllib : texture file name required.")
 
     def _set_usemtl(self, s_list):
         """テクスチャ名設定
@@ -591,11 +593,10 @@ class ObjInfo:
             if mtl_name:
                 self._mtl_list[mtl_name] = MaterialInfo(mtl_name)
         else:
-            raise SyntaxError('usemtl : texture name required.')
+            raise SyntaxError("usemtl : texture name required.")
 
     def _restruct_points(self):
-        """座標情報を PointManager に登録し、重複頂点を除外
-        """
+        """座標情報を PointManager に登録し、重複頂点を除外"""
         v_index_dict = dict()
         for i, pos in enumerate(self._tmp_v_list):
             index = self._v_list.append_pos(pos)
@@ -623,12 +624,10 @@ class ObjInfo:
 
 
 class ObjInfos:
-    """建物情報群クラス
-    """
+    """建物情報群クラス"""
 
     def __init__(self):
-        """コンストラクタ
-        """
+        """コンストラクタ"""
         self._obj_list = []  # 建物情報リスト
 
     @property
@@ -645,18 +644,17 @@ class ObjInfos:
             folder_path (string): OBJファイル格納フォルダパス
         """
         if not os.path.exists(folder_path):
-            print(f'{folder_path}: obj folder does not exist.')
+            print(f"{folder_path}: obj folder does not exist.")
             raise FileNotFoundError()
 
-        path_list = glob.glob(os.path.join(folder_path, '*.obj'))
+        path_list = glob.glob(os.path.join(folder_path, "*.obj"))
         if len(path_list) == 0:
             # フォルダ内にファイルが存在しない場合
-            raise FileNotFoundError(
-                f'{folder_path} : obj folder do not have obj file.')
+            raise FileNotFoundError(f"{folder_path} : obj folder do not have obj file.")
 
         for path in path_list:
             obj_info = ObjInfo()
-            logger.debug(f'path = {path}')
+            logger.debug(f"path = {path}")
             obj_info.read_file(path)
             self._obj_list.append(obj_info)
 
@@ -667,22 +665,22 @@ class ObjInfos:
             folder_path (string): OBJファイル格納フォルダパス
         """
         if not os.path.exists(folder_path):
-            raise FileNotFoundError(f'{folder_path}:\
-                 obj folder does not exist.')
+            raise FileNotFoundError(
+                f"{folder_path}:\
+                 obj folder does not exist."
+            )
 
-        logger.debug(f'out_folder = {folder_path}')
-        logger.debug(f'obj len = {len(self._obj_list)}')
+        logger.debug(f"out_folder = {folder_path}")
+        logger.debug(f"obj len = {len(self._obj_list)}")
 
         for obj in self._obj_list:
-            file_path = os.path.join(
-                folder_path, os.path.basename(obj.file_name))
-            logger.debug(f'file_path = {file_path}')
+            file_path = os.path.join(folder_path, os.path.basename(obj.file_name))
+            logger.debug(f"file_path = {file_path}")
             obj.write_file(file_path)
 
 
 class CompPoint(object):
-    """座標値クラス (辞書キー対応版)
-    """
+    """座標値クラス (辞書キー対応版)"""
 
     def __init__(self, x: float, y: float, z: float):
         """コンストラクタ
@@ -697,27 +695,25 @@ class CompPoint(object):
         self.z = z
 
     def __eq__(self, other):
-        """比較関数
-        """
+        """比較関数"""
         if not isinstance(other, CompPoint):
             return False
-        return (abs(self.x - other.x) < sys.float_info.epsilon) \
-            and (abs(self.y - other.y) < sys.float_info.epsilon) \
+        return (
+            (abs(self.x - other.x) < sys.float_info.epsilon)
+            and (abs(self.y - other.y) < sys.float_info.epsilon)
             and (abs(self.z - other.z) < sys.float_info.epsilon)
+        )
 
     def __hash__(self):
-        """ハッシュ関数
-        """
+        """ハッシュ関数"""
         return hash(self.x + self.y + self.z)
 
 
 class PointManager:
-    """座標値管理クラス
-    """
+    """座標値管理クラス"""
 
     def __init__(self):
-        """コンストラクタ
-        """
+        """コンストラクタ"""
         self._dict = dict()  # dict<CompPoint, int>
         self._list = []  # list<Point>
 

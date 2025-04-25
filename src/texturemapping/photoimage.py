@@ -5,20 +5,21 @@ from ..util.cvsupportjp import Cv2Japanese
 from ..util.parammanager import ParamManager
 
 
-class PhotoImage():
-    """写真情報クラス
-    """
+class PhotoImage:
+    """写真情報クラス"""
+
     def __init__(self) -> None:
-        """コンストラクタ
-        """
+        """コンストラクタ"""
         self.filename = None
         self.photodir = None
         # self.img = None
-        self._focallength = 0         # 焦点距離[mm]
-        self._ppx = 0                 # カメラの主点X座標[mm]
-        self._ppy = 0                 # カメラの主点Y座標[mm]
-        self._adjustedfocallen = 0     # キャリブレーション後の焦点距離
-        self._adjustedfocallen2 = 0    # キャリブレーション後の焦点距離 * -1 (-m_fAdjustedFolcalLen)
+        self._focallength = 0  # 焦点距離[mm]
+        self._ppx = 0  # カメラの主点X座標[mm]
+        self._ppy = 0  # カメラの主点Y座標[mm]
+        self._adjustedfocallen = 0  # キャリブレーション後の焦点距離
+        self._adjustedfocallen2 = (
+            0  # キャリブレーション後の焦点距離 * -1 (-m_fAdjustedFolcalLen)
+        )
         self._calibparam = [0 for i in range(5)]
 
         self._paramomega = 0
@@ -26,17 +27,24 @@ class PhotoImage():
         self._paramkappa = 0
         self._focalpos = [0 for i in range(3)]
 
-        self._rot_matrix = np.zeros((3, 3))                   # 回転行列の要素
-        self._imagesize = [0 for i in range(2)]             # 画像サイズ(画素数) width/height
-        self._sensorsize = [0 for i in range(2)]            # センサーサイズ(mm) width/height
-        self._valid_imagerange = [0 for i in range(2)]       # 有効画像座標範囲(画像サイズ - 1) width/height
-        self._calibration_flag = False                       # キャリブレーションフラグ
+        self._rot_matrix = np.zeros((3, 3))  # 回転行列の要素
+        self._imagesize = [0 for i in range(2)]  # 画像サイズ(画素数) width/height
+        self._sensorsize = [0 for i in range(2)]  # センサーサイズ(mm) width/height
+        self._valid_imagerange = [
+            0 for i in range(2)
+        ]  # 有効画像座標範囲(画像サイズ - 1) width/height
+        self._calibration_flag = False  # キャリブレーションフラグ
         # 外部標定要素から算出する回転行列のモード
         self._rorate_matrix_mode = ParamManager.RotateMatrixMode.XYZ
 
     def set_photo_param(
-            self, photodir: str, excalib: str, caminfo: str, calibflag: bool,
-            rotate_matrix_mode: ParamManager.RotateMatrixMode):
+        self,
+        photodir: str,
+        excalib: str,
+        caminfo: str,
+        calibflag: bool,
+        rotate_matrix_mode: ParamManager.RotateMatrixMode,
+    ):
         """写真情報をセットする
 
         Args:
@@ -66,19 +74,17 @@ class PhotoImage():
         # 画像サイズ(pixel)×1pixelサイズ(mm)=センサーサイズ(mm)
         # カメラ情報と実画像で縦横が逆になる場合があるため、カメラ情報として入力したサイズと一致したものをセンササイズとする
         # 誤差は0.01とする(暫定)
-        if (math.isclose(img.shape[1] * float(caminfo[3]) / 1000,
-                         float(caminfo[1]),
-                         rel_tol=0.01)
-           or math.isclose(img.shape[1] * float(caminfo[3]) / 1000,
-                           float(caminfo[2]),
-                           rel_tol=0.01)):
+        if math.isclose(
+            img.shape[1] * float(caminfo[3]) / 1000, float(caminfo[1]), rel_tol=0.01
+        ) or math.isclose(
+            img.shape[1] * float(caminfo[3]) / 1000, float(caminfo[2]), rel_tol=0.01
+        ):
             self._sensorsize[0] = img.shape[1] * float(caminfo[3]) / 1000
-        if (math.isclose(img.shape[1] * float(caminfo[4]) / 1000,
-                         float(caminfo[1]),
-                         rel_tol=0.01)
-           or math.isclose(img.shape[1] * float(caminfo[4]) / 1000,
-                           float(caminfo[2]),
-                           rel_tol=0.01)):
+        if math.isclose(
+            img.shape[1] * float(caminfo[4]) / 1000, float(caminfo[1]), rel_tol=0.01
+        ) or math.isclose(
+            img.shape[1] * float(caminfo[4]) / 1000, float(caminfo[2]), rel_tol=0.01
+        ):
             self._sensorsize[1] = img.shape[0] * float(caminfo[4]) / 1000
 
         # カメラの焦点距離(mm)
@@ -122,11 +128,11 @@ class PhotoImage():
         return True
 
     def get_photo_pos(self, point) -> None:
-        """ 撮影中心位置を取得する
+        """撮影中心位置を取得する
 
         Args:
             point (float[]): 撮影中心位置(x,y,z)
-             
+
         """
         point[0] = self._focalpos[0]
         point[1] = self._focalpos[1]
@@ -143,8 +149,7 @@ class PhotoImage():
         self._valid_imagerange[1] = self._imagesize[1] - 1
 
     def get_imagesize(self):
-        """画像サイズを取得する
-        """
+        """画像サイズを取得する"""
         return self._imagesize
 
     def get_imagepos(self, point, imagepos):
@@ -162,9 +167,9 @@ class PhotoImage():
 
         # 絶対座標に対応する写真座標を求める
         point_3d = np.array([point[0], point[1], point[2]], np.double)
-        point_3d = point_3d - np.array([self._focalpos[0],
-                                        self._focalpos[1],
-                                        self._focalpos[2]], np.double)
+        point_3d = point_3d - np.array(
+            [self._focalpos[0], self._focalpos[1], self._focalpos[2]], np.double
+        )
         # point_3d = np.dot(self._rot_matrix.transpose(), point_3d)
         point_3d = np.dot(self._rot_matrix.T, point_3d)
         photopos[0] = point_3d[0] / point_3d[2]
@@ -176,33 +181,45 @@ class PhotoImage():
             length = photopos[0] * photopos[0] + photopos[1] * photopos[1]
 
             photopos[0] -= (
-                photopos[0] * length
+                photopos[0]
+                * length
                 * (self._calibparam[3] + self._calibparam[4] * length)
-                - self._calibparam[1])
+                - self._calibparam[1]
+            )
             photopos[1] -= (
-                photopos[1] * length
+                photopos[1]
+                * length
                 * (self._calibparam[3] + self._calibparam[4] * length)
-                - self._calibparam[2])
+                - self._calibparam[2]
+            )
 
-        imagepos[0] = (self._imagesize[0] / 2 
-                       + (self._ppx - photopos[0] * self._adjustedfocallen)
-                       * self._imagesize[0] / self._sensorsize[0])
-        imagepos[1] = (self._imagesize[1] / 2 
-                       + (self._ppy - photopos[1] * self._adjustedfocallen)
-                       * self._imagesize[1] / self._sensorsize[1])
+        imagepos[0] = (
+            self._imagesize[0] / 2
+            + (self._ppx - photopos[0] * self._adjustedfocallen)
+            * self._imagesize[0]
+            / self._sensorsize[0]
+        )
+        imagepos[1] = (
+            self._imagesize[1] / 2
+            + (self._ppy - photopos[1] * self._adjustedfocallen)
+            * self._imagesize[1]
+            / self._sensorsize[1]
+        )
         imagepos[1] = self._imagesize[1] - imagepos[1]
         # 写真中心からの距離を求める
         # distance = photopos[0] * photopos[0] + photopos[1] * photopos[1]
 
-        if (imagepos[0] < 0 or imagepos[1] < 0
-           or imagepos[0] > self._valid_imagerange[0]
-           or imagepos[1] > self._valid_imagerange[1]):
+        if (
+            imagepos[0] < 0
+            or imagepos[1] < 0
+            or imagepos[0] > self._valid_imagerange[0]
+            or imagepos[1] > self._valid_imagerange[1]
+        ):
             return 0
 
         return 1
 
-    def set_rotmatrix(
-            self, rotate_matrix_mode: ParamManager.RotateMatrixMode) -> None:
+    def set_rotmatrix(self, rotate_matrix_mode: ParamManager.RotateMatrixMode) -> None:
         """回転行列の要素を求める
 
         Args:
@@ -220,17 +237,14 @@ class PhotoImage():
         cos_phi = math.cos(phi_)
 
         r_omega = np.array(
-            [[1., 0., 0.],
-             [0., cos_omega, -sin_omega],
-             [0., sin_omega, cos_omega]])
+            [[1.0, 0.0, 0.0], [0.0, cos_omega, -sin_omega], [0.0, sin_omega, cos_omega]]
+        )
         r_phi = np.array(
-            [[cos_phi, 0., sin_phi],
-             [0., 1., 0.],
-             [-sin_phi, 0., cos_phi]])
+            [[cos_phi, 0.0, sin_phi], [0.0, 1.0, 0.0], [-sin_phi, 0.0, cos_phi]]
+        )
         r_kappa = np.array(
-            [[cos_kappa, -sin_kappa, 0.],
-             [sin_kappa, cos_kappa, 0.],
-             [0., 0., 1.]])
+            [[cos_kappa, -sin_kappa, 0.0], [sin_kappa, cos_kappa, 0.0], [0.0, 0.0, 1.0]]
+        )
 
         if rotate_matrix_mode is ParamManager.RotateMatrixMode.ZYX:
             # R = Rz(κ)Ry(Φ)Rx(ω)
