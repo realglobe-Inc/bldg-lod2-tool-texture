@@ -859,7 +859,7 @@ class MBR:
 
     def _rectify(self):
         """屋根整形"""
-        param = ModelingParam.get_instance()
+        param = ModelingParam()
         # 形状の簡略化
         for roofplane in self._roofplanes:
             if roofplane.poly is None:
@@ -1090,12 +1090,12 @@ class MBR:
         self,
         src_clusters: list[ClusterInfo],
         shape: geo.Polygon,
-        grid_size=0.25,
+        grid_size: float,
         sampling_step=0.25,
         neighbor_jobs=8,
         mean_shift_jobs=8,
         angle_ms_bandwidth=5.0,
-        neightbor_max_dist=0.5,
+        neighbor_max_dist=0.5,
         roof_angle_ortho_th=5.0,
         line_length_th=1.0,
         valid_pixel_num=25,
@@ -1117,7 +1117,7 @@ class MBR:
             建物外形辺の角度のMeanShiftのジョブ数. Defaults to 8.
         angle_ms_bandwidth (float, optional): \
             建物外形辺の角度のMeanShiftのバンド幅. Defaults to 5.0.
-        neightbor_max_dist (float, optional): \
+        neighbor_max_dist (float, optional): \
             近傍建物外形線探索用の最大近傍距離閾値. Defaults to 0.5.
         roof_angle_ortho_th (float, optional): \
             近傍建物外形線の状態判定用の角度閾値deg. Defaults to 5.0.
@@ -1155,7 +1155,7 @@ class MBR:
                 footprint=self._footprint,
                 ms_bandwidth=angle_ms_bandwidth,
                 ms_jobs=mean_shift_jobs,
-                neighbor_max_dist=neightbor_max_dist,
+                neighbor_max_dist=neighbor_max_dist,
                 neighbor_jobs=neighbor_jobs,
                 angle_ortho_th=roof_angle_ortho_th,
                 line_len_th=line_length_th,

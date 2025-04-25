@@ -394,7 +394,7 @@ class Model:
             clusters (list[ClusterInfo]): ClusterInfoのリスト
             ground_height (float): 地面の高さ
         """
-        param = ModelingParam.get_instance()
+        param = ModelingParam()
 
         # 頂点マージ
         self._merge_vertex_2d(clusters=clusters)

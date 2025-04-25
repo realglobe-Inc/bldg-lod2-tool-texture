@@ -82,6 +82,7 @@ class ParamManager:
     KEY_TEXTURE_OUTPUT_WIDTH_MAX = "TextureOutputWidthMax"
     KEY_TEXTURE_OUTPUT_HEIGHT_MAX = "TextureOutputHeightMax"
     KEY_TEXTURE_IMAGE_FORMAT = "TextureImageFormat"
+    KEY_GRID_SIZE = "GridSize"
 
     # 必須入力のキー
     REQUIRED_KEYS = [
@@ -105,18 +106,22 @@ class ParamManager:
     ]
 
     # デバッグログ設定のデフォルト値
-    DEFALT_DEBUG_LOG_OUTPUT = False
+    DEFAULT_DEBUG_LOG_OUTPUT = False
     # 位相一貫補正のデフォルト値
-    DEFALT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT = False
-    DEFALT_PHASE_CONSISTENCY_NON_PLANE_THICKNESS = 0.03
-    DEFALT_PHASE_CONSISTENCY_NON_PLANE_ANGLE = 20
+    DEFAULT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT = False
+    DEFAULT_PHASE_CONSISTENCY_NON_PLANE_THICKNESS = 0.03
+    DEFAULT_PHASE_CONSISTENCY_NON_PLANE_ANGLE = 20
     # objファイル出力のデフォルト値
-    DEFALT_OUTPUT_OBJ = False
+    DEFAULT_OUTPUT_OBJ = True
     # テクスチャ出力のデフォルト値
-    DEFALT_OUTPUT_TEXTURE = True
+    DEFAULT_OUTPUT_TEXTURE = True
     # LASのXY座標swapフラグ
-    DEFALT_LAS_SWAP_XY = False
+    DEFAULT_LAS_SWAP_XY = False
     DEFAULT_TEXTURE_IMAGE_FORMAT = "png"
+
+    DEFAULT_OUTPUT_CITYGML = True
+    DEFAULT_DEBUG_MODE = False
+    DEFAULT_GRID_SIZE = 0.25
 
     def __init__(self) -> None:
         """コンストラクタ"""
@@ -129,39 +134,46 @@ class ParamManager:
         self.output_folder_path: str = ""  # CityGML出力フォルダパス
         self.output_log_folder_path: str = ""  # ログ出力先
         # デバッグログ出力フラグ
-        self.debug_log_output: bool = ParamManager.DEFALT_DEBUG_LOG_OUTPUT
+        self.debug_log_output: bool = ParamManager.DEFAULT_DEBUG_LOG_OUTPUT
         # 位相一貫性検査エラー時OBJ削除フラグ
         self.delete_error_flag: bool = (
-            ParamManager.DEFALT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT
+            ParamManager.DEFAULT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT
         )
+
         # 位相一貫性非平面厚み検査閾値
         self.non_plane_thickness: float = (
-            ParamManager.DEFALT_PHASE_CONSISTENCY_NON_PLANE_THICKNESS
+            ParamManager.DEFAULT_PHASE_CONSISTENCY_NON_PLANE_THICKNESS
         )
         # 位相一貫性非平面法線検査閾値
         self.non_plane_angle: float = (
-            ParamManager.DEFALT_PHASE_CONSISTENCY_NON_PLANE_ANGLE
+            ParamManager.DEFAULT_PHASE_CONSISTENCY_NON_PLANE_ANGLE
         )
-        self.output_obj: bool = ParamManager.DEFALT_OUTPUT_OBJ  # obj出力フラグ
-        self.output_texture: bool = ParamManager.DEFALT_OUTPUT_TEXTURE
+        self.output_obj: bool = ParamManager.DEFAULT_OUTPUT_OBJ  # obj出力フラグ
+        self.output_texture: bool = ParamManager.DEFAULT_OUTPUT_TEXTURE
         # lasのxy座標のswapフラグ
-        self.las_swap_xy: bool = ParamManager.DEFALT_LAS_SWAP_XY
+        self.las_swap_xy: bool = ParamManager.DEFAULT_LAS_SWAP_XY
         # 外部標定要素から算出する回転行列のモード
         self.rotate_matrix_mode: ParamManager.RotateMatrixMode = (
             ParamManager.RotateMatrixMode.XYZ
         )
 
         # デバッグモード：開発のためのキャッシュ化/屋根線イメージ生成
-        self.debug_mode: False
+        self.debug_mode = ParamManager.DEFAULT_DEBUG_MODE
         # 建築物検索：座標範囲
         self.target_coord_areas: Union[list[list[list[float]]], None]
         # 建築物検索：建物ID
         self.target_building_ids: Union[list[str], None]
         # テクスチャー横幅最大値(4096まで設定可)
-        self.texture_output_width_max: int = 4096
+        self.texture_output_width_max: int = ParamManager.TEXTURE_OUTPUT_WIDTH_MAX
         # テクスチャー縦幅最大値(4096まで設定可)
-        self.texture_output_height_max: int = 4096
+        self.texture_output_height_max: int = ParamManager.TEXTURE_OUTPUT_HEIGHT_MAX
         self.texture_image_format: str = ParamManager.DEFAULT_TEXTURE_IMAGE_FORMAT
+
+        self.output_citygml = ParamManager.DEFAULT_OUTPUT_CITYGML
+        self.target_coord_areas = None
+        self.target_building_ids = None
+        # 点群のm間隔
+        self.grid_size: float = ParamManager.DEFAULT_GRID_SIZE
 
         # 作業用パラメータ
         self.time = datetime.datetime.now()  # 処理開始時刻
@@ -200,51 +212,33 @@ class ParamManager:
                 )
 
             # 選択値の取得
-            self.output_obj = (
-                True
-                if json_load.get(self.KEY_OUTPUT_OBJ) is None
-                else json_load[self.KEY_OUTPUT_OBJ]
-            )
+            self.output_obj = json_load.get(self.KEY_OUTPUT_OBJ) or self.output_obj
             self.output_texture = (
-                True
-                if json_load.get(self.KEY_OUTPUT_TEXTURE) is None
-                else json_load[self.KEY_OUTPUT_TEXTURE]
+                json_load.get(self.KEY_OUTPUT_TEXTURE) or self.output_texture
             )
             self.output_citygml = (
-                True
-                if json_load.get(self.KEY_OUTPUT_CITYGML) is None
-                else json_load[self.KEY_OUTPUT_CITYGML]
+                json_load.get(self.KEY_OUTPUT_CITYGML) or self.output_citygml
             )
-            self.debug_mode = (
-                False
-                if json_load.get(self.KEY_DEBUG_MODE) is None
-                else json_load[self.KEY_DEBUG_MODE]
-            )
+            self.debug_mode = json_load.get(self.KEY_DEBUG_MODE) or self.debug_mode
             self.target_coord_areas = (
-                None
-                if json_load.get(self.KEY_TARGET_COORD_AREAS) is None
-                else json_load[self.KEY_TARGET_COORD_AREAS]
+                json_load.get(self.KEY_TARGET_COORD_AREAS) or self.target_coord_areas
             )
             self.target_building_ids = (
-                None
-                if json_load.get(self.KEY_TARGET_BUILDING_IDS) is None
-                else json_load[self.KEY_TARGET_BUILDING_IDS]
+                json_load.get(self.KEY_TARGET_BUILDING_IDS) or self.target_building_ids
             )
             self.texture_output_width_max = (
-                self.TEXTURE_OUTPUT_WIDTH_MAX
-                if json_load.get(self.KEY_TEXTURE_OUTPUT_WIDTH_MAX) is None
-                else json_load[self.KEY_TEXTURE_OUTPUT_WIDTH_MAX]
+                json_load.get(self.KEY_TEXTURE_OUTPUT_WIDTH_MAX)
+                or ParamManager.TEXTURE_OUTPUT_WIDTH_MAX
             )
             self.texture_output_height_max = (
-                self.TEXTURE_OUTPUT_HEIGHT_MAX
-                if json_load.get(self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX) is None
-                else json_load[self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX]
+                json_load.get(self.KEY_TEXTURE_OUTPUT_HEIGHT_MAX)
+                or ParamManager.TEXTURE_OUTPUT_HEIGHT_MAX
             )
             self.texture_image_format = (
-                self.DEFAULT_TEXTURE_IMAGE_FORMAT
-                if json_load.get(self.KEY_TEXTURE_IMAGE_FORMAT) is None
-                else json_load[self.KEY_TEXTURE_IMAGE_FORMAT]
+                json_load.get(self.KEY_TEXTURE_IMAGE_FORMAT)
+                or ParamManager.DEFAULT_TEXTURE_IMAGE_FORMAT
             )
+            self.grid_size = json_load.get(self.KEY_GRID_SIZE) or self.DEFAULT_GRID_SIZE
 
             # 必須キーの確認
             for key in ParamManager.REQUIRED_KEYS:
@@ -408,16 +402,19 @@ class ParamManager:
                 self.rotate_matrix_mode = ParamManager.RotateMatrixMode.ZYX
 
         if type(self.texture_output_width_max) is not int or not (
-            0 < self.texture_output_width_max <= 4096
+            0 < self.texture_output_width_max <= ParamManager.TEXTURE_OUTPUT_WIDTH_MAX
         ):
             raise Exception(f"{ParamManager.KEY_TEXTURE_OUTPUT_WIDTH_MAX} is invalid.")
 
         if type(self.texture_output_height_max) is not int or not (
-            0 < self.texture_output_height_max <= 4096
+            0 < self.texture_output_height_max <= ParamManager.TEXTURE_OUTPUT_HEIGHT_MAX
         ):
             raise Exception(f"{ParamManager.KEY_TEXTURE_OUTPUT_HEIGHT_MAX} is invalid.")
 
         if type(self.texture_image_format) is not str or not self.texture_image_format:
             raise Exception(f"{ParamManager.KEY_TEXTURE_IMAGE_FORMAT} is invalid.")
+
+        if type(self.grid_size) is not float or self.grid_size <= 0:
+            raise Exception(f"{ParamManager.KEY_GRID_SIZE} is invalid.")
 
         return change_params

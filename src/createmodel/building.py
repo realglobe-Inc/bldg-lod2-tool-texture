@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import pickle
+from typing import Optional
 
 from shapely.geometry import Polygon
 from shapely.geometry import JOIN_STYLE
@@ -66,7 +67,7 @@ class Building:
 
         # 点群探索範囲の設定
         # 建物外形形状の外側のみを膨張して、地面範囲を追加する
-        param = ModelingParam.get_instance()
+        param = ModelingParam()
         self._points_search_area = self._shape.buffer(
             param.ground_search_dist, join_style=JOIN_STYLE.mitre, single_sided=True
         )
@@ -91,17 +92,17 @@ class Building:
           las_swap_xy (bool, optional): lasのxyを入れ替えフラグ. Defaults to False.
           debug_mode (bool, optional): デバッグモード Defaults to False.
         """
-        param = ModelingParam.get_instance()
+        param = ModelingParam()
 
         # デバッグ : CityGMLファイル読み込みを早くするため、pickle でキャッシュ化
         # 建物検索範囲を変更する場合、キャッシュされているファイルの削除が必要
         cache_file_path = os.path.join(self._dsm_folder_path, f"{self._id}.pkl")
         if os.path.exists(cache_file_path) and debug_mode is True:
             with open(cache_file_path, "rb") as f:
-                cached_dsm: tuple[PointCloud, float | None, float | None] = pickle.load(
-                    f
+                cached_dsm: tuple[PointCloud, Optional[float], Optional[float], int] = (
+                    pickle.load(f)
                 )
-                cloud, min_ground_height, graphcut_height = cached_dsm
+                cloud, min_ground_height, graphcut_height, thin_rate = cached_dsm
         else:
             # 点群データの取得
             # lasファイルの座標値をそのまま使用する
@@ -111,14 +112,20 @@ class Building:
             las_mng.read_header(self._dsm_folder_path, self._points_search_area)
 
             # 建物点群の取得
-            cloud, min_ground_height, graphcut_height = las_mng.get_points(
+            cloud, min_ground_height, graphcut_height, thin_rate = las_mng.get_points(
                 self._shape, self._ground_area
             )
 
             # デバッグ : CityGMLファイル読み込みを早くするため、pickle でキャッシュ化
             if debug_mode:
                 with open(cache_file_path, "wb") as f:
-                    pickle.dump((cloud, min_ground_height, graphcut_height), f)
+                    pickle.dump(
+                        (cloud, min_ground_height, graphcut_height, thin_rate), f
+                    )
+
+        grid_size = (
+            self._grid_size if thin_rate is None else self._grid_size * thin_rate
+        )
 
         # 建物分類の推論をキャッシュ化
         building_class = param.building_class_cache.get(self._id)
@@ -128,9 +135,9 @@ class Building:
                 cloud=cloud,
                 shape=self._shape,
                 classifier_checkpoint_path=param.classifier_checkpoint_path,
+                grid_size=grid_size,
                 use_gpu=param.use_gpu,
-                grid_size=0.25,
-                expand_rate_for_house_model=0.25 / 0.08,
+                expand_rate_for_house_model=grid_size / 0.08,
             )
             if debug_mode:
                 param.building_class_cache[self._id] = building_class
@@ -143,7 +150,7 @@ class Building:
                 cloud=cloud,
                 shape=self._shape,
                 graphcut_height=graphcut_height,
-                grid_size=self._grid_size,
+                grid_size=grid_size,
                 building_id=self._id,
                 min_ground_height=min_ground_height,
                 output_folder_path=self._output_folder_path,
@@ -160,8 +167,8 @@ class Building:
                 balcony_segmentation_checkpoint_path=param.balcony_segmentation_checkpoint_path,
                 roof_edge_detection_checkpoint_path=param.roof_edge_detection_checkpoint_path,
                 use_gpu=param.use_gpu,
-                grid_size=self._grid_size,
-                expand_rate=0.25 / 0.08,
+                grid_size=grid_size,
+                expand_rate=grid_size / 0.08,
                 debug_mode=debug_mode,
             )
 

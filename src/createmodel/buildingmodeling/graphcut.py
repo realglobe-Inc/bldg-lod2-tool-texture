@@ -233,7 +233,7 @@ class GraphCut:
         src_points: NDArray,
         src_clusters: list[ClusterInfo],
         ground_height: float,
-        grid_size=0.25,
+        grid_size,
         smooth_weight=2.0,
         invalid_point_dist=99.0,
         height_diff_th=2.0,

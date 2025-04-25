@@ -12,8 +12,8 @@ def classify_building(
     cloud: PointCloud,
     shape: geo.Polygon,
     classifier_checkpoint_path: str,
+    grid_size: float,
     use_gpu: bool = False,
-    grid_size: float = 0.25,
     expand_rate_for_house_model: float = 1,
 ) -> BuildingClass:
     """建物の分類を行う
@@ -23,8 +23,8 @@ def classify_building(
         cloud(PointCloud): 建物点群
         shape(Polygon): 建物外形ポリゴン
         classifier_checkpoint_path(str): 建物分類の学習済みモデルファイルパス
+        grid_size(float,optional): 点群の間隔(meter),
         use_gpu(bool, optional): 推論時のGPU使用の有無 (Default: False)
-        grid_size(float,optional): 点群の間隔(meter) (Default: 0.25),
         expand_rate_for_house_model(float, optional): 家屋モデル作成時のの画像の拡大率 (Default: 1),
 
     Returns:

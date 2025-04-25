@@ -4,9 +4,20 @@ import os
 from os.path import join, dirname
 
 from src.createmodel.buildingclassification.classifier import BuildingClass
-from .createmodelexception import ModelingException
 
 
+def singleton(cls):
+    instances = {}
+
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+
+    return get_instance
+
+
+@singleton
 class ModelingParam:
     """モデル要素生成モジュールのパラメータクラス(シングルトンクラス)
 
@@ -16,13 +27,15 @@ class ModelingParam:
         例外を発する
     """
 
-    # クラス変数
-    _instance = None
-    """ユニークインスタンス
-    """
+    def __init__(self, debug_mode=False) -> None:
+        """コンストラクタ
+        Args:
+          debug_mode (bool, optional): デバッグモード (Default: False)
 
-    def _set_init_param(self, debug_mode: bool):
-        """パラメータ初期化関数"""
+        Raises:
+          ModelingException:
+            2回目以降のコンストラクタ呼び出し時(シングルトンのため)
+        """
         self._debug_mode = debug_mode  # デバッグモード
 
         # 地面探索
@@ -51,7 +64,7 @@ class ModelingParam:
         self._merge_dbscan_point_th = 5  # コア点判定用の点数閾値
         # GraphCut
         self._graphcut_height_offset = 4.0  # 地面高さのoffset値
-        # self._graphcut_smooth_weight = 25.0          # 平滑化の重み
+        # self._graphcut_smooth_weight = 25.0 # 平滑化の重み
         self._graphcut_smooth_weight = 20.0  # 平滑化の重み
         self._graphcut_invalid_point_dist = 100.0  # 無効点とする距離閾値
         self._graphcut_height_diff_th = 2.0  # 高さ差分閾値
@@ -59,10 +72,6 @@ class ModelingParam:
         self._graphcut_dbscan_point_th = 5  # dbscanのコア点判定用の点数閾値
 
         # MBR
-        # 建物外形ポリゴン辺のサンプリング間隔
-        self._mbr_sampling_step = 0.25
-        # 近傍建物外形線探索用の最大近傍距離閾値
-        self._mbr_neighbor_max_dist = 0.5
         # 近傍建物外形線探索時のNearestNeighborのジョブ数
         self._mbr_neighbor_jobs = 8
         # 短い建物外形線分を除外する際に距離閾値
@@ -129,35 +138,14 @@ class ModelingParam:
         # GPU使用フラグ
         self._use_gpu = True
 
-    def __init__(self, debug_mode=False) -> None:
-        """コンストラクタ
-        Args:
-          debug_mode (bool, optional): デバッグモード (Default: False)
-
-        Raises:
-          ModelingException:
-            2回目以降のコンストラクタ呼び出し時(シングルトンのため)
-        """
-        if ModelingParam._instance is not None:
-            raise ModelingException(
-                "ModelingParam Class is Singleton class. \
-                If you get instance, you shoud use get_instance() method."
-            )
-        else:
-            ModelingParam._instance = self
-            self._set_init_param(debug_mode)  # 初期パラメータ設定
-
     @staticmethod
-    def get_instance():
+    def get_instance() -> "ModelingParam":
         """インスタンス取得
 
         Returns:
             ModelingParam: インスタンス
         """
-        if ModelingParam._instance is None:
-            ModelingParam()
-
-        return ModelingParam._instance
+        return ModelingParam()
 
     # プロパティ
     @property
@@ -504,41 +492,23 @@ class ModelingParam:
         """
         self._graphcut_dbscan_point_th = value
 
-    @property
-    def mbr_sampling_step(self) -> float:
+    @staticmethod
+    def mbr_sampling_step(grid_size: float) -> float:
         """MBR処理時の建物外形ポリゴン辺のサンプリング間隔
 
         Returns:
             float: MBR処理時の建物外形ポリゴン辺のサンプリング間隔
         """
-        return self._mbr_sampling_step
+        return grid_size
 
-    @mbr_sampling_step.setter
-    def mbr_sampling_step(self, value: float):
-        """MBR処理時の建物外形ポリゴン辺のサンプリング間隔
-
-        Args:
-            value (float): MBR処理時の建物外形ポリゴン辺のサンプリング間隔
-        """
-        self._mbr_sampling_step = value
-
-    @property
-    def mbr_neighbor_max_dist(self) -> float:
+    @staticmethod
+    def mbr_neighbor_max_dist(grid_size: float) -> float:
         """近傍建物外形線探索用の最大近傍距離閾値
 
         Returns:
             float: 近傍建物外形線探索用の最大近傍距離閾値
         """
-        return self._mbr_neighbor_max_dist
-
-    @mbr_neighbor_max_dist.setter
-    def mbr_neighbor_max_dist(self, value: float):
-        """近傍建物外形線探索用の最大近傍距離閾値
-
-        Args:
-            value (float): 近傍建物外形線探索用の最大近傍距離閾値
-        """
-        self._mbr_neighbor_max_dist = value
+        return grid_size * 2
 
     @property
     def mbr_neighbor_jobs(self) -> int:
@@ -707,7 +677,7 @@ class ModelingParam:
         """屋根形状簡略化の閾値
 
         Returns:
-            float: shapley.geometry.Polygon.simplyfy()のtolerance値
+            float: shapley.geometry.Polygon.simplify()のtolerance値
         """
         return self._simplify_roof_th
 
@@ -716,7 +686,7 @@ class ModelingParam:
         """屋根形状簡略化の閾値
 
         Args:
-            value (float): shapley.geometry.Polygon.simplyfy()のtolerance値
+            value (float): shapley.geometry.Polygon.simplify()のtolerance値
         """
         self._simplify_roof_th = value
 

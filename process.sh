@@ -24,10 +24,12 @@ set -e
 #     LOD2自動モデリングの際の座標系。
 # OUTPUT_TEXTURE_ENABLED:
 #     LOD2自動モデリングの際にテクスチャも作成するか。
+# METER_PER_PIXEL:
+#     1ピクセルが何mに相当するか。
+#     デフォルト0.25。
 # METER_PER_TEXTURE_PIXEL:
 #     テクスチャ画像の1ピクセルを何mに相当させるか。
-#     デフォルト0.24。
-#     基本指定不要。
+#     デフォルト0.25。
 
 
 output_dir="$(realpath -sm "${OUTPUT_DIR:?}")"
@@ -42,7 +44,8 @@ fi
 las_coordinate_system="${LAS_COORDINATE_SYSTEM}"
 output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
 
-meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-0.24}"
+meter_per_pixel="${METER_PER_PIXEL:-0.25}"
+meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-"${meter_per_pixel:-0.25}"}"
 
 echo "output_dir: ${output_dir}"
 echo "bldg_lod2_tool_param_file: ${bldg_lod2_tool_param_file}"
@@ -95,7 +98,8 @@ if [ -z "${bldg_lod2_tool_param_file}" ]; then
   "TargetBuildingIds": null,
   "TextureOutputWidthMax": 4096,
   "TextureOutputHeightMax": 4096,
-  "TextureImageFormat": "png"
+  "TextureImageFormat": "png",
+  "GridSize": ${meter_per_pixel},
 }
 EOF
   else
