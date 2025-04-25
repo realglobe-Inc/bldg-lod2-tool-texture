@@ -1,22 +1,23 @@
-from collections import defaultdict
 import os
+from collections import defaultdict
 from pathlib import Path
+
 import numpy as np
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
 from .polygon_devision import PolygonDevision
-from ..extra_roof_line.utils.merge_close_vertices import merge_close_vertices
 from ..extra_roof_line.utils.line_group import LineGroup
+from ..extra_roof_line.utils.merge_close_vertices import merge_close_vertices
+from ..roof_layer_info import RoofLayerInfo
 from ..utils.polys import (
     ensure_counter_clockwise,
     get_polys_from_polygon_ijs_list,
     validate_polygon_ijs_list,
 )
-from ..roof_layer_info import RoofLayerInfo
-from ....util.objinfo import BldElementType, ObjInfo
 from ....createmodel.createmodelexception import ModelingException
 from ....createmodel.message import ModelingMessage
+from ....util.objinfo import BldElementType, ObjInfo
 
 
 class ExtraRoofLine:

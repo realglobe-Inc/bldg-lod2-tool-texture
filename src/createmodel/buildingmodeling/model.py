@@ -1,23 +1,25 @@
-import sys
 import copy
-import numpy as np
-import shapely.geometry as geo
-import networkx as nx
+import sys
 from enum import IntEnum
 from typing import Tuple
-from sklearn.neighbors import KDTree, NearestNeighbors
-from sklearn.cluster import DBSCAN
+
+import networkx as nx
+import numpy as np
+import shapely.geometry as geo
+from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
 from shapely.ops import unary_union
-from numpy.typing import NDArray
+from sklearn.cluster import DBSCAN
+from sklearn.neighbors import KDTree, NearestNeighbors
+
+from .clusterinfo import ClusterInfo
+from .geoutil import GeoUtil
+from .planeinfo import PlaneInfo
+from ..createmodelexception import ModelingException
 from ..message import ModelingMessage
 from ..param import ModelingParam
-from .planeinfo import PlaneInfo
-from .geoutil import GeoUtil
-from .clusterinfo import ClusterInfo
-from ..createmodelexception import ModelingException
-from ...util.objinfo import BldElementType, ObjInfo
 from ...util.log import Log, LogLevel, ModuleType
+from ...util.objinfo import BldElementType, ObjInfo
 
 
 class CompPoint(object):

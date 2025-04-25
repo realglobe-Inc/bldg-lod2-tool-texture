@@ -1,6 +1,7 @@
-import sys
 import math
+import sys
 from logging import getLogger
+
 import numpy as np
 from numpy.typing import NDArray
 from shapely.geometry import Point, LineString, Polygon

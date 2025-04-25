@@ -1,7 +1,8 @@
 import os
 import string
-from logging import getLogger
 from enum import IntEnum
+from logging import getLogger
+
 from numpy import empty
 
 from .geoutil import GeoUtil

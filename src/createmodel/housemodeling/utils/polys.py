@@ -1,10 +1,10 @@
-from collections import defaultdict
 import itertools
+from collections import defaultdict
 from typing import Union
 
+import numpy as np
 from shapely.geometry import Polygon, GeometryCollection, Point as GeoPoint
 from shapely.ops import unary_union
-import numpy as np
 
 
 def get_polys_from_geometry_collections(geometry_collections: list[GeometryCollection]):

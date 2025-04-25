@@ -1,15 +1,16 @@
-from collections import defaultdict
 import os
+from collections import defaultdict
 from typing import Union
 
-import numpy as np
-from shapely.geometry import Polygon, MultiPolygon
-from shapely.geometry import Point as GeoPoint
-from shapely.ops import unary_union
 import cv2
+import numpy as np
+from shapely.geometry import Point as GeoPoint
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.ops import unary_union
 
-from ..roof_layer_info import RoofLayerInfo
+from .utils.merge_close_vertices import merge_close_vertices
 from ..model_surface_creation.utils.geometry import Point
+from ..roof_layer_info import RoofLayerInfo
 from ..utils.polys import (
     ensure_counter_clockwise,
     get_polygon_ijs_list,
@@ -17,7 +18,6 @@ from ..utils.polys import (
     merge_small_polys_into_large_polys,
     validate_polygon_ijs_list,
 )
-from .utils.merge_close_vertices import merge_close_vertices
 
 
 class PolygonDevision:

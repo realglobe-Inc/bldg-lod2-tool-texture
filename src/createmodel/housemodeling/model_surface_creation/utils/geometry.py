@@ -1,9 +1,10 @@
 from __future__ import annotations
-from copy import deepcopy
-import math
-from typing import Optional, Final
-import numpy as np
 
+import math
+from copy import deepcopy
+from typing import Optional, Final
+
+import numpy as np
 
 EPS = 1e-8  # 計算時の許容誤差
 AcceptableError = 1e-6  # 判定時の許容誤差のデフォルト値

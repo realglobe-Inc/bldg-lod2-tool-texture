@@ -1,10 +1,13 @@
 from __future__ import annotations
+
+import itertools
 from copy import deepcopy
 from enum import IntEnum
-import itertools
 from typing import Generator, Optional, Union
+
 import numpy as np
 import numpy.typing as npt
+
 from .geometry import Point, Segment
 
 

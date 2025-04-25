@@ -1,8 +1,6 @@
-import os
-import numpy as np
 import glob
+
 from lxml import etree
-from .plutils import *
 
 
 def scan_codelists(dir_codelists):

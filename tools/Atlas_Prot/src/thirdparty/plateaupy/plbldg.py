@@ -1,17 +1,15 @@
-from numpy.lib.polynomial import poly
-from numpy.lib.twodim_base import tri
-from .plobj import plmesh, plobj
-from .plutils import *
-from .ploptions import ploptions
-from .thirdparty.earcutpython.earcut.earcut import earcut
-import numpy as np
 import copy
-import pickle
-import sys
 import os
+
 import cv2
-from lxml import etree
 import lxml
+import numpy as np
+from lxml import etree
+
+from .plobj import plmesh, plobj
+from .ploptions import ploptions
+from .plutils import *
+from .thirdparty.earcutpython.earcut.earcut import earcut
 
 _floorheight = 2  # fixed value, the height of 1 floor in meter.
 

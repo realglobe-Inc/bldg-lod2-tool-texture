@@ -1,18 +1,19 @@
-from typing import Union
-import numpy as np
-import cv2
 import os
 import pathlib
+from enum import Enum
+from typing import Union
 
+import cv2
+import numpy as np
+from shapely.geometry import LineString
 from shapely.geometry import Point
 from shapely.geometry import Polygon
-from shapely.geometry import LineString
-from enum import Enum
-from ..util.objinfo import BldElementType, ObjInfo
-from ..util.faceinfo import MaterialInfo
-from ..util.cvsupportjp import Cv2Japanese
-from ..util.log import Log, ModuleType, LogLevel
+
 from .photoimage import PhotoImage
+from ..util.cvsupportjp import Cv2Japanese
+from ..util.faceinfo import MaterialInfo
+from ..util.log import Log, ModuleType, LogLevel
+from ..util.objinfo import BldElementType, ObjInfo
 
 
 class VerticalObject:

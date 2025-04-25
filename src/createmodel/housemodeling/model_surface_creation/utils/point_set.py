@@ -1,6 +1,7 @@
 from copy import deepcopy
 from typing import Optional
-from .geometry import AcceptableError, Point, Segment
+
+from .geometry import Point
 
 AcceptableError = 0.5
 EPS = 1e-8

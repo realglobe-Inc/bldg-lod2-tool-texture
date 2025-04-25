@@ -1,19 +1,21 @@
-import numpy as np
-import shapely.geometry as geo
-import cv2 as cv
 import copy
 import sys
-from numpy.typing import NDArray
+from enum import IntEnum
 from typing import Tuple, Optional
+
+import cv2 as cv
+import numpy as np
+import shapely.geometry as geo
 from anytree import PostOrderIter, AnyNode
+from numpy.typing import NDArray
+from shapely import affinity
+from shapely.geometry import CAP_STYLE, JOIN_STYLE
+from sklearn.cluster import MeanShift
+from sklearn.neighbors import NearestNeighbors
+
 from .clusterinfo import ClusterInfo
 from .geoutil import GeoUtil
 from ..createmodelexception import ModelingException
-from sklearn.neighbors import NearestNeighbors
-from sklearn.cluster import MeanShift
-from shapely import affinity
-from shapely.geometry import CAP_STYLE, JOIN_STYLE
-from enum import IntEnum
 from ..message import ModelingMessage
 from ..param import ModelingParam
 

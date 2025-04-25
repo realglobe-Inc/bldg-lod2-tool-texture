@@ -1,7 +1,9 @@
 # -*- coding:utf-8 -*-
 import sys
+
 import numpy as np
 from numpy.typing import NDArray
+
 from .geoutil import GeoUtil
 from ..createmodelexception import ModelingException
 

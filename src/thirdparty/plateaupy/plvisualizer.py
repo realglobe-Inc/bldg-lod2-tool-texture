@@ -1,7 +1,8 @@
-import open3d as o3d
-import numpy as np
 import time
+
 import cv2
+import numpy as np
+import open3d as o3d
 
 usleep = lambda x: time.sleep(x / 1000000.0)
 

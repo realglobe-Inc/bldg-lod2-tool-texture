@@ -1,9 +1,10 @@
+import copy
 import math
-import numpy as np
 import random
 import string
-import copy
+
 import cv2
+import numpy as np
 
 
 def printMethods(obj):

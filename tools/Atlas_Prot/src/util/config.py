@@ -1,6 +1,3 @@
-import os
-
-
 class Config:
     """static変数設定"""
 

@@ -1,10 +1,11 @@
-from .plobj import plobj, plmesh
-from .plutils import *
-from .ploptions import ploptions
-import numpy as np
 import copy
 import os
-from lxml import etree
+
+import numpy as np
+
+from .plobj import plobj, plmesh
+from .ploptions import ploptions
+from .plutils import *
 
 
 class pldem(plobj):

@@ -1,15 +1,15 @@
-import inspect
-import os
-import shutil
 import datetime
+import inspect
 import json
 import logging
-
-from .parammanager import ParamManager
-from .config import Config
-from .resulttype import ResultType, ProcessResult
+import os
+import shutil
 from enum import IntEnum
 from logging import getLogger, config
+
+from .config import Config
+from .parammanager import ParamManager
+from .resulttype import ResultType, ProcessResult
 
 
 class ModuleType(IntEnum):

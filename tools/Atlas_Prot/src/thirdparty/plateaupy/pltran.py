@@ -1,11 +1,12 @@
-from .plobj import plobj, plmesh
-from .plutils import *
-from .ploptions import ploptions
-from .thirdparty.earcutpython.earcut.earcut import earcut
-import numpy as np
-import copy
 import os
-from lxml import etree
+
+import numpy as np
+
+from .plobj import plobj, plmesh
+from .ploptions import ploptions
+from .plutils import *
+from .thirdparty.earcutpython.earcut.earcut import earcut
+
 
 # (!TBD!) road height [in meter] offset in loading, because the height values in .gml are always zero.
 # temporary_road_height_offset = 20

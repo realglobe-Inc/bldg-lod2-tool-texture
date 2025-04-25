@@ -1,10 +1,11 @@
-from typing import Any
-import cv2
 import pathlib
+from typing import Any
 
-from .tools.synthesis import Synthesis
+import cv2
+
 from .tools.project import CalcInvProj
 from .tools.put import Put
+from .tools.synthesis import Synthesis
 
 
 class PostProcessing:

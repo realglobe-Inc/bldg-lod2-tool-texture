@@ -1,11 +1,11 @@
+import math
 import os
 from typing import Final, Optional
-import math
 
 import numpy as np
 import numpy.typing as npt
-from PIL import Image
 import shapely.geometry as geo
+from PIL import Image
 from shapely.geometry import Point
 from sklearn.neighbors import NearestNeighbors
 

@@ -1,12 +1,10 @@
 import os
-import torch
-from typing import Dict, Any, Optional
-import lightning.pytorch as pl
 
+import lightning.pytorch as pl
+import torch
 from mmedit.apis import delete_cfg
 from mmedit.registry import MODELS
 from mmedit.utils import register_all_modules
-
 from mmengine import Config
 from mmengine.registry import init_default_scope
 from mmengine.runner import load_checkpoint

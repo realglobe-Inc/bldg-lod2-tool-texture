@@ -1,11 +1,12 @@
+import os
+import shutil
+
 import cv2
 import numpy as np
-import shutil
-import os
 
 from .city_gml_info import CityGmlInfo
-from .util.parammanager import ParamManager
 from .util.cvsupportjp import Cv2Japanese
+from .util.parammanager import ParamManager
 
 
 class LayoutTexture:

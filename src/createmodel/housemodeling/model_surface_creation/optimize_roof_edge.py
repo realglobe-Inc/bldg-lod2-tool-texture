@@ -1,7 +1,8 @@
 # -*- coding:utf-8 -*-
-from copy import deepcopy
 import itertools
+from copy import deepcopy
 from typing import Optional
+
 import numpy as np
 import numpy.typing as npt
 from shapely.geometry import Polygon, Point as ShapelyPoint, LineString

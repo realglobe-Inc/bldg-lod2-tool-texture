@@ -1,15 +1,13 @@
-import os
-from .ploptions import ploptions
-import numpy as np
 import glob
-from lxml import etree
-from .plobj import plobj
+import os
+
 from .plbldg import plbldg
+from .plcodelists import scan_codelists
 from .pldem import pldem
 from .plluse import plluse
+from .plobj import plobj
+from .ploptions import ploptions
 from .pltran import pltran
-from .plutils import *
-from .plcodelists import scan_codelists
 
 
 class plparser:

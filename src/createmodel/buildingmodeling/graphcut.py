@@ -1,11 +1,13 @@
 # -*- coding:utf-8 -*-
 import sys
-import numpy as np
 from typing import Tuple
-from sklearn.cluster import DBSCAN
-from sklearn.neighbors import NearestNeighbors
+
+import numpy as np
 from maxflow.fastmin import aexpansion_grid
 from numpy.typing import NDArray
+from sklearn.cluster import DBSCAN
+from sklearn.neighbors import NearestNeighbors
+
 from .clusterinfo import ClusterInfo
 from ..createmodelexception import ModelingException
 from ..lasmanager import PointCloud

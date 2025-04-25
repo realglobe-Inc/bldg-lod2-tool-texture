@@ -1,10 +1,8 @@
 import shapely.geometry as geo
 
 from .classifier import BuildingClass, Classifier
-from ..lasmanager import PointCloud
 from .preprocess import Preprocess
-import cv2 as cv
-import os
+from ..lasmanager import PointCloud
 
 
 def classify_building(

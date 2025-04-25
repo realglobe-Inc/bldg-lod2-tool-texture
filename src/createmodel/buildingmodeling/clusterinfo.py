@@ -1,9 +1,10 @@
 # -*- coding:utf-8 -*-
+import alphashape
+import shapely.geometry as geo
+from numpy.typing import NDArray
+
 from .geoutil import GeoUtil
 from ..lasmanager import PointCloud
-import shapely.geometry as geo
-import alphashape
-from numpy.typing import NDArray
 
 
 class ClusterInfo(object):

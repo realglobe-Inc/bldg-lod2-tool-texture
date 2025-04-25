@@ -1,22 +1,21 @@
 # -*- coding:utf-8 -*-
 import json
 import os
-import sys
 import pickle
+import sys
 from typing import Optional
 
-from shapely.geometry import Polygon
 from shapely.geometry import JOIN_STYLE
+from shapely.geometry import Polygon
 
 from .buildingclassification.classifier import BuildingClass
 from .buildingclassification.classifybuilding import classify_building
-
 from .buildingmodeling.createmodel import BuildingModelBuilder
+from .createmodelexception import ModelingException
+from .housemodeling.createmodel import HouseModelBuilder
 from .lasmanager import LasManager, PointCloud
 from .message import ModelingMessage
 from .param import ModelingParam
-from .createmodelexception import ModelingException
-from .housemodeling.createmodel import HouseModelBuilder
 
 
 class Building:

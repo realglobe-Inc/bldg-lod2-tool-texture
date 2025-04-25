@@ -1,20 +1,20 @@
-from collections import Counter
 import os
+from collections import Counter
 from typing import Optional
 
-from shapely.geometry import Polygon
 import numpy as np
+from shapely.geometry import Polygon
 
-from .utils.polys import validate_polygon_ijs_list
+from .balcony_detection import BalconyDetection
+from .coordinates_converter import DsmCoordHeatImagePosConverter
 from .extra_roof_line import ExtraRoofLine
 from .house_model import HouseModel
-from .coordinates_converter import DsmCoordHeatImagePosConverter
 from .model_surface_creation.extract_roof_surface import extract_roof_surface
 from .model_surface_creation.optimize_roof_edge import optimize_roof_edge
 from .model_surface_creation.utils.geometry import Point
-from .balcony_detection import BalconyDetection
-from .roof_edge_detection import RoofEdgeDetection
 from .preprocess import Preprocess
+from .roof_edge_detection import RoofEdgeDetection
+from .utils.polys import validate_polygon_ijs_list
 from ..lasmanager import PointCloud
 
 

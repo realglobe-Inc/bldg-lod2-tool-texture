@@ -1,9 +1,5 @@
 from .plobj import plobj
-from .plutils import *
 from .ploptions import ploptions
-import numpy as np
-import copy
-from lxml import etree
 
 
 class plluse(plobj):

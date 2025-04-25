@@ -1,13 +1,13 @@
-from collections import defaultdict
-import statistics
 import copy
+import statistics
+from collections import defaultdict
 
 from shapely.geometry import Polygon
 
-from .utils.polys import get_grid_point_ijs
-from .utils.points import find_closest_point
 from .extra_roof_line.polygon_devision import PolygonDevision
 from .roof_layer_info import RoofLayerInfo
+from .utils.points import find_closest_point
+from .utils.polys import get_grid_point_ijs
 
 
 class ModelEdgeHeightInfo:
