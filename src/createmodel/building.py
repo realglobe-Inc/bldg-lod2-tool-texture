@@ -136,7 +136,6 @@ class Building:
                 classifier_checkpoint_path=param.classifier_checkpoint_path,
                 grid_size=grid_size,
                 use_gpu=param.use_gpu,
-                expand_rate_for_house_model=grid_size / 0.08,
             )
             if debug_mode:
                 param.building_class_cache[self._id] = building_class

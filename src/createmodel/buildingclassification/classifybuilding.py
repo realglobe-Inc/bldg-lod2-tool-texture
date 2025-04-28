@@ -12,7 +12,6 @@ def classify_building(
     classifier_checkpoint_path: str,
     grid_size: float,
     use_gpu: bool = False,
-    expand_rate_for_house_model: float = 1,
 ) -> BuildingClass:
     """建物の分類を行う
 
@@ -23,7 +22,6 @@ def classify_building(
         classifier_checkpoint_path(str): 建物分類の学習済みモデルファイルパス
         grid_size(float,optional): 点群の間隔(meter),
         use_gpu(bool, optional): 推論時のGPU使用の有無 (Default: False)
-        expand_rate_for_house_model(float, optional): 家屋モデル作成時のの画像の拡大率 (Default: 1),
 
     Returns:
         BuildingClass: 建物クラス
@@ -32,10 +30,11 @@ def classify_building(
     points = cloud.get_points().copy()
     min_x, min_y = points[:, :2].min(axis=0)
     max_x, max_y = points[:, :2].max(axis=0)
-    height = round((max_y - min_y) / grid_size) + 1
-    width = round((max_x - min_x) / grid_size) + 1
+    height = max_y - min_y
+    width = max_x - min_x
 
-    if round(max(height, width) * expand_rate_for_house_model) > 256:
+    # 1辺100m超えは陸屋根？
+    if max(height, width) > 100:
         return BuildingClass.FLAT
 
     # 判定用データの作成
