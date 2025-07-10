@@ -1,6 +1,8 @@
-import numpy as np
 import math
 import os
+
+import numpy as np
+
 from ..util.cvsupportjp import Cv2Japanese
 from ..util.parammanager import ParamManager
 

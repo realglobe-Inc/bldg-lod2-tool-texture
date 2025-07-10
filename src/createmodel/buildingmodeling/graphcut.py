@@ -1,11 +1,13 @@
 # -*- coding:utf-8 -*-
 import sys
-import numpy as np
 from typing import Tuple
-from sklearn.cluster import DBSCAN
-from sklearn.neighbors import NearestNeighbors
+
+import numpy as np
 from maxflow.fastmin import aexpansion_grid
 from numpy.typing import NDArray
+from sklearn.cluster import DBSCAN
+from sklearn.neighbors import NearestNeighbors
+
 from .clusterinfo import ClusterInfo
 from ..createmodelexception import ModelingException
 from ..lasmanager import PointCloud
@@ -233,7 +235,7 @@ class GraphCut:
         src_points: NDArray,
         src_clusters: list[ClusterInfo],
         ground_height: float,
-        grid_size=0.25,
+        grid_size,
         smooth_weight=2.0,
         invalid_point_dist=99.0,
         height_diff_th=2.0,

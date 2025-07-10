@@ -1,9 +1,11 @@
 # -*- coding:utf-8 -*-
 import os
+
 from shapely.geometry import Polygon
-from ..lasmanager import PointCloud
-from .preprocess import Preprocess
+
 from .model import Model
+from .preprocess import Preprocess
+from ..lasmanager import PointCloud
 
 
 class BuildingModelBuilder:

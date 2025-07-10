@@ -1,6 +1,7 @@
+import math
+
 import numpy as np
 import numpy.typing as npt
-import math
 
 
 def get_angle_degree_3d(

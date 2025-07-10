@@ -1,11 +1,12 @@
 import sys
 from enum import IntEnum
+
 import numpy as np
 import numpy.typing as npt
 import torch
 
-from ..createmodelexception import ModelingException
 from .classifier_model import ClassifierModel
+from ..createmodelexception import ModelingException
 
 
 class ClassifierCheckpointReadException(ModelingException):

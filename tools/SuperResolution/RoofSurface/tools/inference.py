@@ -1,6 +1,4 @@
 import torch
-from torchvision.io import write_png
-
 from mmcv.transforms import LoadImageFromFile
 from mmedit.datasets.transforms import PackEditInputs
 

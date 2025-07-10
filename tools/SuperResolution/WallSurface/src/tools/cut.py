@@ -1,8 +1,9 @@
+import json
+import math
+import pathlib
+
 import cv2
 import numpy as np
-import json
-import pathlib
-import math
 
 
 def to_square(image, size: int):

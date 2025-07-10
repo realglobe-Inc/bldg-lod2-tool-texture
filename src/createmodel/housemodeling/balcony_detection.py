@@ -1,13 +1,13 @@
 import sys
-import torch
+
 import numpy as np
 import numpy.typing as npt
+import torch
 from PIL import Image, ImageDraw
 
-from ..createmodelexception import ModelingException
-
-from .model_surface_creation.utils.geometry import Point
 from .balcony_segmentation_model.model import SegmentationModel
+from .model_surface_creation.utils.geometry import Point
+from ..createmodelexception import ModelingException
 
 
 class BalconySegmentationCheckpointReadException(ModelingException):

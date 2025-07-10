@@ -1,17 +1,19 @@
 # -*- coding:utf-8 -*-
 import sys
+
 import numpy as np
 import shapely.geometry as geo
+from jakteristics import compute_features
 from sklearn.cluster import DBSCAN, MeanShift
 from sklearn.neighbors import NearestNeighbors
-from jakteristics import compute_features
+
 from .clusterinfo import ClusterInfo
-from ..lasmanager import PointCloud
 from .graphcut import GraphCut
 from .mbr import MBR
-from ..param import ModelingParam
-from ..message import ModelingMessage
 from ..createmodelexception import ModelingException
+from ..lasmanager import PointCloud
+from ..message import ModelingMessage
+from ..param import ModelingParam
 
 
 class Preprocess:
@@ -292,7 +294,7 @@ class Preprocess:
     """
         class_name = self.__class__.__name__
         func_name = sys._getframe().f_code.co_name
-        param = ModelingParam.get_instance()
+        param = ModelingParam()
 
         # 特徴量計算
         feature_names = ["planarity", "linearity", "verticality"]
@@ -381,13 +383,13 @@ class Preprocess:
             src_clusters=gc_clusters,
             shape=shape,
             grid_size=grid_size,
-            sampling_step=param.mbr_sampling_step,
+            sampling_step=param.mbr_sampling_step(grid_size),
             neighbor_jobs=param.mbr_neighbor_jobs,
             mean_shift_jobs=param.mbr_angle_ms_jobs,
             angle_ms_bandwidth=param.mbr_angle_ms_bandwidth,
-            neightbor_max_dist=param._mbr_neighbor_max_dist,
-            roof_angle_ortho_th=param._mbr_roof_angle_ortho_th,
-            line_length_th=param._mbr_line_length_th,
+            neighbor_max_dist=param.mbr_neighbor_max_dist(grid_size),
+            roof_angle_ortho_th=param.mbr_roof_angle_ortho_th,
+            line_length_th=param.mbr_line_length_th,
             valid_pixel_num=param.mbr_valid_pixel_num,
             width_th=param.mbr_width_th,
             slim_rate_th=param.mbr_slim_rate_th,

@@ -1,18 +1,20 @@
 # -*- coding:utf-8 -*-
-import os
-import numpy as np
-import random
-import open3d as o3d
 import colorsys
 import datetime
-import shapely.geometry as geo
+import os
+import random
+from typing import Tuple
+
 import matplotlib
+import numpy as np
+import open3d as o3d
+import shapely.geometry as geo
 from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import PathPatch
 from matplotlib.path import Path
-from typing import Tuple
+from mpl_toolkits.mplot3d import Axes3D
 from numpy.typing import NDArray
+
 from .clusterinfo import ClusterInfo
 from .geoutil import GeoUtil
 

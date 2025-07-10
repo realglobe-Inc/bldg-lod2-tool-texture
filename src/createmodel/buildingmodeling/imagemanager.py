@@ -2,10 +2,12 @@
 import glob
 import os
 import sys
+
 import cv2 as cv
 import numpy as np
-from ..message import ModelingMessage
+
 from ..createmodelexception import ModelingException
+from ..message import ModelingMessage
 from ...util.log import Log, LogLevel, ModuleType
 
 

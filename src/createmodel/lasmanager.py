@@ -402,7 +402,7 @@ class LasManager:
 
     def get_points(
         self, bilding_polygon: geo.Polygon, ground_polygon: geo.Polygon = None
-    ) -> tuple[PointCloud, Union[float, None], Union[float, None]]:
+    ) -> tuple[PointCloud, Union[float, None], Union[float, None], int]:
         """点群データの取得
 
         Args:
@@ -564,14 +564,15 @@ class LasManager:
             ground_height = (bins[ind] + bins[ind + 1]) / 2
 
         # 点の数が閾値を超えてたら後の処理（主にDBSCAN）でメモリが溢れないように間引く
-        points = cloud.get_points()
         points_threshold = 4_000_000
+        thin_rate = 1
+        points = cloud.get_points()
         if len(points) > points_threshold:
             thin_rate = len(points) // points_threshold + 1
             print(f"点群を1/{thin_rate}に間引きます")
             cloud = cloud.thin_out(thin_rate)
 
-        return cloud, min_height, ground_height
+        return cloud, min_height, ground_height, thin_rate
 
     def _check_point_in_polygon(self, pos: NDArray):
         """座標点のポリゴン内外判定

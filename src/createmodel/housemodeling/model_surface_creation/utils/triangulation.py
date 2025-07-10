@@ -1,5 +1,5 @@
-from collections import Counter
 import enum
+from collections import Counter
 from dataclasses import dataclass
 
 import numpy as np
@@ -8,10 +8,10 @@ from shapely import delaunay_triangles
 from shapely.geometry import LineString, Polygon, MultiPoint
 from shapely.ops import unary_union
 
-from .....thirdparty.plateaupy.thirdparty.earcutpython.earcut.earcut import earcut
-from ...utils.polys import get_polys_from_geometry_collections
-from ...custom_itertools import pairwise
 from .geometry import Point, is_ccw_order
+from ...custom_itertools import pairwise
+from ...utils.polys import get_polys_from_geometry_collections
+from .....thirdparty.plateaupy.thirdparty.earcutpython.earcut.earcut import earcut
 
 
 @dataclass(frozen=True)

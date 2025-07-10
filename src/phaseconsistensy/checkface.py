@@ -1,13 +1,15 @@
-import sys
 import math
+import sys
+from enum import IntEnum
 from logging import getLogger
+
 import numpy as np
 from numpy.typing import NDArray
-from enum import IntEnum
-from ..util.objinfo import ObjInfo, BldElementType
-from ..util.faceinfo import FaceInfo, IndexInfo
+
 from .geoutil import GeoUtil
 from .linemanager import TriangleInfo, LineManager
+from ..util.faceinfo import FaceInfo, IndexInfo
+from ..util.objinfo import ObjInfo, BldElementType
 from ..util.parammanager import ParamManager
 
 logger = getLogger(__name__)

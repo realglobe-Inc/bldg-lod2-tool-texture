@@ -1,20 +1,20 @@
-from collections import Counter
 import os
+from collections import Counter
 from typing import Optional
 
-from shapely.geometry import Polygon
 import numpy as np
+from shapely.geometry import Polygon
 
-from .utils.polys import validate_polygon_ijs_list
+from .balcony_detection import BalconyDetection
+from .coordinates_converter import DsmCoordHeatImagePosConverter
 from .extra_roof_line import ExtraRoofLine
 from .house_model import HouseModel
-from .coordinates_converter import DsmCoordHeatImagePosConverter
 from .model_surface_creation.extract_roof_surface import extract_roof_surface
 from .model_surface_creation.optimize_roof_edge import optimize_roof_edge
 from .model_surface_creation.utils.geometry import Point
-from .balcony_detection import BalconyDetection
-from .roof_edge_detection import RoofEdgeDetection
 from .preprocess import Preprocess
+from .roof_edge_detection import RoofEdgeDetection
+from .utils.polys import validate_polygon_ijs_list
 from ..lasmanager import PointCloud
 
 
@@ -30,7 +30,7 @@ class HouseModelBuilder:
         output_folder_path: str,
         balcony_segmentation_checkpoint_path: str,
         roof_edge_detection_checkpoint_path: str,
-        grid_size: float = 0.25,
+        grid_size: float,
         expand_rate: Optional[float] = None,
         use_gpu: bool = False,
         debug_mode: bool = False,
@@ -45,7 +45,7 @@ class HouseModelBuilder:
           output_folder_path(str): 出力先フォルダ
           balcony_segmentation_checkpoint_path(str): バルコニーのセグメンテーションの学習済みモデルファイルパス
           roof_edge_detection_checkpoint_path(str): 屋根線検出の学習済みモデルファイルパス
-          grid_size(float,optional): 点群の間隔(meter) (Default: 0.25),
+          grid_size(float,optional): 点群の間隔(meter),
           expand_rate(float, optional): 画像の拡大率 (Default: 1),
           use_gpu(bool, optional): 推論時のGPU使用の有無 (Default: False)
           debug_mode (bool, optional): デバッグモード (Default: False)

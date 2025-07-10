@@ -1,13 +1,13 @@
 import itertools
 import os
-from pathlib import Path
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import Union
 
-from PIL import Image
+import cv2
 import numpy as np
 import numpy.typing as npt
-import cv2
+from PIL import Image
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 

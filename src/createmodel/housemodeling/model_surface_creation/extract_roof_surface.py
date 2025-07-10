@@ -1,6 +1,7 @@
 from shapely.geometry import Polygon, LineString
-from .utils.graph import RoofGraph
+
 from .utils.geometry import Point, get_angle_degree
+from .utils.graph import RoofGraph
 
 
 def extract_roof_surface(

@@ -1,17 +1,15 @@
-import os
-import cv2
-import time
-import json
-import shutil
-import logging
 import argparse
-import numpy as np
-from tqdm import tqdm
+import json
+import logging
+import shutil
+import time
 from pathlib import Path
 
+import numpy as np
+from tqdm import tqdm
 
-from tools.inference import Inferencer
 from tools.image_processing import *
+from tools.inference import Inferencer
 
 
 def setup_logging(log_filename="debug.log", log_flag=False):

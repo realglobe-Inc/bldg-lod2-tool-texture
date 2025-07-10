@@ -1,8 +1,10 @@
-import torch
 import itertools
-from ..util.image_pool import ImagePool
-from .base_model import BaseModel
+
+import torch
+
 from . import networks
+from .base_model import BaseModel
+from ..util.image_pool import ImagePool
 
 
 class CycleGANModel(BaseModel):

@@ -2,15 +2,14 @@ import copy
 import logging
 import math
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-
 from torch.nn import Dropout, Softmax, Linear, Conv2d, LayerNorm
 from torch.nn.modules.utils import _pair
+
 from . import vit_seg_configs as configs
 from .vit_seg_modeling_resnet_skip import ResNetV2
-
 
 logger = logging.getLogger(__name__)
 

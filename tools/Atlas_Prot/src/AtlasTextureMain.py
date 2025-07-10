@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
-import sys
-import os
 import datetime
+import os
+import sys
 
 from .city_gml_manager import CityGmlManager
 from .layoutRect import LayoutTexture

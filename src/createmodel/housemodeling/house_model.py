@@ -1,22 +1,22 @@
-from collections import defaultdict
 import copy
-from dataclasses import dataclass
 import os
+from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 
 import numpy as np
 import numpy.typing as npt
 from shapely.geometry import Polygon
-from sklearn.cluster import DBSCAN
 from shapely.ops import unary_union
+from sklearn.cluster import DBSCAN
 
-from ...util.objinfo import BldElementType, ObjInfo
-from .utils.polys import ensure_counter_clockwise, validate_polygon_ijs_list
-from .model_surface_creation.utils.triangulation import Triangle, triangulate
 from .custom_itertools import pairwise
-from .roof_layer_info import RoofLayerInfo
 from .model_edge_height_info import ModelEdgeHeightInfo
+from .model_surface_creation.utils.triangulation import Triangle, triangulate
+from .roof_layer_info import RoofLayerInfo
+from .utils.polys import ensure_counter_clockwise, validate_polygon_ijs_list
+from ...util.objinfo import BldElementType, ObjInfo
 
 
 @dataclass(frozen=True)

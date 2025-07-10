@@ -151,7 +151,7 @@ class ModelCreator:
                     gml.build_id,
                     shape,
                     self._param_mng.dsm_folder_path,
-                    0.25,  # grid_size
+                    self._param_mng.grid_size,
                     self._output_folder,
                 )
 

@@ -1,6 +1,7 @@
+import pathlib
+
 import cv2
 import numpy as np
-import pathlib
 
 
 class Synthesis:

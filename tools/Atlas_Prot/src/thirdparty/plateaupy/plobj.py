@@ -1,9 +1,9 @@
 import os
-import numpy as np
-from lxml import etree
-from numpy.lib.npyio import save
-from .plutils import *
 import pickle
+
+from lxml import etree
+
+from .plutils import *
 
 
 class plmesh:
