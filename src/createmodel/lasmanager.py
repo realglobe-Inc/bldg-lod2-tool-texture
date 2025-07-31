@@ -324,7 +324,9 @@ class LasManager:
             )
             raise ModelingException(msg)
 
-        files = glob.glob(os.path.join(folder_path, "*.las"))
+        files = glob.glob(os.path.join(folder_path, "*.las")) + glob.glob(
+            os.path.join(folder_path, "*.laz")
+        )
         if len(files) == 0:
             # lasファイルが存在しない場合
             msg = "{}.{}, {}".format(

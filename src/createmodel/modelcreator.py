@@ -55,7 +55,8 @@ class ModelCreator:
 
             # lasファイルの存在確認
             las_path = os.path.join(self._param_mng.dsm_folder_path, "*.las")
-            files = glob.glob(las_path)
+            laz_path = os.path.join(self._param_mng.dsm_folder_path, "*.laz")
+            files = glob.glob(las_path) + glob.glob(laz_path)
             if len(files) == 0:
                 # lasファイルが存在しない場合
                 raise ModelingException(ModelingMessage.ERR_MSG_LAS_FILE_NOT_FOUND)
