@@ -77,7 +77,7 @@ class CityGmlManager:
             param_manager (ParamManager): パラメータ情報
         """
         self.param_manager = param_manager  # パラメータ情報
-        self.citygml_info: list[self.BuildInfo] = []
+        self.citygml_info: list[CityGmlManager.BuildInfo] = []
         self.lod1_file_path = ""
         self._obj_info = ObjInfo()
         self._nsmap = None
