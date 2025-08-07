@@ -8,18 +8,18 @@ from enum import IntEnum
 from logging import getLogger, config
 
 from .config import Config
-from .parammanager import ParamManager
-from .resulttype import ResultType, ProcessResult
+from .param_manager import ParamManager
+from .result_type import ResultType, ProcessResult
 
 
 class ModuleType(IntEnum):
     """モジュール情報"""
 
-    INPUT_CITYGML = 0  # CityGML入力
+    INPUT_CITY_GML = 0  # CityGML入力
     MODEL_ELEMENT_GENERATION = 1  # モデル要素生成
-    CHECK_PHASE_CONSISTENSY = 2  # 位相一貫性
+    CHECK_PHASE_CONSISTENCY = 2  # 位相一貫性
     PASTE_TEXTURE = 3  # テクスチャ貼付け
-    OUTPUT_CITYGML = 4  # CityGML出力
+    OUTPUT_CITY_GML = 4  # CityGML出力
     NONE = 5  # モジュール不明
 
 
@@ -54,17 +54,17 @@ class Log(Singleton):
     FORMAT_OFF = 1  # フォーマット設定なし
     # モジュール情報
     MODULE_LIST = {
-        ModuleType.INPUT_CITYGML: ["InputCityGML", "input_citygml_log.txt"],
+        ModuleType.INPUT_CITY_GML: ["InputCityGML", "input_city_gml_log.txt"],
         ModuleType.MODEL_ELEMENT_GENERATION: [
             "ModelElementGeneration",
             "model_element_generation_log.txt",
         ],
-        ModuleType.CHECK_PHASE_CONSISTENSY: [
-            "CheckPhaseConsistensy",
-            "check_phase_consistensy_log.txt",
+        ModuleType.CHECK_PHASE_CONSISTENCY: [
+            "CheckPhaseConsistency",
+            "check_phase_consistency_log.txt",
         ],
         ModuleType.PASTE_TEXTURE: ["PasteTexture", "paste_texture_log.txt"],
-        ModuleType.OUTPUT_CITYGML: ["OutputCityGML", "output_citygml_log.txt"],
+        ModuleType.OUTPUT_CITY_GML: ["OutputCityGML", "output_city_gml_log.txt"],
     }
     RESULT_MESSAGE = ["SUCCESS", "WARNING", "ERROR"]  # モジュール実行結果メッセージ
     debug_flag = False  # DEBUGログを出力するかのフラグ
@@ -89,7 +89,7 @@ class Log(Singleton):
 
         # 出力フォルダ等に記載する時刻を揃えるためParamManagerで取得した時刻を使用する
         create_time = param.time.strftime("%Y%m%d_%H%M%S")
-        time_log_folder = f"outputlog_{create_time}"
+        time_log_folder = f"output_log_{create_time}"
 
         # 環境設定ファイルパス取得
         config_file = os.path.join(os.path.dirname(__file__), "log_config.json")
@@ -163,7 +163,7 @@ class Log(Singleton):
 
         # 実行ログファイルへのヘッダ出力
         logger.info("AutoCreateLod2")
-        logger.info(f"Version : {Config.SYSYTEM_VERSION}")
+        logger.info(f"Version : {Config.SYSTEM_VERSION}")
         logger.info(f"Start Time : {self._start_time}\n")
         logger.info("Module Information List")
 
@@ -201,7 +201,7 @@ class Log(Singleton):
         Log._module_log_file = ["", "", "", "", ""]
 
     @classmethod
-    def module_result_log(self, module: ModuleType, result: ResultType):
+    def module_result_log(cls, module: ModuleType, result: ResultType):
         """モジュールの実行結果ログ出力
 
         Args:
@@ -224,6 +224,7 @@ class Log(Singleton):
         Log._standard_log[Log.FORMAT_ON].info(message)
         Log._standard_log[Log.FORMAT_ON].info(f"{module_name} End\n")
 
+    @staticmethod
     def __create_logger(module: ModuleType):
         """ロガー作成
 
@@ -258,7 +259,7 @@ class Log(Singleton):
 
     @classmethod
     def output_log_write(
-        self, level: LogLevel, module: ModuleType, message=None, standard_flag=False
+        cls, level: LogLevel, module: ModuleType, message=None, standard_flag=False
     ):
         """ログ出力
             モジュールごとのログファイルに出力
@@ -291,13 +292,13 @@ class Log(Singleton):
             Log._standard_log[Log.FORMAT_ON].log(level, message)
 
     @classmethod
-    def module_start_log(self, module: ModuleType, citygml_filename: str = ""):
+    def module_start_log(cls, module: ModuleType, city_gml_filename: str = ""):
         """実行ログ、標準出力、モジュールログへのモジュール実行開始のログ出力
             モジュールログ出力用のロガーを作成
 
         Args:
             module (ModuleType): モジュール情報
-            citygml_filename (str, optional): 処理対象ファイル名. Defaults to ''.
+            city_gml_filename (str, optional): 処理対象ファイル名. Defaults to ''.
         """
         # モジュール名取得
         module_name = f"{Log.MODULE_LIST[module][0]} Module"
@@ -309,31 +310,32 @@ class Log(Singleton):
         Log._standard_log[Log.FORMAT_ON].info(f"{module_name} Run")
 
         # ロガー作成
-        self.__create_logger(module)
+        cls.__create_logger(module)
 
         # モジュールログファイルに開始ログ出力
         Log._module_log_file[module].info("--------------------------------------")
-        Log._module_log_file[module].info(f"start processing {citygml_filename}")
+        Log._module_log_file[module].info(f"start processing {city_gml_filename}")
         Log._module_log_file[module].info(f"{Log.MODULE_LIST[module][0]} Module Run")
 
     @classmethod
-    def process_start_log(self, citygml_filename: str = ""):
+    def process_start_log(cls, city_gml_filename: str = ""):
         """実行ログ、標準出力に処理対象のCityGMLファイル名のログを出力する
 
         Args:
-            citygml_filename (str, optional): 処理対象ファイル名. Defaults to ''.
+            city_gml_filename (str, optional): 処理対象ファイル名. Defaults to ''.
         """
         # 実行ログファイルログ出力
         Log._main_log_file[Log.FORMAT_OFF].info(
             "--------------------------------------"
         )
-        Log._main_log_file[Log.FORMAT_ON].info(f"{citygml_filename} processing")
+        Log._main_log_file[Log.FORMAT_ON].info(f"{city_gml_filename} processing")
 
         # 標準出力にログ出力
         print("--------------------------------------")
-        Log._standard_log[Log.FORMAT_ON].info(f"start processing {citygml_filename}")
+        Log._standard_log[Log.FORMAT_ON].info(f"start processing {city_gml_filename}")
 
-    def output_summary(self, buildings):
+    @staticmethod
+    def output_summary(buildings):
         """モデル作成結果csv出力
 
         Args:
@@ -373,7 +375,7 @@ class Log(Singleton):
 
         create_result.info("\n[詳細項目]")
         # 項目説明用の出力フォーマット
-        RESULT_ITEMS = [
+        result_items = [
             [
                 "CityGML読み込み",
                 "〇: Lod0モデルの取得に成功",
@@ -434,12 +436,12 @@ class Log(Singleton):
         ]
 
         # 項目説明出力
-        for i in range(len(RESULT_ITEMS)):
-            for j in RESULT_ITEMS[i]:
+        for i in range(len(result_items)):
+            for j in result_items[i]:
                 create_result.info(j)
 
         # 項目結果のメッセージ
-        PROCESS_RESULT_MESSAGE = [",〇", ",×", ",-"]
+        process_result_message = [",〇", ",×", ",-"]
 
         # モデル化結果項目出力
         create_result.info(
@@ -467,15 +469,15 @@ class Log(Singleton):
                 build.create_result = ResultType.SUCCESS
 
             row_count += 1
-            message = f"{row_count},{build.citygml_filename},{build.build_id}"
+            message = f"{row_count},{build.city_gml_filename},{build.build_id}"
             message += f",{Log.RESULT_MESSAGE[build.create_result]}"
-            message += PROCESS_RESULT_MESSAGE[build.read_lod0_model]
-            message += PROCESS_RESULT_MESSAGE[build.create_lod2_model]
-            message += PROCESS_RESULT_MESSAGE[build.double_point]
-            message += PROCESS_RESULT_MESSAGE[build.solid]
-            message += PROCESS_RESULT_MESSAGE[build.non_plane]
-            message += PROCESS_RESULT_MESSAGE[build.zero_area]
-            message += PROCESS_RESULT_MESSAGE[build.intersection]
-            message += PROCESS_RESULT_MESSAGE[build.face_intersection]
-            message += PROCESS_RESULT_MESSAGE[build.paste_texture]
+            message += process_result_message[build.read_lod0_model]
+            message += process_result_message[build.create_lod2_model]
+            message += process_result_message[build.double_point]
+            message += process_result_message[build.solid]
+            message += process_result_message[build.non_plane]
+            message += process_result_message[build.zero_area]
+            message += process_result_message[build.intersection]
+            message += process_result_message[build.face_intersection]
+            message += process_result_message[build.paste_texture]
             create_result.info(message)

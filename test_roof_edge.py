@@ -6,7 +6,7 @@ from PIL import Image
 import cv2
 
 from debuggers.utils.relative_path import fix_relative_path
-from src.createmodel.housemodeling.roof_edge_detection import RoofEdgeDetection
+from src.create_model.house_modeling.roof_edge_detection import RoofEdgeDetection
 
 
 def draw_edges_on_image(dsm_grid_rgbs, corners, edges):
@@ -51,7 +51,7 @@ def main():
 
     roof_edge_detection = RoofEdgeDetection(
         fix_relative_path(
-            "~/bldg-lod2-tool/src/createmodel/data/roof_edge_detection_parameter.pth"
+            "~/bldg-lod2-tool/src/create_model/data/roof_edge_detection_parameter.pth"
         ),
         True,
     )

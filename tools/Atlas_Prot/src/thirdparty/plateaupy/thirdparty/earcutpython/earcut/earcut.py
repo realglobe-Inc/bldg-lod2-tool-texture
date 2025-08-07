@@ -42,7 +42,7 @@ def earcut(data, holeIndices=None, dim=None):
             if y > maxY:
                 maxY = y
 
-        # minX, minY and size are later used to transform coords into integers for z-order calculation
+        # min_x, min_y and size are later used to transform coords into integers for z-order calculation
         size = max(maxX - minX, maxY - minY)
 
     earcutLinked(outerNode, triangles, dim, minX, minY, size)

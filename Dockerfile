@@ -54,16 +54,16 @@ RUN python -m venv "$(basename $PWD)" && \
 
 
 # 学習済みモデルのダウンロード（ファイルがない場合のみ）
-RUN mkdir -p src/createmodel/data && \
-    test -f src/createmodel/data/classifier_parameter.pkl || \
+RUN mkdir -p src/create_model/data && \
+    test -f src/create_model/data/classifier_parameter.pkl || \
     wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl' \
-      -O src/createmodel/data/classifier_parameter.pkl && \
-    test -f src/createmodel/data/roof_edge_detection_parameter.pth || \
+      -O src/create_model/data/classifier_parameter.pkl && \
+    test -f src/create_model/data/roof_edge_detection_parameter.pth || \
     wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth' \
-      -O src/createmodel/data/roof_edge_detection_parameter.pth && \
-    test -f src/createmodel/data/balcony_segmentation_parameter.pkl || \
+      -O src/create_model/data/roof_edge_detection_parameter.pth && \
+    test -f src/create_model/data/balcony_segmentation_parameter.pkl || \
     wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl' \
-      -O src/createmodel/data/balcony_segmentation_parameter.pkl
+      -O src/create_model/data/balcony_segmentation_parameter.pkl
 
 
 

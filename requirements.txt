@@ -66,6 +66,7 @@ jupyterlab-pygments==0.2.2
 jupyterlab-widgets==3.0.5
 kiwisolver==1.4.2
 laspy==2.1.2
+lazrs==0.7.0
 lxml==4.8.0
 matplotlib-inline==0.1.3
 matplotlib==3.5.2
@@ -84,7 +85,7 @@ numpy==1.23.1
 open3d==0.17.0
 opencv-contrib-python==4.6.0.66
 opencv-python==4.6.0.66
-packaging==21.3
+packaging==22.0
 pandocfilters==1.5.0
 parso==0.8.3
 pickleshare==0.7.5
@@ -101,7 +102,6 @@ pyrsistent==0.18.1
 python-dateutil==2.8.2
 pytz==2022.1
 pyzmq==22.3.0
-lazrs==0.7.0
 requests==2.27.1
 scikit-learn==1.0.2
 scipy==1.8.0
@@ -116,8 +116,8 @@ threadpoolctl==3.1.0
 toml==0.10.2
 tomlkit==0.10.1
 tornado==6.1
-traitlets==5.14.3
 tqdm==4.67.1
+traitlets==5.14.3
 trimesh==3.12.4
 typer==0.4.1
 typing_extensions==4.12.2
@@ -133,12 +133,7 @@ pywin32==303; sys_platform == 'win32'
 pywinpty==2.0.5; sys_platform == 'win32'
 
 # Code Style
-pyright==1.1.375
-autopep8==2.3.1
-pycodestyle
-flake8==7.1.1
-  pyflakes==3.2.0
-  mccabe==0.7.0
+black==25.1.0
 
 # Cuda Torch
 torch==1.12.1+cu113
@@ -146,5 +141,5 @@ torchvision==0.13.1+cu113
 -f https://download.pytorch.org/whl/torch_stable.html
 
 # MultiScaleDeformableAttention(ビルド時は wheel インストール必要)
-# python3 ./src/createmodel/housemodeling/roof_edge_detection_model/thirdparty/heat/models/ops/setup.py bdist_wheel
-https://github.com/realglobe-Inc/heat/releases/download/MultiScaleDeformableAttention-1.0/MultiScaleDeformableAttention-1.0-cp39-cp39-linux_x86_64.whl
+# python ./src/create_model/house_modeling/roof_edge_detection_model/third_party/heat/models/ops/setup.py bdist_wheel
+#https://github.com/realglobe-Inc/heat/releases/download/MultiScaleDeformableAttention-1.0/MultiScaleDeformableAttention-1.0-cp39-cp39-linux_x86_64.whl

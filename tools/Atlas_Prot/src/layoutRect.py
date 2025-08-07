@@ -212,10 +212,10 @@ class LayoutTexture:
                         ] = polygon
 
                         # 四角形で貼り付ける場合
-                        # img_temp = img[int(poly.minY):
-                        #               int(poly.minY) + int(poly.useH),
-                        #               int(poly.minX):
-                        #               int(poly.minX) + int(poly.useW)]
+                        # img_temp = img[int(poly.min_y):
+                        #               int(poly.min_y) + int(poly.useH),
+                        #               int(poly.min_x):
+                        #               int(poly.min_x) + int(poly.useW)]
                         # output[int(poly.useY):
                         #       int(poly.useY) + int(poly.useH),
                         #       int(poly.useX):

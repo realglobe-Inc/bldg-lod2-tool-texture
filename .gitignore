@@ -27,8 +27,8 @@ param.json
 /tools/SuperResolution/WallSurface/WallSurface
 
 # 入力・出力ファイル
-/src/createmodel/data/*
-!/src/createmodel/data/.keep
+/src/create_model/data/*
+!/src/create_model/data/.keep
 /tools/Atlas_Prot/input/*
 !/tools/Atlas_Prot/input/.keep
 /tools/Atlas_Prot/output/*

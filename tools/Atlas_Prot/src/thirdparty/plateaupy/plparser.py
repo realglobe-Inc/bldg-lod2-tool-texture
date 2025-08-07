@@ -26,7 +26,7 @@ class plparser:
         self.locations = []
         # add paths
         # for path in paths:
-        # 	self.addPath(path)
+        # 	self.add_path(path)
         self.addPath(paths)  # 変更:ファイル読み込み
 
     def addPath(self, path):  # path to CityGML
@@ -81,9 +81,9 @@ class plparser:
             self.codelists = scan_codelists(dir_codelists[0])
 
     """
-	@param bLoadCache:	load cache data or not
-	@param cachedir: 	cache directory name
-	@param kind:		specify the type of gml, plobj.ALL, plobj.BLDG,..
+	@param b_load_cache:	load cache data or not
+	@param cache_dir: 	cache directory name
+	@param kind:		specify the type of gml, PlObj.ALL, PlObj.BLDG,..
 	@param location:	specify which gml data in the type are loaded, -1:all, <1000:array index, >=1000:location
 	"""
 
@@ -201,7 +201,7 @@ class plparser:
                 obj.save(plobj.getCacheFilename(cachedir, f))
             print("# tran")
             for f in filenames_tran:
-                # obj = pltran(f, self.dem[ plobj.getLocationFromFilename(f) ])
+                # obj = PlTran(f, self.dem[ PlObj.get_location_from_filename(f) ])
                 obj = pltran(f, options=options)
                 self.tran[obj.location] = obj
                 obj.save(plobj.getCacheFilename(cachedir, f))
@@ -211,53 +211,53 @@ class plparser:
         if kindbits & (1 << plobj.BLDG):
             for obj in self.bldg.values():
                 meshes.extend(
-                    obj.get_Open3D_TriangleMesh(color=color, wireonly=wireonly)
+                    obj.get_open3d_triangle_mesh(color=color, wire_only=wireonly)
                 )
         if kindbits & (1 << plobj.DEM):
             for obj in self.dem.values():
                 meshes.extend(
-                    obj.get_Open3D_TriangleMesh(color=color, wireonly=wireonly)
+                    obj.get_open3d_triangle_mesh(color=color, wire_only=wireonly)
                 )
         if kindbits & (1 << plobj.LUSE):
             for obj in self.luse.values():
                 meshes.extend(
-                    obj.get_Open3D_TriangleMesh(color=color, wireonly=wireonly)
+                    obj.get_open3d_triangle_mesh(color=color, wire_only=wireonly)
                 )
         if kindbits & (1 << plobj.TRAN):
             for obj in self.tran.values():
                 meshes.extend(
-                    obj.get_Open3D_TriangleMesh(color=color, wireonly=wireonly)
+                    obj.get_open3d_triangle_mesh(color=color, wire_only=wireonly)
                 )
         return meshes
 
     def write_Open3D_ply_files(self, savepath, color=None):
         for obj in self.bldg.values():
-            obj.write_Open3D_ply_files(savepath=savepath, color=color)
+            obj.write_open3d_ply_files(save_path=savepath, color=color)
         for obj in self.dem.values():
-            obj.write_Open3D_ply_files(savepath=savepath, color=color)
+            obj.write_open3d_ply_files(save_path=savepath, color=color)
         for obj in self.luse.values():
-            obj.write_Open3D_ply_files(savepath=savepath, color=color)
+            obj.write_open3d_ply_files(save_path=savepath, color=color)
         for obj in self.tran.values():
-            obj.write_Open3D_ply_files(savepath=savepath, color=color)
+            obj.write_open3d_ply_files(save_path=savepath, color=color)
 
     def show_Blender_Objects(self, vbase=None):
         import bpy
 
         scene = bpy.context.scene
         for obj in self.bldg.values():
-            _obj = obj.get_Blender_Objects(vbase=vbase)
+            _obj = obj.get_blender_objects(v_base=vbase)
             for _o in _obj:
                 scene.collection.objects.link(_o)
         for obj in self.dem.values():
-            _obj = obj.get_Blender_Objects(vbase=vbase)
+            _obj = obj.get_blender_objects(v_base=vbase)
             for _o in _obj:
                 scene.collection.objects.link(_o)
         for obj in self.luse.values():
-            _obj = obj.get_Blender_Objects(vbase=vbase)
+            _obj = obj.get_blender_objects(v_base=vbase)
             for _o in _obj:
                 scene.collection.objects.link(_o)
         for obj in self.tran.values():
-            _obj = obj.get_Blender_Objects(vbase=vbase)
+            _obj = obj.get_blender_objects(v_base=vbase)
             for _o in _obj:
                 scene.collection.objects.link(_o)
         bpy.context.view_layer.update()

@@ -1,7 +1,5 @@
 import os
 
-import numpy as np
-
 from .plobj import plobj, plmesh
 from .ploptions import ploptions
 from .plutils import *
@@ -37,7 +35,7 @@ class pltran(plobj):
                 x[:, 2] = 1  # to be a little bit more than 0
         # vertices, triangles
         mesh = plmesh()
-        # self.posLists = self.posLists[:1000]
+        # self.pos_lists = self.pos_lists[:1000]
         # invoke multi processes
         usebit = []
         for plist in self.posLists:
