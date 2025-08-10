@@ -149,6 +149,83 @@ class PointCloud:
                 result.index = self._index[::n]
         return result
 
+    def __str__(self):
+        return f"({self._cloud.shape}, {self._colors.shape}, {len(self.index)})"
+
+    def __repr__(self):
+        return (
+            f"PointCloud({self._cloud.shape}, {self._colors.shape}, {len(self.index)})"
+        )
+
+    def save_debug_image(
+        self,
+        output_file_path: Path,
+        grid_size: float,
+        canvas_size: tuple[int, int] = None,
+        offset_xy: tuple[float, float] = None,
+        polygons: list[Polygon] | None = None,
+    ) -> tuple[tuple[int, int], tuple[float, float]]:
+        """
+        点群のデバッグ画像を生成し、保存する。
+
+        :param output_file_path: 画像を保存するパス。
+        :param grid_size: 画像の1ピクセルの幅に相当する座標系上の距離。
+        :param canvas_size: 画像のサイズ。指定しない場合、点群の座標範囲とgrid_sizeに基づいて計算される。
+        :param offset_xy: 画像の始点に合わせる座標。指定しない場合、点群の座標範囲の始点が利用される。
+        :param polygons: 座標列からなるポリゴンのリスト。画像上に追加で描画される。
+        :return: 画像サイズと画像の始点に合わせる座標。
+        """
+        # 画像の範囲を取得する
+        min_x, min_y = self._cloud[:, :2].min(axis=0)
+        max_x, max_y = self._cloud[:, :2].max(axis=0)
+
+        if canvas_size is not None:
+            width, height = canvas_size
+        else:
+            width = int(math.ceil((max_x - min_x) / grid_size))
+            height = int(math.ceil((max_y - min_y) / grid_size))
+        if offset_xy is not None:
+            offset_x, offset_y = offset_xy
+        else:
+            offset_x, offset_y = min_x, min_y
+
+        # 白い背景の画像を作成する
+        buff = np.full((height, width, 3), 255, dtype=np.uint8)
+
+        # 点座標をピクセル座標に変換する
+        pixel_x = ((self._cloud[:, 0] - offset_x) / grid_size).astype(int)
+        pixel_y = ((self._cloud[:, 1] - offset_y) / grid_size).astype(int)
+
+        # Get colors
+        colors = self._colors
+        if len(colors) > 0 and (colors.max() >= 256).any():
+            colors = (colors / 256).astype(np.uint8)
+
+        # ピクセルを塗る
+        for i in range(len(self._cloud)):
+            if i < len(colors):
+                buff[pixel_y[i], pixel_x[i]] = colors[i]
+            else:
+                # iがcolorsの範囲外なら黒に設定する
+                buff[pixel_y[i], pixel_x[i]] = [0, 0, 0]
+
+        image = Image.fromarray(buff)
+        for polygon in polygons if polygons is not None else []:
+            # polygonの座標から画像の位置を計算して線を引く
+            draw = ImageDraw.Draw(image)
+            coords = list(polygon.exterior.coords)
+            pixel_coords = [
+                ((x - offset_x) / grid_size, (y - offset_y) / grid_size)
+                for x, y in coords
+            ]
+            draw.line(pixel_coords, fill=(255, 0, 0), width=1)
+
+        # 画像を保存する
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+        image.save(output_file_path)
+
+        return (width, height), (offset_x, offset_y)
+
 
 class LasFileInfo:
     """LASファイル情報クラス"""

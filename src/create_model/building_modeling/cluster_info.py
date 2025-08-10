@@ -208,6 +208,85 @@ class ClusterInfo(object):
                     if (type(poly) is Polygon and poly.area > 0)
                 ]
         except Exception:
+            traceback.print_exc()
             pass
 
         return list
+
+    def save_debug_image(
+        self,
+        output_file_path: Path,
+        grid_size: float,
+        canvas_size: tuple[int, int] = None,
+        offset_xy: tuple[float, float] = None,
+    ) -> tuple[tuple[int, int], tuple[float, float], PointCloud]:
+        """
+        点群クラスタのデバッグ画像を生成し、保存する。
+
+        :param output_file_path: 画像を保存するパス。
+        :param grid_size: 画像の1ピクセルの幅に相当する座標系上の距離。
+        :param canvas_size: 画像のサイズ。指定しない場合、点群クラスタの座標範囲とgrid_sizeに基づいて計算される。
+        :param offset_xy: 画像の始点に合わせる座標。指定しない場合、点群クラスタの座標範囲の始点が利用される。
+        :return: 画像サイズと画像の始点に合わせる座標とクラスタリングされた点群。
+        """
+        hash_val = hash(str(self.id))
+        color = [
+            (hash_val & 0xFF0000) >> 16,
+            (hash_val & 0x00FF00) >> 8,
+            hash_val & 0x0000FF,
+        ]
+        cloud = PointCloud()
+        cloud.add_points(self.points.get_points())
+        cloud.add_colors(np.full(self.points.get_points().shape, color, dtype=np.uint8))
+        canvas_size, offset_xy = cloud.save_debug_image(
+            output_file_path,
+            grid_size,
+            canvas_size=canvas_size,
+            offset_xy=offset_xy,
+            polygons=[self.roof_polygon] if self.roof_polygon is not None else None,
+        )
+        return canvas_size, offset_xy, cloud
+
+
+class ClusterInfoList(UserList[ClusterInfo]):
+    def __init__(self, init_list: Iterable[ClusterInfo] | None = None):
+        super().__init__(list(init_list) if init_list is not None else [])
+
+    def save_debug_image(
+        self,
+        output_dir_path: Path,
+        grid_size: float,
+        canvas_size: tuple[int, int] = None,
+        offset_xy: tuple[float, float] = None,
+        file_prefix: str = "",
+    ):
+        overlay_cloud: PointCloud | None = None
+        all_polygons: list[Polygon] | None = None
+        for cluster in self:
+            _, _, saved_cloud = cluster.save_debug_image(
+                output_dir_path / f"{file_prefix}cluster_{cluster.id}.png",
+                grid_size,
+                canvas_size=canvas_size,
+                offset_xy=offset_xy,
+            )
+            if overlay_cloud is None:
+                overlay_cloud = saved_cloud
+            else:
+                overlay_cloud.add_points(
+                    np.vstack([overlay_cloud.get_points(), saved_cloud.get_points()])
+                )
+                overlay_cloud.add_colors(
+                    np.vstack([overlay_cloud.get_colors(), saved_cloud.get_colors()])
+                )
+            if cluster.roof_polygon is not None:
+                if all_polygons is None:
+                    all_polygons = [cluster.roof_polygon]
+                else:
+                    all_polygons.append(cluster.roof_polygon)
+        overlay_cloud.save_debug_image(
+            output_dir_path / f"{file_prefix}clusters.png",
+            grid_size,
+            canvas_size=canvas_size,
+            offset_xy=offset_xy,
+            polygons=all_polygons,
+        )

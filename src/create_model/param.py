@@ -932,3 +932,91 @@ class ModelingParam:
             str: GPU使用フラグ
         """
         return self._use_gpu
+
+    def __str__(self):
+        """文字列出力
+
+        Returns:
+            str: 文字列表現
+        """
+        params = {}
+        # Ground search parameters
+        params["ground_search"] = {
+            "dist": self._ground_search_dist,
+        }
+        # Verticality parameters
+        params["verticality"] = {
+            "search_radius": self._verticality_search_radius,
+            "th": self._verticality_th,
+        }
+        # Clustering parameters
+        params["clustering"] = {
+            "height_band_width": self._height_band_width,
+            "color_band_width": self._color_band_width,
+            "dbscan_search_radius": self._dbscan_search_radius,
+            "dbscan_point_th": self._dbscan_point_th,
+            "dbscan_cluster_point_th": self._dbscan_cluster_point_th,
+        }
+        # Polygon search parameters
+        params["polygon_search"] = {
+            "sample_step": self._search_near_polygon_sample_step,
+            "search_radius": self._search_near_polygon_search_radius,
+        }
+        # Merge parameters
+        params["merge"] = {
+            "height_diff_th": self._merge_height_diff_th,
+            "dbscan_radius": self._merge_dbscan_radius,
+            "dbscan_point_th": self._merge_dbscan_point_th,
+        }
+        # Graph cut parameters
+        params["graph_cut"] = {
+            "height_offset": self._graph_cut_height_offset,
+            "smooth_weight": self._graph_cut_smooth_weight,
+            "invalid_point_dist": self._graph_cut_invalid_point_dist,
+            "height_diff_th": self._graph_cut_height_diff_th,
+            "dbscan_radius": self._graph_cut_dbscan_radius,
+            "dbscan_point_th": self._graph_cut_dbscan_point_th,
+        }
+        # MBR parameters
+        params["mbr"] = {
+            "neighbor_jobs": self._mbr_neighbor_jobs,
+            "line_length_th": self._mbr_line_length_th,
+            "roof_angle_ortho_th": self._mbr_roof_angle_ortho_th,
+            "angle_ms_bandwidth": self._mbr_angle_ms_bandwidth,
+            "angle_ms_jobs": self._mbr_angle_ms_jobs,
+            "valid_pixel_num": self._mbr_valid_pixel_num,
+            "width_th": self._mbr_width_th,
+            "slim_rate_th": self._mbr_slim_rate_th,
+            "max_hierarchies": self._mbr_max_hierarchies,
+        }
+        # Roof shape parameters
+        params["roof_shape"] = {
+            "simplify_th": self._simplify_roof_th,
+            "noise_canceling_buffer1": self._noise_canceling_buffer1,
+            "noise_canceling_buffer2": self._noise_canceling_buffer2,
+            "noise_canceling_buffer3": self._noise_canceling_buffer3,
+            "noise_canceling_buffer4": self._noise_canceling_buffer4,
+        }
+        # Surface preparation parameters
+        params["surface_prep"] = {
+            "angle_th": self._surface_preparation_angle_th,
+            "sampling_step": self._surface_preparation_sampling_step,
+            "dist_th": self._surface_preparation_dist_th,
+        }
+        # Model parameters
+        params["model"] = {
+            "solid_search_edge_th": self._solid_search_edge_th,
+            "point_merge_xy_dist": self._model_point_merge_xy_dist,
+            "point_merge_z_reso": self._model_point_merge_z_reso,
+            "front_is_ccw": self._front_is_ccw,
+        }
+        # Other parameters
+        params["other"] = {
+            "debug_mode": self._debug_mode,
+            "use_gpu": self._use_gpu,
+            "classifier_checkpoint": self._classifier_checkpoint_path,
+            "balcony_segmentation_checkpoint": self._balcony_segmentation_checkpoint_path,
+            "roof_edge_detection_checkpoint": self._roof_edge_detection_checkpoint_path,
+            "building_class_cache": self._building_class_cache_path,
+        }
+        return json.dumps(params, indent=2)
