@@ -104,9 +104,9 @@ class plobj:
         self.kindstr = "obj"
         self.filename = None
         self.location = 0  # location number
-        self.lowerCorner = np.zeros((3))  # lowerCorner (lon,lat,height)
-        self.upperCorner = np.zeros((3))  # upperCorner
-        self.meshes = []  # list of plmesh
+        self.lowerCorner = np.zeros((3))  # lower_corner (lon,lat,height)
+        self.upperCorner = np.zeros((3))  # upper_corner
+        self.meshes = []  # list of PlMesh
 
     def loadFile(self, filename):
         # print('load', filename)
@@ -116,7 +116,7 @@ class plobj:
         parser = etree.XMLParser(remove_blank_text=True)  # 追加:出力時の改行対応
         tree = etree.parse(filename, parser)  # 追加:出力時の改行対応
         root = tree.getroot()
-        # lowerCorner, upperCorner
+        # lower_corner, upperCorner
         nsmap = self.removeNoneKeyFromDic(root.nsmap)
         vals = tree.xpath(
             "/core:CityModel/gml:boundedBy/gml:Envelope/gml:lowerCorner",
@@ -137,7 +137,7 @@ class plobj:
         if _color is None:
             _color = np.random.rand(3)
         return [
-            m.to_Open3D_TriangleMesh(color=_color, wireonly=wireonly)
+            m.to_open3d_triangle_mesh(color=_color, wire_only=wireonly)
             for m in self.meshes
         ]
 
@@ -161,8 +161,9 @@ class plobj:
     def get_Blender_Objects(self, vbase=None):
         rname = self.kindstr
         return [
-            m.to_Blender_Object(
-                meshname=str(self.location) + "_" + rname + "_" + str(idx), vbase=vbase
+            m.to_blender_object(
+                mesh_name=str(self.location) + "_" + rname + "_" + str(idx),
+                v_base=vbase,
             )
             for idx, m in enumerate(self.meshes)
         ]

@@ -80,7 +80,7 @@ class VerticesTransformer:
             self.calc(lowerCorner, upperCorner)
 
     # calculate rot, trans, scaleX, aspectXY
-    #  lowerCorner, upperCorner must be [lat, lon, 0]
+    #  lower_corner, upper_corner must be [lat, lon, 0]
     def calc(self, lowerCorner, upperCorner):
         # prepare 3D points correspoinding (0,0), (0,1), (1,0)
         lt = convertPolarToCartsian(*lowerCorner)

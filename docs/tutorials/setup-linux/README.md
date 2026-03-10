@@ -68,15 +68,15 @@ git clone --recurse-submodules https://github.com/realglobe-Inc/bldg-lod2-tool
     ```
 - 建物分類用モデルの学習済みパラメーターをダウンロード
     ```
-    wget -O src/createmodel/data/classifier_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl
+    wget -O src/create_model/data/classifier_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl
     ```
 - 屋根線検出用モデルの学習済みパラメーターをダウンロード
     ```
-    wget -O src/createmodel/data/roof_edge_detection_parameter.pth https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth
+    wget -O src/create_model/data/roof_edge_detection_parameter.pth https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth
     ```
 - バルコニー検出用モデルの学習済みパラメーターをダウンロード
     ```
-    wget -O src/createmodel/data/balcony_segmentation_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl
+    wget -O src/create_model/data/balcony_segmentation_parameter.pkl https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl
     ```
 
 - LOD2建築物モデル自動作成のテスト用の入力データーのダウンロード

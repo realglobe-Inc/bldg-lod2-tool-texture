@@ -1,9 +1,6 @@
-import copy
 import os
 
-import cv2
 import lxml
-import numpy as np
 from lxml import etree
 
 from .plobj import plmesh, plobj
@@ -26,8 +23,8 @@ class Building:
         self.buildingDetails = dict()
         self.extendedAttribute = dict()
 
-        self.lod0RoofEdge = []
-        self.lod0FootPrint = []  # 追加:lod0FootPrint
+        self.lod0_roof_edge = []
+        self.lod0FootPrint = []  # 追加:lod0_foot_print
         self.lod1Solid = []
 
         # self.lod2Solid = []
@@ -39,10 +36,10 @@ class Building:
 
     def __str__(self):
         return "Building id={}\n\
-usage={}, measuredHeight={}, storeysAboveGround={}, storeysBelowGround={}\n\
+usage={}, measured_height={}, storeys_above_ground={}, storeys_below_ground={}\n\
 address={}\n\
-buildingDetails={}\n\
-extendedAttribute={}\n\
+building_details={}\n\
+extended_attribute={}\n\
 attr={}".format(
             self.id,
             self.usage,
@@ -55,13 +52,13 @@ attr={}".format(
             self.attr,
         )
 
-    # get vertices, triangles from lod0RoofEdge
+    # get vertices, triangles from lod0_roof_edge
     def getLOD0polygons(self, height=None):
         vertices = None
         triangles = None
-        if len(self.lod0RoofEdge) > 0:
+        if len(self.lod0_roof_edge) > 0:
             vertices = []
-            for x in self.lod0RoofEdge[0]:
+            for x in self.lod0_roof_edge[0]:
                 xx = copy.deepcopy(x)
                 if height is not None:
                     xx[2] = height
@@ -150,13 +147,13 @@ class plbldg(plobj):
             # usage
             for at in bld.xpath("bldg:usage", namespaces=nsmap):
                 b.usage = at.text
-            # measuredHeight
+            # measured_height
             for at in bld.xpath("bldg:measuredHeight", namespaces=nsmap):
                 b.measuredHeight = at.text
-            # storeysAboveGround
+            # storeys_above_ground
             for at in bld.xpath("bldg:storeysAboveGround", namespaces=nsmap):
                 b.storeysAboveGround = at.text
-            # storeysBelowGround
+            # storeys_below_ground
             for at in bld.xpath("bldg:storeysBelowGround", namespaces=nsmap):
                 b.storeysBelowGround = at.text
             # address
@@ -172,7 +169,7 @@ class plbldg(plobj):
                     namespaces=nsmap,
                 ):
                     b.address = at.text
-            # buildingDetails
+            # building_details
             for at in bld.xpath(
                 "uro:buildingDetails/uro:BuildingDetails", namespaces=nsmap
             ):
@@ -180,18 +177,18 @@ class plbldg(plobj):
                     tag = ch.tag
                     tag = tag[tag.rfind("}") + 1 :]
                     b.buildingDetails[tag] = ch.text
-            # extendedAttribute
+            # extended_attribute
             for at in bld.xpath(
                 "uro:extendedAttribute/uro:KeyValuePair", namespaces=nsmap
             ):
                 ch = at.getchildren()
                 b.extendedAttribute[ch[0].text] = ch[1].text
-            # lod0RoofEdge
+            # lod0_roof_edge
             vals = bld.xpath(
                 "bldg:lod0RoofEdge/gml:MultiSurface/gml:surfaceMember/gml:Polygon/gml:exterior/gml:LinearRing/gml:posList",
                 namespaces=nsmap,
             )
-            b.lod0RoofEdge = [str2floats(v).reshape((-1, 3)) for v in vals]
+            b.lod0_roof_edge = [str2floats(v).reshape((-1, 3)) for v in vals]
             # 追加:lod0FootPrint
             vals = bld.xpath(
                 "bldg:lod0FootPrint/gml:MultiSurface/gml:surfaceMember/gml:Polygon/gml:exterior/gml:LinearRing/gml:posList",
@@ -249,7 +246,7 @@ class plbldg(plobj):
                 if app is not None:
                     if b.partex.imageURI is None:
                         b.partex = app
-                    # elif b.partex.imageURI != app.imageURI:
+                    # elif b.par_tex.imageURI != app.imageURI:
                     # 	print('error')
             for bb in bld.xpath(
                 "bldg:boundedBy/bldg:RoofSurface/bldg:lod2MultiSurface/gml:MultiSurface/gml:surfaceMember/gml:Polygon",
@@ -268,7 +265,7 @@ class plbldg(plobj):
                 if app is not None:
                     if b.partex.imageURI is None:
                         b.partex = app
-                    # elif b.partex.imageURI != app.imageURI:
+                    # elif b.par_tex.imageURI != app.imageURI:
                     # 	print('error')
             for bb in bld.xpath(
                 "bldg:boundedBy/bldg:WallSurface/bldg:lod2MultiSurface/gml:MultiSurface/gml:surfaceMember/gml:Polygon",
@@ -287,7 +284,7 @@ class plbldg(plobj):
                 if app is not None:
                     if b.partex.imageURI is None:
                         b.partex = app
-                    # elif b.partex.imageURI != app.imageURI:
+                    # elif b.par_tex.imageURI != app.imageURI:
                     # 	print('error')
             self.buildings.append(b)
 
@@ -300,18 +297,18 @@ class plbldg(plobj):
 
             if options.bUseLOD0:
                 # LOD0
-                vertices, triangles = b.getLOD0polygons()
+                vertices, triangles = b.get_lod0_polygons()
                 if vertices is not None and triangles is not None:
                     vstart = len(mesh.vertices)
                     mesh.vertices.extend(vertices)
                     mesh.triangles.extend(triangles + vstart)
-            elif b.lod2ground or b.lod2roof or b.lod2wall:
+            elif b.lod2_ground or b.lod2roof or b.lod2wall:
                 # LOD2
                 if options.bUseLOD2texture:
-                    if b.partex.imageURI is not None:
+                    if b.par_tex.imageURI is not None:
                         # convert .tif into .png, because o3d.io.read_image() fails.
                         mesh.texture_filename = (
-                            os.path.dirname(self.filename) + "/" + b.partex.imageURI
+                            os.path.dirname(self.filename) + "/" + b.par_tex.imageURI
                         )
                         img = cv2.imread(mesh.texture_filename)
                         mesh.texture_filename = (
@@ -322,7 +319,7 @@ class plbldg(plobj):
                         )
                         cv2.imwrite(mesh.texture_filename, img)
                 # ground
-                for key, value in b.lod2ground.items():
+                for key, value in b.lod2_ground.items():
                     vertices = [convertPolarToCartsian(*x) for x in value[0]]
                     res = earcut(np.array(vertices, dtype=int).flatten(), dim=3)
                     if len(res) > 0:
@@ -332,10 +329,10 @@ class plbldg(plobj):
                         mesh.triangles.extend(triangles + vstart)
                         # texture
                         if options.bUseLOD2texture:
-                            if key in b.partex.targets.keys():
+                            if key in b.par_tex.targets.keys():
                                 mesh.triangle_uvs.extend(
                                     [
-                                        b.partex.targets[key][0, x]
+                                        b.par_tex.targets[key][0, x]
                                         for x in triangles.reshape((-1))
                                     ]
                                 )
@@ -356,10 +353,10 @@ class plbldg(plobj):
                         mesh.triangles.extend(triangles + vstart)
                         # texture
                         if options.bUseLOD2texture:
-                            if key in b.partex.targets.keys():
+                            if key in b.par_tex.targets.keys():
                                 mesh.triangle_uvs.extend(
                                     [
-                                        b.partex.targets[key][0, x]
+                                        b.par_tex.targets[key][0, x]
                                         for x in triangles.reshape((-1))
                                     ]
                                 )
@@ -375,10 +372,10 @@ class plbldg(plobj):
                         mesh.triangles.extend(triangles + vstart)
                         # texture
                         if options.bUseLOD2texture:
-                            if key in b.partex.targets.keys():
+                            if key in b.par_tex.targets.keys():
                                 mesh.triangle_uvs.extend(
                                     [
-                                        b.partex.targets[key][0, x]
+                                        b.par_tex.targets[key][0, x]
                                         for x in triangles.reshape((-1))
                                     ]
                                 )

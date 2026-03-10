@@ -1,7 +1,4 @@
-import copy
 import os
-
-import numpy as np
 
 from .plobj import plobj, plmesh
 from .ploptions import ploptions
@@ -30,7 +27,7 @@ class pldem(plobj):
         self.posLists = np.array([str2floats(v).reshape((-1, 3)) for v in vals])
         if options.bHeightZero:
             self.posLists[:, :, 2] = 0
-        # print(self.posLists.shape)
+        # print(self.pos_lists.shape)
         # convert to XYZ
         posLists = copy.deepcopy(self.posLists)
         usebit = []

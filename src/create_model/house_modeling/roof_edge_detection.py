@@ -1,0 +1,63 @@
+import os
+import sys
+
+import numpy as np
+import numpy.typing as npt
+
+from ..create_model_exception import ModelingException
+
+# ./third_party/heat を読み込む
+heat_directory_path = os.path.join(
+    os.path.dirname(__file__), "roof_edge_detection_model", "third_party", "heat"
+)  # noqa
+sys.path.append(heat_directory_path)  # noqa
+from .roof_edge_detection_model.third_party.heat.model import HEAT
+
+del sys.path[sys.path.index(heat_directory_path)]  # noqa
+
+
+class RoofEdgeDetectionCheckpointReadException(ModelingException):
+    """屋根線検出の学習済みモデル読み込みエラークラス"""
+
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
+class RoofEdgeDetection:
+    """屋根線検出クラス"""
+
+    _model: HEAT
+
+    def __init__(self, checkpoint_path: str, use_gpu: bool) -> None:
+        """コンストラクタ
+
+        Args:
+            checkpoint_path(str): 学習済みモデルファイルのパス
+            use_gpu(bool): 推論にGPUを使用する場合はtrue
+        """
+        self._model = HEAT(use_gpu)
+        try:
+            self._model.load_checkpoint(checkpoint_path)
+        except Exception as e:
+            class_name = self.__class__.__name__
+            func_name = sys._getframe().f_code.co_name
+            msg = "{}.{}, {}".format(class_name, func_name, e)
+            raise RoofEdgeDetectionCheckpointReadException(msg)
+
+    def infer(self, dsm_grid_rgb_image: npt.NDArray[np.uint8]):
+        """屋根線の検出を行う
+
+        Args:
+            dsm_grid_rgb_image(NDArray[np.uint8]): (image_size, image_size, 3)のRGB画像データ
+
+        Returns:
+            list[tuple[int, int]]: 屋根面の頂点の位置 (num of roof_vertice_ijs, 2)
+            list[tuple[int, int]]: 屋根線(頂点の番号の組)のリスト (num of edges, 2)
+        """
+        np_roof_vertice_ijs, np_edges = self._model.infer(dsm_grid_rgb_image)
+        roof_vertice_ijs: list[tuple[int, int]] = [
+            tuple(np_roof_vertice_ij) for np_roof_vertice_ij in np_roof_vertice_ijs
+        ]
+        edges: list[tuple[int, int]] = [tuple(np_edge) for np_edge in np_edges]
+
+        return roof_vertice_ijs, edges

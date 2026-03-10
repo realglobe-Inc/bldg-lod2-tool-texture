@@ -48,23 +48,23 @@ class CityGmlManager:
 
             for bldg in plbld.buildings:
 
-                if any(bldg.lod2ground) or any(bldg.lod2roof) or any(bldg.lod2wall):
+                if any(bldg.lod2_ground) or any(bldg.lod2roof) or any(bldg.lod2wall):
                     mesh = SetyMesh()
-                    for lod2ground in bldg.lod2ground:
+                    for lod2ground in bldg.lod2_ground:
                         mesh.ids.append(lod2ground)
                     for lod2roof in bldg.lod2roof:
                         mesh.ids.append(lod2roof)
                     for lod2wall in bldg.lod2wall:
                         mesh.ids.append(lod2wall)
 
-                    if bldg.lod0RoofEdge:
-                        lat = bldg.lod0RoofEdge[0][0][0]
-                        lon = bldg.lod0RoofEdge[0][0][1]
+                    if bldg.lod0_roof_edge:
+                        lat = bldg.lod0_roof_edge[0][0][0]
+                        lon = bldg.lod0_roof_edge[0][0][1]
                         mesh.code = self.get_mesh(lat, lon)
 
-                    elif bldg.lod0FootPrint:
-                        lat = bldg.lod0FootPrint[0][0][0]
-                        lon = bldg.lod0FootPrint[0][0][1]
+                    elif bldg.lod0_foot_print:
+                        lat = bldg.lod0_foot_print[0][0][0]
+                        lon = bldg.lod0_foot_print[0][0][1]
                         mesh.code = self.get_mesh(lat, lon)
                     mesh_list.append(mesh)
 

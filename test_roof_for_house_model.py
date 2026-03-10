@@ -2,10 +2,10 @@ from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
-from shapely.geometry import Point, Polygon
 from scipy.spatial import Delaunay
+from shapely.geometry import Point, Polygon
 
-from src.util.objinfo import BldElementType, ObjInfo
+from src.util.obj_info import BldElementType, ObjInfo
 
 
 def calculate_centroid(triangle: list[int], vertices: NDArray[np.float_]):

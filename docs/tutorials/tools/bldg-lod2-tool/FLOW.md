@@ -81,18 +81,18 @@ graph TD
     * 読み込みに失敗した建物がある場合や、ファイルが存在しない場合はエラーまたは警告を記録します。読み込める建物が全くない場合はエラーとして処理を中断（`X`へ）します。
 
 7. **モデル要素生成 (LOD2モデル作成) (`I`)**:
-    * `createmodel/modelcreator.py` の `ModelCreator` クラスが、`CityGmlManager` から受け取った `BuildInfo` リストを元にLOD2モデルを生成します。
+    * `create_model/modelcreator.py` の `ModelCreator` クラスが、`CityGmlManager` から受け取った `BuildInfo` リストを元にLOD2モデルを生成します。
     * **内部処理の概要:**
-        * 各 `BuildInfo` に対して `createmodel/building.py` の `Building` クラスのインスタンスを作成します。
-        * `createmodel/lasmanager.py` の `LasManager` を使用して、パラメータで指定されたDSMフォルダ (`DsmFolderPath`) から関連するLASファイルを読み込み、建物の範囲内の点群データを抽出します。座標変換 (`DsmCoordCityGmlCoordConverter`) もここで行われます。
-        * **建物分類:** `createmodel/buildingclassification/classifybuilding.py` が呼び出され、点群データから画像を生成し (`Preprocess`)、学習済みモデル (`Classifier`) を用いて建物が **陸屋根 (FLAT)** か **非陸屋根 (NON_FLAT)** かを分類します。デバッグモードでは分類結果もキャッシュされます。
+        * 各 `BuildInfo` に対して `create_model/building.py` の `Building` クラスのインスタンスを作成します。
+        * `create_model/lasmanager.py` の `LasManager` を使用して、パラメータで指定されたDSMフォルダ (`DsmFolderPath`) から関連するLASファイルを読み込み、建物の範囲内の点群データを抽出します。座標変換 (`DsmCoordCityGmlCoordConverter`) もここで行われます。
+        * **建物分類:** `create_model/buildingclassification/classifybuilding.py` が呼び出され、点群データから画像を生成し (`Preprocess`)、学習済みモデル (`Classifier`) を用いて建物が **陸屋根 (FLAT)** か **非陸屋根 (NON_FLAT)** かを分類します。デバッグモードでは分類結果もキャッシュされます。
         * **モデル生成:**
-            * **陸屋根の場合:** `createmodel/buildingmodeling/createmodel.py` の `BuildingModelBuilder` が呼ばれます。
+            * **陸屋根の場合:** `create_model/buildingmodeling/create_model.py` の `BuildingModelBuilder` が呼ばれます。
                 * `Preprocess`: 点群をクラスタリング（高さ、色、連続性）し、主要な平面候補を抽出します。
                 * `GraphCut`: 地面点と屋根点を分離します。
                 * `MBR` (Minimum Bounding Rectangle): 推定された屋根平面を矩形近似し、屋根形状ポリゴンを生成します。
                 * `Model`: 屋根面、壁面、地面の3Dメッシュを生成します。
-            * **非陸屋根の場合:** `createmodel/housemodeling/createmodel.py` の `HouseModelBuilder` が呼ばれます。
+            * **非陸屋根の場合:** `create_model/housemodeling/create_model.py` の `HouseModelBuilder` が呼ばれます。
                 * `Preprocess`: 点群からモデル入力用のRGB画像とDepth画像を生成します。
                 * `RoofLayerInfo`: 点群を高さで階層化（レイヤー化）します。
                 * `RoofEdgeDetection`: 学習済みモデル (HEAT: `thirdparty/heat`) を使用して、生成画像から屋根の頂点とエッジ（屋根線）を検出します。
@@ -110,17 +110,17 @@ graph TD
    * ファイルが存在しない場合はエラーログを出力し、次のファイル処理へスキップします (`X`へ)。
 
 9. **位相一貫性検査/補正 (`K`)**:
-   * `phaseconsistensy/mainmanager.py` の `MainManager` クラスが、生成されたOBJファイルに対して位相一貫性の検査と自動補正を行います。
+   * `phase_consistency/mainmanager.py` の `MainManager` クラスが、生成されたOBJファイルに対して位相一貫性の検査と自動補正を行います。
    * **内部処理:**
        * 各OBJファイルを `trimesh` および `util/objinfo.py` の `ObjInfo` を使って読み込みます。
-       * `phaseconsistensy/checkface.py` の `CheckFace` および `CheckFaces` クラスを用いて以下の検査・補正を実行します。
+       * `phase_consistency/checkface.py` の `CheckFace` および `CheckFaces` クラスを用いて以下の検査・補正を実行します。
            * **連続頂点重複:** 同じ座標の頂点が連続している場合、1つにマージします。
            * **ソリッド閉合:** モデルが閉じていない（穴が開いている）場合、エラーとします（`trimesh.is_watertight`）。補正は行いません。
            * **非平面:** 4頂点以上で構成されるポリゴンが同一平面上にない場合、`earcut` ( `thirdparty/plateaupy/thirdparty/earcutpython` ) を利用して三角形に分割し補正します。
            * **面積0ポリゴン:** 面積を持たないポリゴン（線分や点に縮退している）を削除します。
            * **自己交差・自己接触:** ポリゴン自身のエッジが交差または接触している場合、エラーとします。補正は行いません。
            * **地物内面同士交差:** 異なるポリゴン同士が交差している場合、エラーとします。補正は行いません。
-       * 検査結果は `phaseconsistensy/resultinfo.py` の `ResultInfo` に記録されます。
+       * 検査結果は `phase_consistency/resultinfo.py` の `ResultInfo` に記録されます。
        * 自動補正が行われた場合、または補正不可能なエラーが検出された場合は警告ログが出力されます。
        * パラメータ `DeleteErrorObject` がTrueの場合、補正不可能なエラーを持つOBJファイルは削除されます。
    * 処理後の（またはエラーにより未処理/削除された）OBJファイルは、別の中間フォルダ (`Config.OUTPUT_PHASE_OBJDIR`) に出力されます。
@@ -137,7 +137,7 @@ graph TD
     * パラメータ `OutputOBJ` がTrueの場合、最終出力用のOBJフォルダにもコピーします。
 
 13. **テクスチャ自動貼付け (`O`)**:
-    * `texturemapping/texturemain.py` の `TextureMain` クラスが、位相一貫性チェック済みのOBJファイルにテクスチャを貼り付けます。
+    * `texture_mapping/texturemain.py` の `TextureMain` クラスが、位相一貫性チェック済みのOBJファイルにテクスチャを貼り付けます。
     * **内部処理:**
         * パラメータで指定された外部標定要素ファイル (`ExternalCalibElementPath`) とカメラ情報ファイル (`CameraInfoPath`) を読み込みます。
         * パラメータで指定されたテクスチャフォルダ (`TextureFolderPath`) 内の画像ファイルを `PhotoImage` として読み込み、リスト化します。
@@ -203,7 +203,7 @@ graph TD
 
 
 
-## `createmodel/buildingclassification/classifybuilding.py` の `classify_building` 関数の処理
+## `create_model/buildingclassification/classifybuilding.py` の `classify_building` 関数の処理
 
 ### `classify_building` 処理フロー図 (Mermaid)
 
@@ -250,7 +250,7 @@ graph TD
     *   建物が「大きい」と判定された場合、詳細な分類処理を行わず、強制的に陸屋根 (`BuildingClass.FLAT`) として結果を返し、処理を終了します。
 
 4.  **`Preprocess` インスタンス化 (`C`)**:
-    *   建物サイズが処理範囲内の場合、`createmodel/buildingclassification/preprocess.py` の `Preprocess` クラスをインスタンス化します。このクラスは点群データをモデル入力用の画像に変換します。
+    *   建物サイズが処理範囲内の場合、`create_model/buildingclassification/preprocess.py` の `Preprocess` クラスをインスタンス化します。このクラスは点群データをモデル入力用の画像に変換します。
 
 5.  **`Preprocess.preprocess` 実行 (`D`)**:
     *   `Preprocess` インスタンスの `preprocess` メソッドを実行します。
@@ -262,7 +262,7 @@ graph TD
     *   **エラー:** 内部処理で問題が発生した場合、例外が発生しエラー終了 (`ErrorEnd`) する可能性があります。
 
 6.  **`Classifier` インスタンス化 (`E`)**:
-    *   `createmodel/buildingclassification/classifier.py` の `Classifier` クラスをインスタンス化します。
+    *   `create_model/buildingclassification/classifier.py` の `Classifier` クラスをインスタンス化します。
     *   **内部処理:**
         *   `ClassifierModel` (ResNet + Vision Transformerベース) を定義します。
         *   GPUが利用可能かつ `use_gpu` フラグがTrueであればGPU、そうでなければCPUを推論デバイスとして設定します。
@@ -285,19 +285,19 @@ graph TD
 
 ### 関連クラスと役割（classify_building内および呼び出し先）
 
-*   **`createmodel.buildingclassification.preprocess.Preprocess`**: 点群データをモデル入力に適した画像（128x128 RGB、回転補正済み）に変換する。
-*   **`createmodel.buildingclassification.classifier.Classifier`**: 学習済みモデルをロードし、入力画像に対する分類推論を実行する。
-*   **`createmodel.buildingclassification.classifier_model.ClassifierModel`**: 建物分類を行うための深層学習モデル（ResNet+ViT）のアーキテクチャを定義する。
-*   **`createmodel.lasmanager.PointCloud`**: 建物点群データを保持・管理する。
+*   **`create_model.building_classification.preprocess.Preprocess`**: 点群データをモデル入力に適した画像（128x128 RGB、回転補正済み）に変換する。
+*   **`create_model.building_classification.classifier.Classifier`**: 学習済みモデルをロードし、入力画像に対する分類推論を実行する。
+*   **`create_model.building_classification.classifier_model.ClassifierModel`**: 建物分類を行うための深層学習モデル（ResNet+ViT）のアーキテクチャを定義する。
+*   **`create_model.lasmanager.PointCloud`**: 建物点群データを保持・管理する。
 *   **`shapely.geometry.Polygon`**: 建物外形形状を表現し、辺の長さなどを計算するために使用される。
 *   **`cv2` (OpenCV)**: 画像のリサイズや回転などの前処理に使用される。
 *   **`numpy`**: 配列操作、数値計算に使用される。
 *   **`torch` (PyTorch)**: 深層学習モデルの定義、重みロード、推論実行に使用される。
-*   **`createmodel.buildingclassification.classifier.BuildingClass` (Enum)**: 分類結果（FLAT, NON_FLAT）を表現する列挙型。
+*   **`create_model.building_classification.classifier.BuildingClass` (Enum)**: 分類結果（FLAT, NON_FLAT）を表現する列挙型。
 
 
 
-## `createmodel/buildingmodeling/createmodel.py`内の`BuildingModelBuilder`クラス（陸屋根モデル用）の処理
+## `create_model/buildingmodeling/create_model.py`内の`BuildingModelBuilder`クラス（陸屋根モデル用）の処理
 
 `BuildingModelBuilder` は、入力された点群データと建物外形ポリゴンから、陸屋根の3Dモデル（OBJ形式）を生成する役割を担います。
 
@@ -348,7 +348,7 @@ graph TD
 ### 各ステップの詳細解説
 
 1.  **初期化 (`Start`)**:
-    * 呼び出し元 ( `createmodel/building.py` の `Building.create` ) から以下の情報を受け取ります。
+    * 呼び出し元 ( `create_model/building.py` の `Building.create` ) から以下の情報を受け取ります。
         * `cloud`: `PointCloud` オブジェクト（建物全体の点群データ）。
         * `shape`: `shapely.geometry.Polygon` オブジェクト（建物外形ポリゴン）。
         * `graphcut_height`: GraphCut処理で使用する地面の推定高さ。
@@ -358,7 +358,7 @@ graph TD
         * `output_folder_path`: 生成されるOBJファイルの出力先フォルダパス。
 
 2.  **`Preprocess` インスタンス化 (`A`)**:
-    * `createmodel/buildingmodeling/preprocess.py` の `Preprocess` クラスのインスタンスを作成します。このクラスは、点群データを処理して屋根面候補を抽出・整形する役割を持ちます。
+    * `create_model/buildingmodeling/preprocess.py` の `Preprocess` クラスのインスタンスを作成します。このクラスは、点群データを処理して屋根面候補を抽出・整形する役割を持ちます。
 
 3.  **`Preprocess.preprocess` 実行 (`B`)**:
     * `Preprocess` インスタンスの `preprocess` メソッドを実行し、屋根面候補となるクラスタ情報を取得します。
@@ -370,12 +370,12 @@ graph TD
         5.  **連続性クラスタリング (DBSCAN) (`B5`)**: 色でクラスタリングされた各グループ内で、空間的な近接性に基づいてさらにクラスタリングします (`DBSCAN` アルゴリズムを使用)。`param.dbscan_search_radius` (探索半径) と `param.dbscan_point_th` (コア点閾値) でパラメータを指定します。点数が `param.dbscan_cluster_point_th` 未満の小さなクラスタはノイズとして除去されます。
         6.  **外形ポリゴン近傍クラスタ探索 (`B6`)**: 建物外形ポリゴン (`shape`) の辺上を `param.search_near_polygon_sample_step` 間隔でサンプリングし、各サンプリング点から `param.search_near_polygon_search_radius` 半径内にあるクラスタを「外形近傍クラスタ」としてマークします (`NearestNeighbors` を使用)。
         7.  **近傍クラスタのマージ (`B7`)**: 外形近傍クラスタ同士で、平均高さの差が `param.merge_height_diff_th` 未満であり、かつ空間的に連続している（`DBSCAN` で判定、パラメータは `param.merge_dbscan_radius`, `param.merge_dbscan_point_th`）ものを1つのクラスタにマージします。
-        8.  **GraphCut (地面/屋根分離) (`B8`)**: `createmodel/buildingmodeling/graphcut.py` の `GraphCut` クラスを用いて、マージされたクラスタ群と、クラスタリングされなかった点群を対象に、地面と屋根をより正確に分離します。
+        8.  **GraphCut (地面/屋根分離) (`B8`)**: `create_model/buildingmodeling/graphcut.py` の `GraphCut` クラスを用いて、マージされたクラスタ群と、クラスタリングされなかった点群を対象に、地面と屋根をより正確に分離します。
             * 各クラスタが地面かどうかを判定します（`_check_ground_cluster`: 高さ、面積、形状、包含関係などを考慮）。
             * GraphCutアルゴリズム (`maxflow.fastmin.aexpansion_grid`) を適用し、各点を最も確からしい屋根面ラベルまたは無効ラベルに割り当てます。データ項（点と平面候補の距離）と平滑化項（隣接点とのラベル整合性、`param.graphcut_smooth_weight` で重み付け）を考慮します。
             * 同じ高さ（差が `param.graphcut_height_diff_th` 未満）で空間的に連続な（`DBSCAN` で判定）屋根ラベルの点群を再度マージします。
             * 最終的な屋根面クラスタ (`ClusterInfo` のリスト）を生成します。
-        9.  **MBR (屋根形状ポリゴン生成) (`B9`)**: `createmodel/buildingmodeling/mbr.py` の `MBR` クラスを用いて、GraphCutで得られた各屋根面クラスタの点群から、最小境界矩形（Minimum Bounding Rectangle）ベースの手法で屋根形状ポリゴン (`roof_line`) を生成・整形します。
+        9.  **MBR (屋根形状ポリゴン生成) (`B9`)**: `create_model/buildingmodeling/mbr.py` の `MBR` クラスを用いて、GraphCutで得られた各屋根面クラスタの点群から、最小境界矩形（Minimum Bounding Rectangle）ベースの手法で屋根形状ポリゴン (`roof_line`) を生成・整形します。
             * 点群を主方向（建物の主要な壁の向き）に回転させ、MBRアルゴリズムを階層的に適用して矩形を抽出・合成します。
             * パラメータ（`param.mbr_***`）で矩形の面積、幅、細長度などでフィルタリングします。
             * 抽出されたポリゴンを `shapely` で整形（簡略化、ノイズ除去、マージなど）します。
@@ -383,7 +383,7 @@ graph TD
     * `preprocess` メソッドは、整形された屋根面ポリゴンを持つ `ClusterInfo` のリストを返します。処理中にエラーが発生した場合は `ModelingException` が発生します。
 
 4.  **`Model` インスタンス化 (`C`)**:
-    * `createmodel/buildingmodeling/model.py` の `Model` クラスのインスタンスを作成します。建物ID、建物外形ポリゴン (`shape`)、階層分類フラグ (`use_hier_classify`) を渡します。
+    * `create_model/buildingmodeling/model.py` の `Model` クラスのインスタンスを作成します。建物ID、建物外形ポリゴン (`shape`)、階層分類フラグ (`use_hier_classify`) を渡します。
 
 5.  **`Model.create_model_surface` 実行 (`D`)**:
     * `Model` インスタンスの `create_model_surface` メソッドを実行し、3Dモデルの面（屋根、壁、地面）を生成します。
@@ -420,15 +420,15 @@ graph TD
 
 ### 主要な使用クラス・モジュール（BuildingModelBuilder内部）
 
-* **`createmodel.buildingmodeling.preprocess.Preprocess`**: 点群の前処理、クラスタリング、屋根面候補の抽出・整形。
-* **`createmodel.buildingmodeling.model.Model`**: 3Dモデル面の生成、管理、OBJ出力。
-* **`createmodel.buildingmodeling.clusterinfo.ClusterInfo`**: 点群クラスタとその属性（屋根ポリゴン、高さ、親子関係など）を保持。
-* **`createmodel.buildingmodeling.graphcut.GraphCut`**: GraphCutアルゴリズムによる地面/屋根分離。
-* **`createmodel.buildingmodeling.mbr.MBR`**: 最小境界矩形ベースでの屋根形状ポリゴン生成。
-* **`createmodel.buildingmodeling.planeinfo.PlaneInfo`**: 平面情報（パラメータ、法線ベクトル）の管理。
-* **`createmodel.buildingmodeling.geoutil.GeoUtil`**: ジオメトリ関連のユーティリティ関数（正規化、角度計算、距離計算など）。
-* **`createmodel.lasmanager.PointCloud`**: 点群データ（座標、色、インデックス）の管理。
-* **`createmodel.param.ModelingParam`**: モデル生成パラメータの管理（シングルトン）。
+* **`create_model.building_modeling.preprocess.Preprocess`**: 点群の前処理、クラスタリング、屋根面候補の抽出・整形。
+* **`create_model.building_modeling.model.Model`**: 3Dモデル面の生成、管理、OBJ出力。
+* **`create_model.building_modeling.clusterinfo.ClusterInfo`**: 点群クラスタとその属性（屋根ポリゴン、高さ、親子関係など）を保持。
+* **`create_model.building_modeling.graphcut.GraphCut`**: GraphCutアルゴリズムによる地面/屋根分離。
+* **`create_model.building_modeling.mbr.MBR`**: 最小境界矩形ベースでの屋根形状ポリゴン生成。
+* **`create_model.building_modeling.planeinfo.PlaneInfo`**: 平面情報（パラメータ、法線ベクトル）の管理。
+* **`create_model.building_modeling.geoutil.GeoUtil`**: ジオメトリ関連のユーティリティ関数（正規化、角度計算、距離計算など）。
+* **`create_model.lasmanager.PointCloud`**: 点群データ（座標、色、インデックス）の管理。
+* **`create_model.param.ModelingParam`**: モデル生成パラメータの管理（シングルトン）。
 * **`shapely`**: ジオメトリ演算。ポリゴンの作成、和差演算、包含判定、バッファ処理など。
 * **`sklearn.cluster.MeanShift`, `DBSCAN`**: クラスタリングアルゴリズム。
 * **`sklearn.neighbors.NearestNeighbors`, `KDTree`**: 近傍探索。
@@ -439,7 +439,7 @@ graph TD
 * **`anytree`**: 木構造データ。MBRの階層管理に使用。
 * **`numpy`**: 数値計算、配列操作。
 
-## `createmodel/housemodeling/createmodel.py`内の`HouseModelBuilder`クラス（非陸屋根、つまり切妻屋根や寄棟屋根などの一般的な家屋形状のモデル用）の処理
+## `create_model/housemodeling/create_model.py`内の`HouseModelBuilder`クラス（非陸屋根、つまり切妻屋根や寄棟屋根などの一般的な家屋形状のモデル用）の処理
 
 `HouseModelBuilder` は、`BuildingModelBuilder` と同様に入力データを受け取りますが、屋根形状が複雑であるため、機械学習モデルを用いた屋根線検出やバルコニー検出などの追加処理を行い、より詳細な3Dモデルを生成します。
 
@@ -490,7 +490,7 @@ graph TD
 ### 各ステップの詳細解説
 
 1.  **初期化 (`Start`)**:
-    * 呼び出し元 ( `createmodel/building.py` の `Building.create` ) から以下の情報を受け取ります。
+    * 呼び出し元 ( `create_model/building.py` の `Building.create` ) から以下の情報を受け取ります。
         * `cloud`: `PointCloud` オブジェクト（建物全体の点群データ）。
         * `shape`: `shapely.geometry.Polygon` オブジェクト（建物外形ポリゴン）。
         * `building_id`: 建物のID。
@@ -504,12 +504,12 @@ graph TD
         * `debug_mode`: デバッグモードフラグ。
 
 2.  **`Preprocess` 実行 (`A`)**:
-    * `createmodel/housemodeling/preprocess.py` の `Preprocess` クラスの `preprocess` メソッドを実行します。
+    * `create_model/housemodeling/preprocess.py` の `Preprocess` クラスの `preprocess` メソッドを実行します。
     * **内部処理フロー (`A1` ~ `A4`)**:
         1.  **点群グリッド化 (`A1`)**: 入力点群 (`cloud`) を、指定された `grid_size` と `expand_rate` に基づいて `image_size` x `image_size` (デフォルト256x256) のグリッドに割り当てます。各グリッドには最近傍の点の情報が割り当てられます。建物外形 (`shape`) 外の点はマスクされます（高さ0、色(255,255,255)など）。
         2.  **RGB画像生成 (`A2`)**: グリッド化された点群の色情報から、機械学習モデル入力用のRGB画像 (`square_dsm_grid_rgbs`) を生成します。
         3.  **Depth画像生成 (`A3`)**: グリッド化された点群の高さ情報（地面高さを基準に正規化）から、グレースケールのDepth画像 (`depth_image`) を生成します。
-        4.  **`RoofLayerInfo` 生成 (`A4`)**: `createmodel/housemodeling/roof_layer_info.py` の `RoofLayerInfo` クラスを初期化します。
+        4.  **`RoofLayerInfo` 生成 (`A4`)**: `create_model/housemodeling/roof_layer_info.py` の `RoofLayerInfo` クラスを初期化します。
             * 建物外形内で隣接する点との高さの差が閾値 (`WALL_HEIGHT_THRESHOLD`) より大きい点を「壁点」として検出します (`_get_wall_point_positions`)。
             * 壁点を起点として、高さが連続している（差が閾値以下）領域をBFS（幅優先探索）で探索し、異なる「屋根レイヤー」としてラベリングします (`_init_layer_class`)。これにより、高さの異なる屋根面が分離されます。
             * 非常に小さい、または細長いレイヤーをノイズとして除去します (`_detect_and_mark_noise`)。
@@ -517,10 +517,10 @@ graph TD
     * `preprocess` メソッドは、生成されたRGB画像、Depth画像、`RoofLayerInfo` オブジェクトを返します。
 
 3.  **`DsmCoordHeatImagePosConverter` 初期化 (`B`)**:
-    * `createmodel/housemodeling/coordinates_converter.py` の `DsmCoordHeatImagePosConverter` を初期化します。これは、前処理で生成された画像上のピクセル座標 (i, j) と、元の点群の平面直角座標 (x, y) を相互に変換するためのクラスです。画像のグリッドサイズと左上の座標を基に変換を行います。
+    * `create_model/housemodeling/coordinates_converter.py` の `DsmCoordHeatImagePosConverter` を初期化します。これは、前処理で生成された画像上のピクセル座標 (i, j) と、元の点群の平面直角座標 (x, y) を相互に変換するためのクラスです。画像のグリッドサイズと左上の座標を基に変換を行います。
 
 4.  **`RoofEdgeDetection` インスタンス化 (`C`)**:
-    * `createmodel/housemodeling/roof_edge_detection.py` の `RoofEdgeDetection` クラスのインスタンスを作成します。学習済みモデルのパス (`roof_edge_detection_checkpoint_path`) とGPU使用フラグを渡します。
+    * `create_model/housemodeling/roof_edge_detection.py` の `RoofEdgeDetection` クラスのインスタンスを作成します。学習済みモデルのパス (`roof_edge_detection_checkpoint_path`) とGPU使用フラグを渡します。
     * 内部では `thirdparty/heat/model.py` の `HEAT` モデルがロードされます。
 
 5.  **`RoofEdgeDetection.infer` 実行 (屋根線/頂点検出) (`D`)**:
@@ -532,7 +532,7 @@ graph TD
     * ステップ `B` で初期化した `DsmCoordHeatImagePosConverter` を使用して、検出された屋根頂点の画像座標 (i, j) を平面直角座標 (x, y) に変換します (`tmp_roof_vertex_xys`)。
 
 7.  **`optimize_roof_edge` 実行 (屋根線最適化) (`F`)**:
-    * `createmodel/housemodeling/model_surface_creation/optimize_roof_edge.py` の `optimize_roof_edge` 関数を実行します。
+    * `create_model/housemodeling/model_surface_creation/optimize_roof_edge.py` の `optimize_roof_edge` 関数を実行します。
     * 検出された屋根頂点のxy座標 (`tmp_roof_vertex_xys`)、エッジ (`tmp_roof_edges`)、および建物外形ポリゴン (`shape`) を入力とします。
     * 複数のステップ（`optimize_step_00` から `optimize_step_10`）を経て、屋根線を幾何学的に整形・最適化します。
         * 外形線外の点の移動
@@ -546,15 +546,15 @@ graph TD
     * 最適化された後の頂点リスト (`tmp_roof_polygon_vertex_xy_points`) と、内部エッジ (`inner_edge`)、外形エッジ (`outer_edge`) のリストが返されます。
 
 8.  **`extract_roof_surface` 実行 (屋根面ポリゴン抽出) (`G`)**:
-    * `createmodel/housemodeling/model_surface_creation/extract_roof_surface.py` の `extract_roof_surface` 関数を実行します。
+    * `create_model/housemodeling/model_surface_creation/extract_roof_surface.py` の `extract_roof_surface` 関数を実行します。
     * 最適化された頂点 (`tmp_roof_polygon_vertex_xy_points`) とエッジ (`result_edges = inner_edge + outer_edge`) を入力とし、平面グラフから閉じたポリゴン（屋根面）を抽出します。
     * 建物全体の外形を構成するポリゴン (`tmp_outer_polygon`) と、内部を構成する個々の屋根面ポリゴン (`tmp_inner_polygons`) のリスト（各要素は頂点インデックスのリスト）が返されます。
 
 9.  **ポリゴン補完/分割 必要? (`H`)**:
-    * `HouseModelBuilder._patch_for_heat_polygon` メソッド内で `createmodel/housemodeling/extra_roof_line/polygon_devision.py` の `PolygonDevision` を呼び出し、ステップ `G` で抽出された各 `tmp_inner_polygons` が、`RoofLayerInfo` のレイヤー境界を跨いでいないか（=不完全なポリゴンか）をチェックします (`can_split`)。
+    * `HouseModelBuilder._patch_for_heat_polygon` メソッド内で `create_model/housemodeling/extra_roof_line/polygon_devision.py` の `PolygonDevision` を呼び出し、ステップ `G` で抽出された各 `tmp_inner_polygons` が、`RoofLayerInfo` のレイヤー境界を跨いでいないか（=不完全なポリゴンか）をチェックします (`can_split`)。
 
 10. **`ExtraRoofLine` 実行 (`I`)**:
-    * 不完全なポリゴンが存在する場合、`createmodel/housemodeling/extra_roof_line/__init__.py` の `ExtraRoofLine` クラスを初期化して実行します。
+    * 不完全なポリゴンが存在する場合、`create_model/housemodeling/extra_roof_line/__init__.py` の `ExtraRoofLine` クラスを初期化して実行します。
     * `PolygonDevision` を用いて不完全なポリゴンをレイヤー境界で分割します。
     * 分割によって生じた新しいエッジや頂点を考慮し、隣接するポリゴンとの接続性を維持するように、全体の頂点リストとポリゴンリストを更新・調整します。
     * 更新後の頂点リスト (`new_polygon_vertex_xys`, `new_polygon_vertex_ijs`) とポリゴンリスト (`new_outer_polygon`, `new_inner_polygons`) を返します。
@@ -563,7 +563,7 @@ graph TD
     * ステップ `H` で分割が不要だった場合はステップ `G` の結果を、分割が必要だった場合はステップ `I` の結果を、以降の処理で使用するポリゴン情報 (`roof_polygon_vertex_xy_points`, `roof_polygon_vertex_ijs`, `outer_polygon`, `inner_polygons`) として確定します。
 
 12. **`BalconyDetection` インスタンス化 (`K`)**:
-    * `createmodel/housemodeling/balcony_detection.py` の `BalconyDetection` クラスのインスタンスを作成します。学習済みモデルのパス (`balcony_segmentation_checkpoint_path`) とGPU使用フラグを渡します。
+    * `create_model/housemodeling/balcony_detection.py` の `BalconyDetection` クラスのインスタンスを作成します。学習済みモデルのパス (`balcony_segmentation_checkpoint_path`) とGPU使用フラグを渡します。
 
 13. **`BalconyDetection.infer` 実行 (バルコニー検出) (`L`)**:
     * `BalconyDetection` インスタンスの `infer` メソッドを実行します。
@@ -575,10 +575,10 @@ graph TD
     * バルコニーと判定されたポリゴン領域を、`RoofLayerInfo` 内で新しいレイヤーとして追加登録します。これにより、後続の `ModelEdgeHeightInfo` でバルコニーの高さを他の屋根面と区別して扱えるようになります。
 
 15. **`HouseModel` インスタンス化 (`_create_model` 呼び出し) (`N`)**:
-    * `createmodel/housemodeling/house_model.py` の `HouseModel` クラスのインスタンスを作成します。
+    * `create_model/housemodeling/house_model.py` の `HouseModel` クラスのインスタンスを作成します。
     * 確定した屋根ポリゴン情報 (`roof_polygon_vertex_xys`, `roof_polygon_vertex_ijs`, `inner_polygons`, `outer_polygon`)、`RoofLayerInfo`、地面高さ (`ground_height`)、バルコニーフラグ (`polygon_balcony_flags`) などを渡します。
     * **内部処理フロー (`N1` ~ `N5`)**:
-        1.  **`ModelEdgeHeightInfo` 初期化 (`N1`)**: `createmodel/housemodeling/model_edge_height_info.py` の `ModelEdgeHeightInfo` を初期化します。`RoofLayerInfo` を参照し、各屋根ポリゴンの各頂点 (`roof_polygon_vertex_ijs`) における正確な3D高さ (z座標) を決定します。隣接するポリゴンのレイヤー関係（同じ高さか、段差があるか）やバルコニーフラグを考慮して、壁の上辺・下辺となるエッジの高さを計算・保持します (`fixed_sorted_edge_wall_bottom_top_pair`, `fixed_polygon_zs_list`)。
+        1.  **`ModelEdgeHeightInfo` 初期化 (`N1`)**: `create_model/housemodeling/model_edge_height_info.py` の `ModelEdgeHeightInfo` を初期化します。`RoofLayerInfo` を参照し、各屋根ポリゴンの各頂点 (`roof_polygon_vertex_ijs`) における正確な3D高さ (z座標) を決定します。隣接するポリゴンのレイヤー関係（同じ高さか、段差があるか）やバルコニーフラグを考慮して、壁の上辺・下辺となるエッジの高さを計算・保持します (`fixed_sorted_edge_wall_bottom_top_pair`, `fixed_polygon_zs_list`)。
         2.  **壁面生成 (`N2`)**: `HouseModel._create_wall_faces` を実行します。`ModelEdgeHeightInfo` で決定された壁のエッジ高さ情報に基づき、壁面 (`FaceInfo`, `BldElementType.WALL`) を生成します。辺の接続関係を考慮し、適切な頂点順序（反時計回り）でポリゴンを作成します。
         3.  **屋根面生成 (`N3`)**: `HouseModel._create_roof_faces` を実行します。`ModelEdgeHeightInfo` で決定された屋根ポリゴンの頂点高さ情報に基づき、屋根面 (`FaceInfo`, `BldElementType.ROOF`) を生成します。各屋根ポリゴンは `triangulation` (`model_surface_creation/utils/triangulation.py`) を用いて三角形に分割されます。
         4.  **地面生成 (`N4`)**: `HouseModel._create_ground_face` を実行します。`outer_polygon` (外形ポリゴン) と `ground_height` から地面 (`FaceInfo`, `BldElementType.GROUND`) を生成します。
@@ -595,21 +595,21 @@ graph TD
 
 ### 主要な使用クラス・モジュール（HouseModelBuilder内部）
 
-* **`createmodel.housemodeling.preprocess.Preprocess`**: 点群からモデル入力用画像を生成。
-* **`createmodel.housemodeling.roof_layer_info.RoofLayerInfo`**: 点群の高さを基に屋根をレイヤー化。
-* **`createmodel.housemodeling.coordinates_converter.DsmCoordHeatImagePosConverter`**: 画像座標(ij)と実世界座標(xy)の変換。
-* **`createmodel.housemodeling.roof_edge_detection.RoofEdgeDetection`**: 屋根線検出モデル(HEAT)のラッパー。
-* **`createmodel.housemodeling.model_surface_creation.optimize_roof_edge`**: 屋根線最適化処理群。
-* **`createmodel.housemodeling.model_surface_creation.extract_roof_surface`**: 最適化された屋根線からポリゴンを抽出。
-* **`createmodel.housemodeling.extra_roof_line.ExtraRoofLine`**: 不完全なポリゴンの補完・分割。
-* **`createmodel.housemodeling.extra_roof_line.polygon_devision.PolygonDevision`**: `RoofLayerInfo`に基づきポリゴンを分割。
-* **`createmodel.housemodeling.balcony_detection.BalconyDetection`**: バルコニー検出モデルのラッパー。
-* **`createmodel.housemodeling.house_model.HouseModel`**: 最終的な3Dモデルの生成・管理・出力。
-* **`createmodel.housemodeling.model_edge_height_info.ModelEdgeHeightInfo`**: 屋根エッジの3D高さを決定。
-* **`createmodel.housemodeling.model_surface_creation.utils.triangulation`**: ポリゴンの三角形分割。
+* **`create_model.house_modeling.preprocess.Preprocess`**: 点群からモデル入力用画像を生成。
+* **`create_model.house_modeling.roof_layer_info.RoofLayerInfo`**: 点群の高さを基に屋根をレイヤー化。
+* **`create_model.house_modeling.coordinates_converter.DsmCoordHeatImagePosConverter`**: 画像座標(ij)と実世界座標(xy)の変換。
+* **`create_model.house_modeling.roof_edge_detection.RoofEdgeDetection`**: 屋根線検出モデル(HEAT)のラッパー。
+* **`create_model.house_modeling.model_surface_creation.optimize_roof_edge`**: 屋根線最適化処理群。
+* **`create_model.house_modeling.model_surface_creation.extract_roof_surface`**: 最適化された屋根線からポリゴンを抽出。
+* **`create_model.house_modeling.extra_roof_line.ExtraRoofLine`**: 不完全なポリゴンの補完・分割。
+* **`create_model.house_modeling.extra_roof_line.polygon_devision.PolygonDevision`**: `RoofLayerInfo`に基づきポリゴンを分割。
+* **`create_model.house_modeling.balcony_detection.BalconyDetection`**: バルコニー検出モデルのラッパー。
+* **`create_model.house_modeling.house_model.HouseModel`**: 最終的な3Dモデルの生成・管理・出力。
+* **`create_model.house_modeling.model_edge_height_info.ModelEdgeHeightInfo`**: 屋根エッジの3D高さを決定。
+* **`create_model.house_modeling.model_surface_creation.utils.triangulation`**: ポリゴンの三角形分割。
 * **その他 `utils`**: ジオメトリ操作、ポリゴン操作などの補助関数。
 
-## `texturemapping/texturemain.py`内の`TextureMain.texture_main`メソッドの処理
+## `texture_mapping/texturemain.py`内の`TextureMain.texture_main`メソッドの処理
 
 このメソッドは、位相一貫性チェック済みのOBJファイル群と、航空写真などのテクスチャ画像群、そしてカメラの位置・姿勢情報（外部標定要素）とカメラ内部の特性（内部標定要素）を入力とし、各OBJモデルのポリゴンに最適なテクスチャ画像を貼り付け、テクスチャ付きのOBJファイルとマテリアルファイル（MTL）、そしてテクスチャアトラス画像を出力する役割を担います。
 
@@ -720,7 +720,7 @@ graph TD
     * 歪み係数の有無からキャリブレーションフラグ (`calibflag`) を設定します。
 
 6. **写真情報リスト作成 (`E`)**:
-    * 読み込んだ外部標定要素とカメラ情報を用いて、各写真の情報を `texturemapping/photoimage.py` の `PhotoImage` クラスのインスタンスとして生成し、リスト (`photolist`) に格納します。
+    * 読み込んだ外部標定要素とカメラ情報を用いて、各写真の情報を `texture_mapping/photoimage.py` の `PhotoImage` クラスのインスタンスとして生成し、リスト (`photolist`) に格納します。
     * `PhotoImage` の初期化 (`set_photo_param`) では以下の処理が行われます。
         * 写真ファイルが存在するか確認します。存在しない写真はリストに追加されません。
         * 写真ファイルを `Cv2Japanese` を使って読み込み、画像サイズを取得します。
@@ -744,7 +744,7 @@ graph TD
     * 残っていれば処理対象の建物 (`build`) の建物IDをデバッグログに出力してループ処理を開始 (`M`) します。
 
 11. **`VerticalObject` インスタンス化 (`M`)**:
-    * `texturemapping/verticalobject.py` の `VerticalObject` クラスのインスタンスを作成します。
+    * `texture_mapping/verticalobject.py` の `VerticalObject` クラスのインスタンスを作成します。
     * コンストラクタ内で、対応するOBJファイル (`os.path.join(self.input_objdir, f'{build.build_id}.obj')`) を `ObjInfo` を使って読み込み、屋根 (`_vertexroof`) と壁 (`_vertexwall`) のポリゴン頂点座標をNumpy配列として保持します。
     * 写真情報リスト (`photolist`) や出力用テクスチャ情報 (`DstTextureFile`) も初期化されます。
 
@@ -814,8 +814,8 @@ graph TD
 
 ### 関連クラスと役割（TextureMain内部）
 
-* **`texturemapping.photoimage.PhotoImage`**: 1枚の写真に関する情報（ファイルパス、外部標定要素、内部標定要素、回転行列、画像サイズ、センサーサイズなど）と、座標変換機能（実世界座標 -> 画像座標）を提供します。
-* **`texturemapping.verticalobject.VerticalObject`**: 1つの建物に関する情報（OBJデータ、選択されたテクスチャ情報）と、テクスチャ選択・出力機能を提供します。
+* **`texture_mapping.photoimage.PhotoImage`**: 1枚の写真に関する情報（ファイルパス、外部標定要素、内部標定要素、回転行列、画像サイズ、センサーサイズなど）と、座標変換機能（実世界座標 -> 画像座標）を提供します。
+* **`texture_mapping.verticalobject.VerticalObject`**: 1つの建物に関する情報（OBJデータ、選択されたテクスチャ情報）と、テクスチャ選択・出力機能を提供します。
     * **`DstTextureFile`**: `VerticalObject` 内で使用され、建物全体で使用するテクスチャ情報を集約し、アトラス画像を生成・出力します。
     * **`SrcTexture`**: `DstTextureFile` 内で使用され、参照される元画像ファイルごとに、それを使用するポリゴンの元画像座標と出力アトラス座標を管理します。
     * **`TextureInfo`**: `VerticalObject` 内で使用され、各ポリゴンに割り当てられた `SrcTexture` への参照や面積を保持します。
