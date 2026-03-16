@@ -38,7 +38,7 @@ class TextureMain:
         buildings: list[CityGmlManager.BuildInfo],
         file_name: str,
         image_format: str,
-    ) -> None:
+    ) -> ResultType:
         """テクスチャ張付け開始
 
         Args:
