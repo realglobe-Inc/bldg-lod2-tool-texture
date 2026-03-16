@@ -372,7 +372,9 @@ class VerticalObject:
         """
         # テクスチャ画像の出力
         ret = self._tex_collection.output_texture(
-            os.path.join(output_dir, self._obj_filename), image_format
+            os.path.join(output_dir, self._obj_filename),
+            image_format,
+            self._obj_filename,
         )
 
         if ret:
@@ -543,12 +545,13 @@ class DstTextureFile:
         self.num_src_tex += 1
         return tex_info
 
-    def output_texture(self, output_path: str, image_format: str):
+    def output_texture(self, output_path: str, image_format: str, obj_name: str = ""):
         """テクスチャ画像出力
 
         Args:
           output_path (str): テクスチャ情報出力先のフォルダパス
           image_format (str): 画像出力形式
+          obj_name (str): 対象のオブジェクト名
 
         Returns:
           bool: テクスチャ出力成功(True)/テクスチャ出力画像なし(False)
@@ -634,6 +637,10 @@ class DstTextureFile:
             for tex_ver in srcTex.tex_coord:
                 min_x, min_y, polygon_w, polygon_h, output_margin = get_tex_poly_bbox(
                     tex_ver, img.shape[1], img.shape[0]
+                )
+
+                print(
+                    f"[{obj_name}] Crop from {srcTex.ref_image.filename}: x={min_x}, y={min_y}, w={polygon_w}, h={polygon_h}"
                 )
 
                 # 背景画像（白画像）
