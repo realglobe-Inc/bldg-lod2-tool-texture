@@ -71,8 +71,8 @@ def main():
 
     # ログクラスの初期化
     log = Log(params, None)
-    log.process_start_log("manual_execution")
-    log.module_start_log(ModuleType.PASTE_TEXTURE, "manual_execution")
+    log.process_start_log("texture_mapping")
+    log.module_start_log(ModuleType.PASTE_TEXTURE, "texture_mapping")
 
     # 3. 入力OBJのディレクトリ設定
     raw_input_dir = (
@@ -134,7 +134,6 @@ def main():
     try:
         res = tm.texture_main(
             buildings=buildings,
-            file_name="manual_execution.gml",
             image_format=args.image_format,
         )
         print(f"実行完了。結果ステータス: {res}")

@@ -36,14 +36,12 @@ class TextureMain:
     def texture_main(
         self,
         buildings: list[CityGmlManager.BuildInfo],
-        file_name: str,
         image_format: str,
     ) -> ResultType:
         """テクスチャ張付け開始
 
         Args:
           buildings (list[CityGmlManager.BuildInfo]): 建物外形情報リスト
-          file_name (str): 入力CityGMLファイル名(拡張子付き)
           image_format (str): 出力画像形式
 
         Raises:
@@ -74,7 +72,6 @@ class TextureMain:
                 self.optional_output_obj_dir = os.path.join(
                     self.param_manager.output_folder_path,
                     "obj",
-                    os.path.splitext(file_name)[0],
                 )
                 if not os.path.isdir(self.optional_output_obj_dir):
                     os.makedirs(self.optional_output_obj_dir)
@@ -161,11 +158,9 @@ class TextureMain:
                 raise Exception("Photo not found")
 
             # テクスチャ画像出力フォルダ作成
-            # [メッシュコード]_[地物型]_[CRS]_[オプション]_appearance
-            base_name = os.path.splitext(file_name)[0]
             texture_dir = os.path.join(
                 self.param_manager.output_folder_path,
-                f"{base_name.split('_op')[0]}_appearance",
+                "appearance",
             )
             if not os.path.isdir(texture_dir):
                 os.mkdir(texture_dir)
@@ -227,11 +222,11 @@ class TextureMain:
                             image_format,
                         )
                         if self.param_manager.output_obj:
-                            # マテリアルファイル名はCityGMLファイル名とする
+                            # マテリアルファイル名は appearance.mtl とする
                             ver.output_optional_obj(
                                 obj_dir=self.optional_output_obj_dir,
                                 texture_dir=texture_dir,
-                                mtl_file_name=f"{base_name}.mtl",
+                                mtl_file_name="appearance.mtl",
                                 image_format=image_format,
                             )
 
