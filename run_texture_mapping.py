@@ -47,10 +47,6 @@ def main():
         nargs="+",
         help="処理対象の建物ID (指定しない場合は入力フォルダ内の全OBJを対象)",
     )
-    parser.add_argument(
-        "--output_obj", action="store_true", help="最終出力にOBJファイルも含めるか"
-    )
-
     args = parser.parse_args()
 
     # 1. パラメータ管理クラスの準備
@@ -59,7 +55,6 @@ def main():
     params.ex_calib_element_path = args.ex_calib
     params.camera_info_path = args.camera_info
     params.output_folder_path = args.output_dir
-    params.output_obj = args.output_obj
     params.texture_image_format = args.image_format
 
     # ログ出力先の設定 (出力フォルダ内の logs フォルダ)

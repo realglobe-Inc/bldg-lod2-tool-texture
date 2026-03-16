@@ -76,6 +76,11 @@ class TextureMain:
                 if not os.path.isdir(self.optional_output_obj_dir):
                     os.makedirs(self.optional_output_obj_dir)
 
+                # 古いマテリアルファイルを削除
+                mtl_path = os.path.join(self.optional_output_obj_dir, "appearance.mtl")
+                if os.path.exists(mtl_path):
+                    os.remove(mtl_path)
+
             if not os.path.isdir(self.input_obj_dir):
                 # OBJファイル入力先フォルダなし
                 raise FileNotFoundError("Folder not found (OBJ folder)")
