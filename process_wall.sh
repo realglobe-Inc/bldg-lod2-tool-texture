@@ -14,7 +14,6 @@ meter_per_pixel="${METER_PER_PIXEL:-0.16}"
 
 (
 cd "$(dirname "$0")/tools/SuperResolution/WallSurface"
-. "./$(basename $PWD)/bin/activate"
 
 param_file=$(mktemp --suffix .json)
 echo "{
@@ -29,5 +28,4 @@ echo "{
 rm -rf "${output_dir}/"*
 python main.py "${param_file}"
 
-deactivate
 )

@@ -115,9 +115,7 @@ if ! "${skip_bldg_lod2_tool}"; then
   city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
   output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
 
-  . "./$(basename $PWD)/bin/activate"
   python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
-  deactivate
 
   # 最新のフォルダを取得
   output_bldg_lod2_tool_path="${output_dir}/output_bldg_lod2_tool"
@@ -160,10 +158,8 @@ cd "${project_dir}/tools/misc"
 output_rectify_path="${output_dir}/output_rectify"
 rm -rf "${output_rectify_path}/"*
 
-. "./$(basename $PWD)/bin/activate"
 python rectify_texture_image.py -i "${output_bldg_lod2_tool_path}" -o "${output_rectify_path}" \
  --format png --meter-per-pixel "${meter_per_texture_pixel}"
-deactivate
 
 
 
@@ -190,9 +186,7 @@ cat <<EOF > "${wall_param_file}"
 }
 EOF
 
-. "./$(basename $PWD)/bin/activate"
 python main.py "${wall_param_file}"
-deactivate
 
 
 
@@ -206,12 +200,10 @@ cd "${project_dir}/tools/Real-ESRGAN"
 output_esrgan_path="${output_dir}/output_esrgan"
 rm -rf "${output_esrgan_path}/*"
 
-. "./$(basename $PWD)/bin/activate"
 python inference_realesrgan.py \
   -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
   -i "${output_wall_path}" -o "${output_esrgan_path}" \
   --input-ext png --ext png
-deactivate
 
 
 copy_misc() {
@@ -260,11 +252,9 @@ copy_misc() {
 
   # gmlファイルの中で変更
   cd "${project_dir}/tools/misc"
-  . "./$(basename $PWD)/bin/activate"
   for gml_file in $(find "${output_result_path}" -name '*.gml'); do
     python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
   done
-  deactivate
 }
 
 copy_misc "${output_esrgan_path}" "${output_wall_path}" "${output_esrgan_path}" png
@@ -295,9 +285,7 @@ cat <<EOF > "${wall_param_file2}"
 }
 EOF
 
-. "./$(basename $PWD)/bin/activate"
 python main.py "${wall_param_file2}"
-deactivate
 
 
 
@@ -311,12 +299,10 @@ cd "${project_dir}/tools/DeblurGANv2"
 output_deblurgan_path="${output_dir}/output_deblurgan"
 rm -rf "${output_deblurgan_path}/"*
 
-. "./$(basename $PWD)/bin/activate"
 python predict.py \
   -c checkpoints/fpn_inception.h5 \
   -i "${output_wall_path2}" -o "${output_deblurgan_path}" \
   --input-format png --output-format jpg
-deactivate
 
 
 
