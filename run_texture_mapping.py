@@ -1,6 +1,8 @@
 import argparse
 import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -61,8 +63,9 @@ def main():
     params.output_log_folder_path = os.path.join(args.output_dir, "logs")
 
     # 2. 中間ディレクトリとログの準備
-    # TextureMainが使用するConfig.OUTPUT_OBJ_DIR(./temp)を作成
-    os.makedirs(Config.OUTPUT_OBJ_DIR, exist_ok=True)
+    # システムの一時ディレクトリを使用して中間フォルダを作成
+    temp_dir_obj = tempfile.TemporaryDirectory()
+    Config.set_temp_dir(temp_dir_obj.name)
 
     # ログクラスの初期化
     log = Log(params, None)
@@ -125,6 +128,7 @@ def main():
     # self.input_obj_dir = Config.OUTPUT_PHASE_OBJ_DIR と代入されているため
     # 手動で再代入する。
     tm.input_obj_dir = input_dir
+    tm.output_obj_dir = Config.OUTPUT_TEX_OBJ_DIR
 
     try:
         res = tm.texture_main(
