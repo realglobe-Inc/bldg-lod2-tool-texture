@@ -697,7 +697,7 @@ graph TD
 
 1. **開始 (`Start`)**:
     * 呼び出し元 ( `AutoCreateLod2.main` ) から以下の情報を受け取ります。
-        * `buildings`: `list[CityGmlManager.BuildInfo]` - 建物情報のリスト。各要素には建物IDなどが含まれます。
+        * `buildings`: `list[str]` - 建物ID（文字列）のリスト。
         * `file_name`: `str` - 処理対象のCityGMLファイル名（拡張子付き）。出力ファイル名の一部に使用されます。
         * `image_format`: `str` - 出力するテクスチャアトラス画像の形式（例: "png"）。
     * `param_manager` からパラメータ情報を参照します。

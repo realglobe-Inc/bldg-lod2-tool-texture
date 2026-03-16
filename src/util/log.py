@@ -8,7 +8,7 @@ from enum import IntEnum
 from logging import getLogger, config
 
 from .param_manager import ParamManager
-from .result_type import ResultType, ProcessResult
+from .result_type import ResultType
 
 
 class ModuleType(IntEnum):

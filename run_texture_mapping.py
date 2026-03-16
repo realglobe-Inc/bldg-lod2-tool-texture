@@ -1,6 +1,5 @@
 import argparse
 import os
-import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -13,7 +12,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from src.texture_mapping.texture_main import TextureMain
 from src.util.param_manager import ParamManager
-from src.util.city_gml_info import CityGmlManager
 from src.util.log import Log, ModuleType
 
 
@@ -35,7 +33,7 @@ def main():
     # オプションパラメータ
     parser.add_argument(
         "--input_obj_dir",
-        help="入力OBJフォルダパス (指定しない場合はConfigのデフォルトを使用)",
+        help="入力OBJフォルダパス",
     )
     parser.add_argument(
         "--image_format",
@@ -101,10 +99,7 @@ def main():
     buildings = []
     if args.building_ids:
         # IDが指定されている場合
-        for b_id in args.building_ids:
-            info = CityGmlManager.BuildInfo()
-            info.build_id = b_id
-            buildings.append(info)
+        buildings = args.building_ids
     else:
         # フォルダ内の全OBJを対象とする
         obj_files = list(Path(input_dir).glob("*.obj"))
@@ -113,9 +108,7 @@ def main():
             sys.exit(1)
 
         for obj_path in obj_files:
-            info = CityGmlManager.BuildInfo()
-            info.build_id = obj_path.stem
-            buildings.append(info)
+            buildings.append(obj_path.stem)
 
     print(f"処理対象建物数: {len(buildings)}")
 

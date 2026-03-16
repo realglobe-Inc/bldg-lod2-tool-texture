@@ -11,10 +11,9 @@ from tqdm import tqdm
 
 from .photo_image import PhotoImage
 from .vertical_object import VerticalObject
-from ..util.city_gml_info import CityGmlManager
 from ..util.log import Log, ModuleType, LogLevel
 from ..util.param_manager import ParamManager
-from ..util.result_type import ResultType, ProcessResult
+from ..util.result_type import ResultType
 
 
 class TextureMain:
@@ -34,13 +33,13 @@ class TextureMain:
 
     def texture_main(
         self,
-        buildings: list[CityGmlManager.BuildInfo],
+        buildings: list[str],
         image_format: str,
     ) -> ResultType:
         """テクスチャ張付け開始
 
         Args:
-          buildings (list[CityGmlManager.BuildInfo]): 建物外形情報リスト
+          buildings (list[str]): 建物外形情報リスト
           image_format (str): 出力画像形式
 
         Raises:
@@ -174,7 +173,7 @@ class TextureMain:
             mtl_file_name = date + ".mtl"
 
             file_list = os.listdir(self.input_obj_dir)
-            building_list = [i for i in buildings if i.build_id + ".obj" in file_list]
+            building_list = [i for i in buildings if i + ".obj" in file_list]
             self._obj_num = len(building_list)
 
             if self._obj_num == 0:
@@ -194,15 +193,14 @@ class TextureMain:
                     dynamic_ncols=isatty,
                     disable=not isatty,
                 )
-                for build in building_list:
+                for build_id in building_list:
                     # 建造物分テクスチャ貼付け処理
                     try:
-                        pbar.set_description(build.build_id)
+                        pbar.set_description(build_id)
                         if not isatty:
-                            print(f"Processing {build.build_id}")
+                            print(f"Processing {build_id}")
 
-                        id = build.build_id
-                        build.paste_texture = ProcessResult.SKIP
+                        id = build_id
                         path = os.path.join(self.input_obj_dir, f"{id}.obj")
 
                         Log.output_log_write(
@@ -245,9 +243,8 @@ class TextureMain:
                                 f"Texture not found id:{id}",
                             )
                             res_type = ResultType.WARN
-                            build.paste_texture = ProcessResult.ERROR
                         else:
-                            build.paste_texture = ProcessResult.SUCCESS
+                            pass
 
                     except Exception as e:
                         traceback.print_exc()
@@ -259,7 +256,6 @@ class TextureMain:
                             LogLevel.WARN, ModuleType.PASTE_TEXTURE, f"{str(e)} {path}"
                         )
                         res_type = ResultType.WARN
-                        build.paste_texture = ProcessResult.ERROR
 
                     finally:
                         pbar.update(1)
