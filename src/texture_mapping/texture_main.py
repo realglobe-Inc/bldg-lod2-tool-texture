@@ -12,7 +12,6 @@ from tqdm import tqdm
 from .photo_image import PhotoImage
 from .vertical_object import VerticalObject
 from ..util.city_gml_info import CityGmlManager
-from ..util.config import Config
 from ..util.log import Log, ModuleType, LogLevel
 from ..util.param_manager import ParamManager
 from ..util.result_type import ResultType, ProcessResult
@@ -27,8 +26,8 @@ class TextureMain:
         Args:
           param_manager (ParamManager): パラメータ情報
         """
-        self.input_obj_dir = Config.OUTPUT_PHASE_OBJ_DIR  # 入力OBJフォルダパス
-        self.output_obj_dir = Config.OUTPUT_TEX_OBJ_DIR  # 出力OBJフォルダパス
+        self.input_obj_dir = ""  # 入力OBJフォルダパス
+        self.output_obj_dir = ""  # 出力OBJフォルダパス
         self.param_manager = param_manager  # パラメータ情報
         # オプション出力のOBJフォルダパス
         self.optional_output_obj_dir = ""
@@ -67,19 +66,18 @@ class TextureMain:
             os.mkdir(self.output_obj_dir)
 
             # 最終出力にOBJファイルを出力する場合
-            if self.param_manager.output_obj:
-                # 出力フォルダの作成
-                self.optional_output_obj_dir = os.path.join(
-                    self.param_manager.output_folder_path,
-                    "obj",
-                )
-                if not os.path.isdir(self.optional_output_obj_dir):
-                    os.makedirs(self.optional_output_obj_dir)
+            # 出力フォルダの作成
+            self.optional_output_obj_dir = os.path.join(
+                self.param_manager.output_folder_path,
+                "obj",
+            )
+            if not os.path.isdir(self.optional_output_obj_dir):
+                os.makedirs(self.optional_output_obj_dir)
 
-                # 古いマテリアルファイルを削除
-                mtl_path = os.path.join(self.optional_output_obj_dir, "appearance.mtl")
-                if os.path.exists(mtl_path):
-                    os.remove(mtl_path)
+            # 古いマテリアルファイルを削除
+            mtl_path = os.path.join(self.optional_output_obj_dir, "appearance.mtl")
+            if os.path.exists(mtl_path):
+                os.remove(mtl_path)
 
             if not os.path.isdir(self.input_obj_dir):
                 # OBJファイル入力先フォルダなし
@@ -226,14 +224,13 @@ class TextureMain:
                             mtl_file_name,
                             image_format,
                         )
-                        if self.param_manager.output_obj:
-                            # マテリアルファイル名は appearance.mtl とする
-                            ver.output_optional_obj(
-                                obj_dir=self.optional_output_obj_dir,
-                                texture_dir=texture_dir,
-                                mtl_file_name="appearance.mtl",
-                                image_format=image_format,
-                            )
+                        # マテリアルファイル名は appearance.mtl とする
+                        ver.output_optional_obj(
+                            obj_dir=self.optional_output_obj_dir,
+                            texture_dir=texture_dir,
+                            mtl_file_name="appearance.mtl",
+                            image_format=image_format,
+                        )
 
                         if not ret:
                             shutil.copyfile(
@@ -297,11 +294,8 @@ class TextureMain:
                 shutil.copyfile(
                     path, os.path.join(self.output_obj_dir, os.path.basename(path))
                 )
-                if self.param_manager.output_obj:
-                    # 最終出力にOBJファイルを出力する場合
-                    shutil.copyfile(
-                        path,
-                        os.path.join(
-                            self.optional_output_obj_dir, os.path.basename(path)
-                        ),
-                    )
+                # 最終出力にOBJファイルを出力する場合
+                shutil.copyfile(
+                    path,
+                    os.path.join(self.optional_output_obj_dir, os.path.basename(path)),
+                )

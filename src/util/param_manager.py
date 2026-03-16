@@ -20,13 +20,12 @@ class ParamManager:
 
     TEXTURE_OUTPUT_WIDTH_MAX = 4096
     TEXTURE_OUTPUT_HEIGHT_MAX = 4096
+    SYSTEM_VERSION = "1.0.0"
 
     # デバッグログ設定のデフォルト値
     DEFAULT_DEBUG_LOG_OUTPUT = False
     # 位相一貫補正のデフォルト値
     DEFAULT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT = False
-    # objファイル出力のデフォルト値
-    DEFAULT_OUTPUT_OBJ = True
     # LASのXY座標swapフラグ
     DEFAULT_LAS_SWAP_XY = False
     DEFAULT_TEXTURE_IMAGE_FORMAT = "png"
@@ -44,7 +43,6 @@ class ParamManager:
         self.delete_error_flag: bool = (
             ParamManager.DEFAULT_PHASE_CONSISTENCY_DELETE_ERROR_OBJECT
         )
-        self.output_obj: bool = ParamManager.DEFAULT_OUTPUT_OBJ  # obj出力フラグ
         # lasのxy座標のswapフラグ
         self.las_swap_xy: bool = ParamManager.DEFAULT_LAS_SWAP_XY
         # 外部標定要素から算出する回転行列のモード

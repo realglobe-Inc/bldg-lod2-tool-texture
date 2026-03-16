@@ -14,7 +14,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 from src.texture_mapping.texture_main import TextureMain
 from src.util.param_manager import ParamManager
 from src.util.city_gml_info import CityGmlManager
-from src.util.config import Config
 from src.util.log import Log, ModuleType
 
 
@@ -65,7 +64,9 @@ def main():
     # 2. 中間ディレクトリとログの準備
     # システムの一時ディレクトリを使用して中間フォルダを作成
     temp_dir_obj = tempfile.TemporaryDirectory()
-    Config.set_temp_dir(temp_dir_obj.name)
+    base_temp_dir = temp_dir_obj.name
+    output_phase_obj_dir = os.path.join(base_temp_dir, "phase_consistency")
+    output_tex_obj_dir = os.path.join(base_temp_dir, "texture_mapping")
 
     # ログクラスの初期化
     log = Log(params, None)
@@ -73,15 +74,13 @@ def main():
     log.module_start_log(ModuleType.PASTE_TEXTURE, "texture_mapping")
 
     # 3. 入力OBJのディレクトリ設定
-    raw_input_dir = (
-        args.input_obj_dir if args.input_obj_dir else Config.OUTPUT_PHASE_OBJ_DIR
-    )
+    raw_input_dir = args.input_obj_dir if args.input_obj_dir else output_phase_obj_dir
     if not os.path.isdir(raw_input_dir):
         print(f"エラー: 入力OBJフォルダが見つかりません: {raw_input_dir}")
         sys.exit(1)
 
     # 4. OBJファイルの処理 (部材ラベルの付与)
-    processed_obj_dir = os.path.join(Config.OUTPUT_OBJ_DIR, "processed_obj")
+    processed_obj_dir = os.path.join(base_temp_dir, "processed_obj")
     os.makedirs(processed_obj_dir, exist_ok=True)
 
     print(f"OBJファイルを処理中: {raw_input_dir} -> {processed_obj_dir}")
@@ -97,7 +96,6 @@ def main():
 
     # 以降の処理では処理済みOBJのディレクトリを使用する
     input_dir = processed_obj_dir
-    Config.OUTPUT_PHASE_OBJ_DIR = input_dir
 
     # 5. 建物情報のリストを作成
     buildings = []
@@ -123,12 +121,10 @@ def main():
 
     # 6. TextureMainの実行
     tm = TextureMain(params)
-    # TextureMain内部で Config.OUTPUT_PHASE_OBJ_DIR が参照されるため、
-    # インスタンス化のタイミングに注意が必要だが、TextureMain.__init__ で
-    # self.input_obj_dir = Config.OUTPUT_PHASE_OBJ_DIR と代入されているため
-    # 手動で再代入する。
+    # TextureMain内部で中間ディレクトリが参照されるため、
+    # 明示的に代入する。
     tm.input_obj_dir = input_dir
-    tm.output_obj_dir = Config.OUTPUT_TEX_OBJ_DIR
+    tm.output_obj_dir = output_tex_obj_dir
 
     try:
         res = tm.texture_main(

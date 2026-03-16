@@ -7,7 +7,6 @@ import shutil
 from enum import IntEnum
 from logging import getLogger, config
 
-from .config import Config
 from .param_manager import ParamManager
 from .result_type import ResultType, ProcessResult
 
@@ -82,7 +81,6 @@ class Log(Singleton):
         log_folder_path = param.output_log_folder_path  # ログ出力先
         Log.debug_flag = param.debug_log_output  # デバッグログ出力フラグ
         Log.delete_flag = param.delete_error_flag  # エラーデータ削除フラグ
-        Log.output_obj_flag = param.output_obj  # OBJファイル出力フラグ
         Log._las_swap_xy = param.las_swap_xy  # las座標のxy入れ替えフラグ
         # 外部標定要素から算出する回転行列のモード
         Log._rotate_matrix_mode = param.rotate_matrix_mode
@@ -163,7 +161,7 @@ class Log(Singleton):
 
         # 実行ログファイルへのヘッダ出力
         logger.info("AutoCreateLod2")
-        logger.info(f"Version : {Config.SYSTEM_VERSION}")
+        logger.info(f"Version : {ParamManager.SYSTEM_VERSION}")
         logger.info(f"Start Time : {self._start_time}\n")
         logger.info("Module Information List")
 
@@ -175,7 +173,6 @@ class Log(Singleton):
 
         logger.info(f"\nInput Parameter File Path : {param_file}")
         logger.info(f"DebugFlag : {Log.debug_flag}")
-        logger.info(f"OutputOBJ : {Log.output_obj_flag}")
         logger.info(f"LasSwapXY : {Log._las_swap_xy}")
         logger.info(f"RotateMatrixMode : {Log._rotate_matrix_mode}\n")
 
