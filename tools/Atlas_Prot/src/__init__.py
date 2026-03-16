@@ -1,1 +1,0 @@
-from .AtlasTextureMain import main
