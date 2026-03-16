@@ -129,17 +129,6 @@ class PhotoImage:
 
         return True
 
-    def get_photo_pos(self, point) -> None:
-        """撮影中心位置を取得する
-
-        Args:
-            point (float[]): 撮影中心位置(x,y,z)
-
-        """
-        point[0] = self._focal_pos[0]
-        point[1] = self._focal_pos[1]
-        point[2] = self._focal_pos[2]
-
     def set_imagesize(self, size) -> None:
         """画像サイズをセットする
 
@@ -149,10 +138,6 @@ class PhotoImage:
         self._image_size = size
         self._valid_image_range[0] = self._image_size[0] - 1
         self._valid_image_range[1] = self._image_size[1] - 1
-
-    def get_imagesize(self):
-        """画像サイズを取得する"""
-        return self._image_size
 
     def get_image_pos(self, point, image_pos):
         """絶対座標に対応する画像座標と、画像内に座標が存在するかを判定する

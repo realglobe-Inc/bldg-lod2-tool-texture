@@ -19,9 +19,6 @@ from ..util.obj_info import BldElementType, ObjInfo
 class VerticalObject:
     """建物情報クラス"""
 
-    photo_num = 0
-    photo_list = None
-
     def __init__(
         self,
         obj_path: str,

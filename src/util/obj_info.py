@@ -656,26 +656,6 @@ class ObjInfos:
             obj_info.read_file(path)
             self._obj_list.append(obj_info)
 
-    def write_files(self, folder_path):
-        """OBJファイル群出力
-
-        Args:
-            folder_path (str): OBJファイル格納フォルダパス
-        """
-        if not os.path.exists(folder_path):
-            raise FileNotFoundError(
-                f"{folder_path}:\
-                 obj folder does not exist."
-            )
-
-        logger.debug(f"out_folder = {folder_path}")
-        logger.debug(f"obj len = {len(self._obj_list)}")
-
-        for obj in self._obj_list:
-            file_path = os.path.join(folder_path, os.path.basename(obj.file_name))
-            logger.debug(f"file_path = {file_path}")
-            obj.write_file(file_path)
-
 
 class CompPoint(object):
     """座標値クラス (辞書キー対応版)"""

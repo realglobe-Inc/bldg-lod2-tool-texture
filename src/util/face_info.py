@@ -91,92 +91,6 @@ class IndexInfo:
     def norm(self):
         return self._norm
 
-    @norm.setter
-    def norm(self, value):
-        self._norm = value
-
-
-class RGBInfo:
-    """RGB情報クラス
-
-    R, G, B 値(0.0～1.0)
-    """
-
-    def __init__(self, r_value=0.0, g_value=0.0, b_value=0.0):
-        """コンストラクタ"""
-        self.set(r_value, g_value, b_value)
-
-    def set(self, r_value=0.0, g_value=0.0, b_value=0.0):
-        """R, G, B 値設定
-
-        Args:
-            r_value (float, optional): Red 値. Defaults to 0.0.
-            g_value (float, optional): Greeg 値. Defaults to 0.0.
-            b_value (float, optional): Blue 値. Defaults to 0.0.
-        """
-        if 0.0 <= r_value <= 1.0:
-            self._r = r_value
-        else:
-            self._r = 0.0
-        if 0.0 <= g_value <= 1.0:
-            self._g = g_value
-        else:
-            self._g = 0.0
-        if 0.0 <= b_value <= 1.0:
-            self._b = b_value
-        else:
-            self._b = 0.0
-
-    def set_by_str(self, s_list):
-        """R, G, B 値設定 (mtl ファイル内文字列から)
-
-        Args:
-            s_list (str[]): mtl ファイル内文字列リスト (R G B)
-
-        raise:
-            ValueError  文字列から番号へのパース失敗時
-            SyntaxError R G B 値の指定が無い場合
-
-        """
-
-        if len(s_list) == 4:
-            self._r = float(s_list[1])
-            self._g = float(s_list[2])
-            self._b = float(s_list[3])
-        else:
-            raise SyntaxError(f"{s_list[0]} : R G B values required.")
-
-    def get_str(self) -> str:
-        """R G B 値の文字列取得
-
-        Returns:
-            str: R G B 値の文字列
-        """
-        return str(self._r) + " " + str(self._g) + " " + str(self._b)
-
-
-class UVInfo:
-    """UV座標クラス"""
-
-    def __init__(self, u_value=0, v_value=0):
-        """コンストラクタ
-
-        Args:
-            u_value (int, optional): U 座標値. Defaults to 0.
-            v_value (int, optional): V 座標値. Defaults to 0.
-        """
-        self._u = u_value
-        self._v = v_value
-
-    def get_str(self) -> str:
-        """U V 値の文字列取得
-
-        Returns:
-            str: U V 値の文字列
-        """
-
-        return str(self._u) + " " + str(self._v)
-
 
 class MaterialInfo:
     """マテリアル情報クラス"""
@@ -202,69 +116,12 @@ class MaterialInfo:
         self._name = value
 
     @property
-    def ka(self) -> RGBInfo:
-        return self._ka
-
-    @ka.setter
-    def ka(self, value: RGBInfo):
-        self._ka = value
-
-    @property
-    def kd(self) -> RGBInfo:
-        return self._kd
-
-    @kd.setter
-    def kd(self, value: RGBInfo):
-        self._kd = value
-
-    @property
-    def map_ka(self) -> str:
-        return self._map_ka
-
-    @map_ka.setter
-    def map_ka(self, value: str):
-        self._map_ka = value
-
-    @property
     def map_kd(self) -> str:
         return self._map_kd
 
     @map_kd.setter
     def map_kd(self, value: str):
         self._map_kd = value
-
-    def set_by_str(self, s_list):
-        """値セット (mtl ファイル内文字列から)
-
-        Args:
-            s_list (str[]): mtl ファイル内 1 行の文字列リスト
-        """
-
-        list_len = len(s_list)
-        if list_len == 0:
-            return
-        if s_list[0].lower() == "ka":
-            self._ka = RGBInfo()
-            self._ka.set_by_str(s_list)
-        elif s_list[0].lower() == "kd":
-            self._kd = RGBInfo()
-            self._kd.set_by_str(s_list)
-        elif s_list[0].lower() == "map_ka":
-            self._map_ka = self._get_texture_name(s_list)
-        elif s_list[0].lower() == "map_kd":
-            self._map_kd = self._get_texture_name(s_list)
-
-    @staticmethod
-    def _get_texture_name(s_list):
-        """テクスチャ画像ファイル名取得
-
-        Args:
-            s_list (str[]): mtl ファイル内 1 行の文字列リスト
-        """
-        if len(s_list) == 2:
-            return s_list[1]
-        else:
-            raise SyntaxError(f"{s_list[0]} : texture filename required.")
 
     def get_str(self) -> list:
         """mtl ファイル出力用文字列リストを作成
@@ -324,29 +181,6 @@ class FaceInfo:
 
         for i, index_info in enumerate(self._indices):
             index_info.tex = texture_list[i]
-
-    def modify(self, index_no, index_info):
-        """インデックス情報更新
-
-        Args:
-            index_no (int): 更新対象データのリスト内位置
-            index_info (IndexInfo): インデックス情報
-        """
-        if index_no >= len(self._indices):
-            return
-
-        self._indices[index_no] = index_info
-
-    def delete(self, index_no):
-        """インデックス情報削除
-
-        Args:
-            index_no (int): 削除対象データのリスト内位置
-        """
-        if index_no >= len(self._indices):
-            return
-
-        del self._indices[index_no]
 
     def set_by_str(self, s_list) -> tuple:
         """値セット (Obj ファイル内の f 行文字列から)
