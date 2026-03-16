@@ -4,6 +4,3 @@
 [submodule "tools/Real-ESRGAN"]
 	path = tools/Real-ESRGAN
 	url = https://github.com/realglobe-Inc/Real-ESRGAN
-[submodule "src/create_model/house_modeling/roof_edge_detection_model/third_party/heat"]
-	path = src/create_model/house_modeling/roof_edge_detection_model/third_party/heat
-	url = https://github.com/realglobe-Inc/heat/
