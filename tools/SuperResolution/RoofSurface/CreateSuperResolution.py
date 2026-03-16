@@ -194,6 +194,11 @@ if __name__ == "__main__":
     with args.cfg_file.open("rt") as f:
         cfg = json.load(f)
 
+    # 出力先を appearance サブディレクトリに設定
+    output_appearance_dir = os.path.join(cfg["OutputDir"], "appearance")
+    os.makedirs(output_appearance_dir, exist_ok=True)
+    cfg["OutputDir"] = output_appearance_dir
+
     checkpoint_path = os.path.join("checkpoint", args.checkpoint)
 
     # Check required fields in the configuration

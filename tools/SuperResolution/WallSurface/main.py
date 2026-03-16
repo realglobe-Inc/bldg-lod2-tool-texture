@@ -292,241 +292,143 @@ if __name__ == "__main__":
         z_threshold=cfg_process["z_threshold"],
     )
 
-    city_gml_paths = Path(param["InputDir"]).iterdir()
-    for city_gml_path in city_gml_paths:
-        # Check cityGML
-        if city_gml_path.suffix.lower() == ".gml":
-            texture_check_list = get_texture_check_list(city_gml_path)
+    obj_paths = sorted([p for p in Path(param["InputDir"]).glob("*.obj")])
+    for obj_file in obj_paths:
+        pbar_desc = f"{obj_file.name}"
+        print(f"Processing {pbar_desc}")
 
-            input_obj_dir = Path(param["InputDir"]).joinpath(
-                Path("obj", city_gml_path.stem)
-            )
-            output_obj_dir = Path(param["OutputDir"]).joinpath(
-                Path("obj", city_gml_path.stem)
-            )
+        try:
+            # Check object files
+            index = obj_file.name.replace(".", "_")
+            # Setting Sub Directories Paths (using temp directories for process)
+            sub_processA_dir = processA_dir.joinpath(index)
+            sub_processB_dir = processB_dir.joinpath(index)
+            sub_processC_dir = processC_dir.joinpath(index)
+            # Creating Sub Directories Paths
+            if logger is not None:
+                sub_processA_dir.mkdir(exist_ok=True, parents=True)
+                sub_processB_dir.mkdir(exist_ok=True, parents=True)
+                sub_processC_dir.mkdir(exist_ok=True, parents=True)
 
-            # Copy cityGML and Object Directories
-            if output_obj_dir.is_dir():
-                shutil.rmtree(output_obj_dir)
-            shutil.copytree(input_obj_dir, output_obj_dir)
-            shutil.copy(
-                city_gml_path,
-                Path(param["OutputDir"]).joinpath(Path(city_gml_path.name)),
-            )
+            # Check if the file is present
+            check_path(obj_file, param, logger)
 
-            isatty = sys.stdout.isatty()
-            obj_files = [
-                obj_file
-                for obj_file in input_obj_dir.iterdir()
-                if obj_file.suffix.lower() == ".obj"
-            ]
-            pbar = tqdm(
-                total=len(obj_files),
-                unit="file",
-                leave=False,
-                dynamic_ncols=isatty,
-                disable=not isatty,
-            )
+            original_texture_path = get_original_texture_path(obj_file)
+            if original_texture_path is None:
+                continue
 
-            for obj_file in obj_files:
-                pbar.set_description(f"{city_gml_path.stem}/{obj_file.name}")
-                if not isatty:
-                    print(f"Processing {city_gml_path.stem}/{obj_file.name}")
+            # Copy OBJ and MTL to output directory
+            output_obj_dir = Path(param["OutputDir"]).joinpath("obj")
+            output_obj_dir.mkdir(exist_ok=True, parents=True)
+            output_obj_path = output_obj_dir.joinpath(obj_file.name)
+            shutil.copy(obj_file, output_obj_path)
 
-                try:
-                    # Check object files
-                    index = obj_file.name.replace(".", "_")
-                    # Setting Sub Directories Paths
-                    sub_processA_dir = processA_dir.joinpath(
-                        Path(city_gml_path.stem, index)
-                    )
-                    sub_processB_dir = processB_dir.joinpath(
-                        Path(city_gml_path.stem, index)
-                    )
-                    sub_processC_dir = processC_dir.joinpath(
-                        Path(city_gml_path.stem, index)
-                    )
-                    # Creating Sub Directories Paths
-                    if logger is not None:
-                        sub_processA_dir.mkdir(exist_ok=True, parents=True)
-                        sub_processB_dir.mkdir(exist_ok=True, parents=True)
-                        sub_processC_dir.mkdir(exist_ok=True, parents=True)
-
-                    # Check if the file is present
-                    check_path(obj_file, param, logger)
-
-                    original_texture_path = get_original_texture_path(obj_file)
-                    if original_texture_path is None:
-                        continue
-
-                    # pre-processing
-                    write_log(log_root, "変換対象壁面の抽出および正対化開始", obj_file)
-
-                    try:
-                        preprocess_log = preprocessing.main_step(
-                            obj_file, sub_processA_dir
+            # Find and copy MTL
+            with obj_file.open("r") as f:
+                for line in f:
+                    if line.lower().startswith("mtllib "):
+                        mtl_name = line.strip().split(" ", 1)[1]
+                        shutil.copy(
+                            obj_file.parent / mtl_name, output_obj_dir / mtl_name
                         )
-                    except Exception:
-                        traceback.print_exc()
-                        result = cv2.imread(str(original_texture_path))
+                        break
 
-                        # Saving output results
-                        resolve_path_img = Path(original_texture_path)
-                        relative_path_img = resolve_path_img.relative_to(
-                            Path(param["InputDir"]).resolve()
-                        )
-                        output_path = Path(param["OutputDir"]).joinpath(
-                            relative_path_img
-                        )
-                        output_path.parent.mkdir(exist_ok=True, parents=True)
-                        cv2.imwrite(str(output_path), result)
+            # pre-processing
+            write_log(log_root, "変換対象壁面の抽出および正対化開始", obj_file)
 
-                        if texture_check_list.get(str(relative_path_img)) is not None:
-                            texture_check_list[str(relative_path_img)] = True
+            try:
+                preprocess_log = preprocessing.main_step(obj_file, sub_processA_dir)
+            except Exception:
+                traceback.print_exc()
+                result = cv2.imread(str(original_texture_path))
 
-                        continue
-
-                    # cyclegan processing
-                    write_log(log_root, "壁面画像生成開始")
-                    for num_iw, img_iw in enumerate(preprocess_log["output_images"]):
-                        for num_ih, img_ih in enumerate(img_iw):
-                            for num, img in enumerate(img_ih):
-                                img = dataset.read_img(img["img"], img["path"])
-
-                                model.set_input(img)
-                                model.test()
-                                visuals = (
-                                    model.get_current_visuals()
-                                )  # get image results
-                                result = util.tensor2im(
-                                    visuals["fake_B" if AtoB else "fake_A"]
-                                )
-                                if logger is not None:
-                                    img_path = (
-                                        model.get_image_paths()
-                                    )  # get image paths
-                                    util.save_image(
-                                        result,
-                                        os.path.join(
-                                            sub_processB_dir,
-                                            os.path.basename(str(img_path)),
-                                        ),
-                                    )
-
-                                result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
-                                preprocess_log["output_images"][num_iw][num_ih][num][
-                                    "img"
-                                ] = result
-
-                    # post-processing
-                    write_log(log_root, "アトラス化画像再構成開始")
-
-                    try:
-                        result = postprocessing.main_step(
-                            preprocess_log, sub_processC_dir
-                        )
-                    except Exception:
-                        traceback.print_exc()
-                        if logger is not None:
-                            logger.info(f"Failed PostProcessing:", obj_file)
-                        else:
-                            print(f"Failed PostProcessing:", obj_file)
-                        result = cv2.imread(str(original_texture_path))
-
-                    # Saving output results
-                    resolve_path_img = Path(original_texture_path)
-                    relative_path_img = resolve_path_img.relative_to(
-                        Path(param["InputDir"]).resolve()
-                    )
-                    output_path = Path(param["OutputDir"]).joinpath(
-                        os.path.splitext(relative_path_img)[0] + f".{output_format}"
-                    )
-                    output_path.parent.mkdir(exist_ok=True, parents=True)
-                    cv2.imwrite(str(output_path), result)
-
-                    if texture_check_list.get(str(relative_path_img)) is not None:
-                        texture_check_list[str(relative_path_img)] = True
-                finally:
-                    pbar.update(1)
-
-            pbar.close()
-
-            processed_count = 0
-            for is_processed in texture_check_list.values():
-                if is_processed:
-                    processed_count += 1
-
-            assert processed_count > 0
-
-            for texture_path, is_processed in texture_check_list.items():
-                if not is_processed:
-                    original_texture_path = Path(param["InputDir"]).joinpath(
-                        texture_path
-                    )
-                    not_processed_texture = cv2.imread(str(original_texture_path))
-
-                    output_path = Path(param["OutputDir"]).joinpath(
-                        os.path.splitext(texture_path)[0] + f".{output_format}"
-                    )
-                    output_path.parent.mkdir(exist_ok=True, parents=True)
-                    cv2.imwrite(str(output_path), not_processed_texture)
-
-    # 画像形式の変更
-    for mtl_file in Path(param["OutputDir"]).rglob("*.mtl"):
-        with open(mtl_file, "r") as file:
-            lines = file.readlines()
-        new_lines = []
-        changed = False
-        for line in lines:
-            l = line.strip().lower()
-            ext = l.split(".")[-1]
-            if l.startswith("map_kd") and ext != output_format:
-                line = line.rstrip().replace(f".{ext}", f".{output_format}")
-                changed = True
-            new_lines.append(line)
-        if changed:
-            with open(mtl_file, "w") as file:
-                file.writelines(new_lines)
-
-    # 画像形式の変更
-    for gml_file in Path(param["OutputDir"]).rglob("*.gml"):
-        # GMLファイルを解析
-        tree = etree.parse(gml_file)
-        root = tree.getroot()
-
-        # app:surfaceDataMemberのnamespaceを取得
-        namespaces = {"app": "http://www.opengis.net/citygml/appearance/2.0"}
-
-        changed = False
-        # app:Appearance要素を取得
-        for appearance in root.findall(".//app:Appearance", namespaces):
-            for surface_data_member in appearance.findall(
-                "app:surfaceDataMember", namespaces
-            ):
-                parameterized_texture = surface_data_member.find(
-                    "app:ParameterizedTexture", namespaces
+                # Saving output results to appearance directory
+                output_appearance_dir = Path(param["OutputDir"]).joinpath("appearance")
+                output_appearance_dir.mkdir(exist_ok=True, parents=True)
+                output_path = output_appearance_dir.joinpath(
+                    os.path.basename(os.path.splitext(original_texture_path)[0])
+                    + f".{output_format}"
                 )
-                if parameterized_texture is not None:
-                    image_uri = parameterized_texture.find("app:imageURI", namespaces)
-                    if image_uri is not None and not image_uri.text.endswith(
-                        f".{output_format}"
-                    ):
-                        changed = True
-                        image_uri.text = str(
-                            Path(image_uri.text).with_suffix(f".{output_format}")
-                        )
-                    mime_type = parameterized_texture.find("app:mimeType", namespaces)
-                    if mime_type is not None and not mime_type.text.endswith(
-                        f"/{output_format}"
-                    ):
-                        changed = True
-                        mime_type.text = f"image/{output_format}"
+                cv2.imwrite(str(output_path), result)
+                continue
 
-        if changed:
-            # 結果を新しいファイルに保存 (XML宣言を含む)
-            tree.write(
-                gml_file, encoding="utf-8", xml_declaration=True, pretty_print=True
+            # cyclegan processing
+            write_log(log_root, "壁面画像生成開始")
+            for num_iw, img_iw in enumerate(preprocess_log["output_images"]):
+                for num_ih, img_ih in enumerate(img_iw):
+                    for num, img in enumerate(img_ih):
+                        img = dataset.read_img(img["img"], img["path"])
+
+                        model.set_input(img)
+                        model.test()
+                        visuals = model.get_current_visuals()  # get image results
+                        result = util.tensor2im(visuals["fake_B" if AtoB else "fake_A"])
+                        if logger is not None:
+                            img_path = model.get_image_paths()  # get image paths
+                            util.save_image(
+                                result,
+                                os.path.join(
+                                    sub_processB_dir,
+                                    os.path.basename(str(img_path)),
+                                ),
+                            )
+
+                        result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
+                        preprocess_log["output_images"][num_iw][num_ih][num][
+                            "img"
+                        ] = result
+
+            # post-processing
+            write_log(log_root, "アトラス化画像再構成開始")
+
+            try:
+                result = postprocessing.main_step(preprocess_log, sub_processC_dir)
+            except Exception:
+                traceback.print_exc()
+                if logger is not None:
+                    logger.info(f"Failed PostProcessing: {obj_file}")
+                else:
+                    print(f"Failed PostProcessing: {obj_file}")
+                result = cv2.imread(str(original_texture_path))
+
+            # Saving output results to appearance directory
+            output_appearance_dir = Path(param["OutputDir"]).joinpath("appearance")
+            output_appearance_dir.mkdir(exist_ok=True, parents=True)
+            output_path = output_appearance_dir.joinpath(
+                os.path.basename(os.path.splitext(original_texture_path)[0])
+                + f".{output_format}"
             )
+            cv2.imwrite(str(output_path), result)
+
+        except Exception as e:
+            traceback.print_exc()
+            if logger is not None:
+                logger.error(f"Error processing {obj_file}: {e}")
+            print(f"Error processing {obj_file}: {e}")
+
+    # 画像形式の変更およびパスの調整
+    output_obj_dir = Path(param["OutputDir"]).joinpath("obj")
+    if output_obj_dir.exists():
+        for mtl_file in output_obj_dir.rglob("*.mtl"):
+            with open(mtl_file, "r") as file:
+                lines = file.readlines()
+            new_lines = []
+            changed = False
+            for line in lines:
+                l = line.strip().lower()
+                if l.startswith("map_kd"):
+                    parts = line.strip().split(" ", 1)
+                    if len(parts) > 1:
+                        tex_filename = os.path.basename(parts[1])
+                        ext = os.path.splitext(tex_filename)[1][1:]
+                        # パスを ../appearance/filename.ext に書き換える
+                        new_tex_path = f"../appearance/{os.path.splitext(tex_filename)[0]}.{output_format}"
+                        line = f"  map_Kd {new_tex_path}\n"
+                        changed = True
+                new_lines.append(line)
+            if changed:
+                with open(mtl_file, "w") as file:
+                    file.writelines(new_lines)
 
     end_time = time.time()
     process_time = end_time - start_time

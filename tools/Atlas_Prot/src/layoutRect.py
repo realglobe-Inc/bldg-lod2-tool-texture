@@ -64,19 +64,23 @@ class LayoutTexture:
                     or (self._pm.output_height < building.input_image_height)
                 ):
                     output_image_path = os.path.join(
-                        self._pm.output_gml_folder_path, building.input_image_path
+                        self._pm.output_appearance_folder_path,
+                        os.path.basename(building.input_image_path),
                     )
-                    output_image_dir_path = os.path.dirname(output_image_path)
-                    os.makedirs(output_image_dir_path, exist_ok=True)
+                    os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
 
                     # 入力画像サイズが出力画像サイズより大きい場合、アトラス化対象外とする
+                    input_image_full_path = os.path.join(
+                        os.path.dirname(citygml_info.input_city_gml_path),
+                        building.input_image_path,
+                    )
                     shutil.copyfile(
-                        os.path.join(
-                            self._pm.input_gml_folder_path, building.input_image_path
-                        ),
+                        input_image_full_path,
                         output_image_path,
                     )
-                    building.output_image_path = building.input_image_path
+                    building.output_image_path = os.path.join(
+                        "appearance", os.path.basename(building.input_image_path)
+                    )
                     building.output_image_width = building.input_image_width
                     building.output_image_height = building.input_image_height
                     for poly in building.polygon_infos:
@@ -151,14 +155,16 @@ class LayoutTexture:
                             (out_h, out_w, 3), self._pm.background_color, dtype="uint8"
                         )
 
-                        out_path = building.input_image_path  # 先頭画像のパスを使用
+                        out_path = os.path.join(
+                            "appearance", "atlas_" + str(range) + ".png"
+                        )
 
                 # オリジナル画像のオープン
-                img = Cv2Japanese.imread(
-                    os.path.join(
-                        self._pm.input_gml_folder_path, building.input_image_path
-                    )
+                img_full_path = os.path.join(
+                    os.path.dirname(citygml_info.input_city_gml_path),
+                    building.input_image_path,
                 )
+                img = Cv2Japanese.imread(img_full_path)
 
                 building.output_image_path = out_path
                 building.output_image_width = out_w
@@ -241,7 +247,7 @@ class LayoutTexture:
                         # cv2.imwrite(self._pm.output_gml_folder_path + "\\"
                         #                 z  + building.output_image_path, output)
                         image_path = os.path.join(
-                            self._pm.output_gml_folder_path, building.output_image_path
+                            self._pm.output_root_folder_path, building.output_image_path
                         )
                         image_dir_path = os.path.dirname(image_path)
                         os.makedirs(image_dir_path, exist_ok=True)

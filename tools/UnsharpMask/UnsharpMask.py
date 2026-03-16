@@ -25,7 +25,10 @@ def main(input_dir: str, out_dir: str, input_format: str, output_format: str):
         os.path.join(fix_relative_path(input_dir), "**", f"*.{input_format}")
     ]
     imgs = sorted_glob(img_patterns)
-    os.makedirs(out_dir, exist_ok=True)
+
+    # 出力先を appearance サブディレクトリに設定
+    output_appearance_dir = os.path.join(out_dir, "appearance")
+    os.makedirs(output_appearance_dir, exist_ok=True)
 
     Image.MAX_IMAGE_PIXELS = 933120000
     isatty = sys.stdout.isatty()
@@ -48,7 +51,7 @@ def main(input_dir: str, out_dir: str, input_format: str, output_format: str):
         )
         relative_path = os.path.relpath(img_path, start=Path(input_dir))
         save_path = os.path.join(
-            out_dir, os.path.splitext(relative_path)[0] + f".{output_format}"
+            output_appearance_dir, os.path.basename(os.path.splitext(relative_path)[0]) + f".{output_format}"
         )
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 

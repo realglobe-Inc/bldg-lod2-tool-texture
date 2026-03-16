@@ -50,8 +50,8 @@ class ParamManager:
     # クラス変数
     # jsonファイルのキー
     KEY_FILE_PATH = "FilePath"
-    KEY_INPUT_GML_FOLDER_PATH = "InputGMLFolderPath"
-    KEY_OUTPUT_GML_FOLDER_PATH = "OutputGMLFolderPath"
+    KEY_INPUT_OBJ_FOLDER_PATH = "InputOBJFolderPath"
+    KEY_OUTPUT_ROOT_FOLDER_PATH = "OutputRootFolderPath"
     KEY_OUTPUT_W = "OutputWidth"
     KEY_OUTPUT_H = "OutputHeight"
     KEY_BACKGROUND_COLOR = "BackGroundColor"
@@ -60,8 +60,8 @@ class ParamManager:
     # jsonファイルキーリスト
     KEYS = [
         KEY_FILE_PATH,
-        KEY_INPUT_GML_FOLDER_PATH,
-        KEY_OUTPUT_GML_FOLDER_PATH,
+        KEY_INPUT_OBJ_FOLDER_PATH,
+        KEY_OUTPUT_ROOT_FOLDER_PATH,
         KEY_OUTPUT_W,
         KEY_OUTPUT_H,
         KEY_BACKGROUND_COLOR,
@@ -70,8 +70,10 @@ class ParamManager:
 
     def __init__(self) -> None:
         """コンストラクタ"""
-        self.input_gml_folder_path = ""  # CityGML出力フォルダパス
-        self.output_gml_folder_path = ""  # ログ出力先
+        self.input_obj_folder_path = ""  # OBJ入力フォルダパス
+        self.output_root_folder_path = ""  # 出力ルートフォルダパス
+        self.output_obj_folder_path = ""  # OBJ出力フォルダパス
+        self.output_appearance_folder_path = ""  # テクスチャ出力フォルダパス
         self.output_width = 0  # 出力画像幅
         self.output_height = 0  # 出力画像高さ
         self.background_color = 0  # 背景色
@@ -103,65 +105,75 @@ class ParamManager:
         # ファイルが存在する場合
         try:
             print(file_path)
-            jsonLoad = json.load(open(file_path, encoding="Shift-JIS", mode="r"))
-        except json.decoder.JSONDecodeError as e:
-            # 未記入項目がある場合にデコードエラーが発生する
-            r = e.lineno
-            c = e.colno
-            raise (Exception(f"json file decoding error: {e.msg} line {r} column {c}."))
+            # UTF-8で読み込むように修正 (Shift-JISから変更)
+            jsonLoad = json.load(open(file_path, encoding="utf-8", mode="r"))
+        except (json.decoder.JSONDecodeError, UnicodeDecodeError):
+            try:
+                # 失敗した場合はShift-JISでも試す
+                jsonLoad = json.load(open(file_path, encoding="Shift-JIS", mode="r"))
+            except json.decoder.JSONDecodeError as e:
+                r = e.lineno
+                c = e.colno
+                raise (
+                    Exception(f"json file decoding error: {e.msg} line {r} column {c}.")
+                )
 
         # 値の取得
 
-        self.input_gml_folder_path = fix_relative_path(
-            Path(
-                jsonLoad[self.KEY_FILE_PATH][self.KEY_INPUT_GML_FOLDER_PATH]
-            ).expanduser()
+        # キーが存在しない場合のフォールバック（旧キー名への対応）
+        input_key = self.KEY_INPUT_OBJ_FOLDER_PATH
+        if input_key not in jsonLoad[self.KEY_FILE_PATH]:
+            input_key = "InputGMLFolderPath"
+
+        output_key = self.KEY_OUTPUT_ROOT_FOLDER_PATH
+        if output_key not in jsonLoad[self.KEY_FILE_PATH]:
+            output_key = "OutputGMLFolderPath"
+
+        self.input_obj_folder_path = fix_relative_path(
+            Path(jsonLoad[self.KEY_FILE_PATH][input_key]).expanduser()
         )
-        self.output_gml_folder_path = fix_relative_path(
-            Path(
-                jsonLoad[self.KEY_FILE_PATH][self.KEY_OUTPUT_GML_FOLDER_PATH]
-            ).expanduser()
+        self.output_root_folder_path = fix_relative_path(
+            Path(jsonLoad[self.KEY_FILE_PATH][output_key]).expanduser()
         )
+
+        # 統合された入出力構造
+        self.output_obj_folder_path = os.path.join(self.output_root_folder_path, "obj")
+        self.output_appearance_folder_path = os.path.join(
+            self.output_root_folder_path, "appearance"
+        )
+
         self.output_width = jsonLoad[self.KEY_OUTPUT_W]
         self.output_height = jsonLoad[self.KEY_OUTPUT_H]
         self.background_color = jsonLoad[self.KEY_BACKGROUND_COLOR]
         self.extent_pixel = jsonLoad[self.KEY_EXTENTPIXEL]
 
         if (
-            type(self.input_gml_folder_path) is not str
-            or not self.input_gml_folder_path
+            type(self.input_obj_folder_path) is not str
+            or not self.input_obj_folder_path
         ):
             # 文字列ではない or 空文字の場合
-            raise Exception(
-                ParamManager.KEY_FILE_PATH.KEY_INPUT_GML_FOLDER_PATH + " is invalid."
-            )
-        if not os.path.isdir(self.input_gml_folder_path):
-            # 入力CityGMLフォルダが存在しない場合
-            raise Exception(
-                ParamManager.KEY_FILE_PATH.KEY_INPUT_GML_FOLDER_PATH + " not found."
-            )
+            raise Exception("Input OBJ folder path is invalid.")
+        if not os.path.isdir(self.input_obj_folder_path):
+            # 入力フォルダが存在しない場合
+            raise Exception("Input OBJ folder not found.")
 
         if (
-            type(self.output_gml_folder_path) is not str
-            or not self.output_gml_folder_path
+            type(self.output_root_folder_path) is not str
+            or not self.output_root_folder_path
         ):
             # 文字列ではない or 空文字の場合
-            raise Exception(
-                ParamManager.KEY_FILE_PATH.KEY_OUTPUT_GML_FOLDER_PATH + " is invalid."
-            )
+            raise Exception("Output root folder path is invalid.")
 
         if type(self.output_width) is not int:
-            raise Exception(ParamManager.KEY_FILE_PATH.KEY_OUTPUT_W + " is invalid.")
+            raise Exception(ParamManager.KEY_OUTPUT_W + " is invalid.")
 
         if type(self.output_height) is not int:
-            raise Exception(ParamManager.KEY_FILE_PATH.KEY_OUTPUT_H + " is invalid.")
+            raise Exception(ParamManager.KEY_OUTPUT_H + " is invalid.")
 
         if type(self.background_color) is not int or not (
             0 <= self.background_color <= 255
         ):
-            raise Exception(
-                ParamManager.KEY_FILE_PATH.KEY_BACKGROUND_COLOR + " is invalid."
-            )
+            raise Exception(ParamManager.KEY_BACKGROUND_COLOR + " is invalid.")
 
         if type(self.extent_pixel) is not int:
-            raise Exception(ParamManager.KEY_FILE_PATH.KEY_EXTENTPIXEL + " is invalid.")
+            raise Exception(ParamManager.KEY_EXTENTPIXEL + " is invalid.")

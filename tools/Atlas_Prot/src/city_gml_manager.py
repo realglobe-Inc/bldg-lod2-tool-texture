@@ -1,301 +1,367 @@
 # -*- coding:utf-8 -*-
-import math
 import os
 import shutil
-import sys
-
-import lxml
 import numpy as np
-from lxml import etree
+import math
+import sys
 from tqdm import tqdm
+from pathlib import Path
 
 from .building_info import BuildingInfo
 from .city_gml_info import CityGmlInfo
 from .stey_mesh import SetyMesh
-from .thirdparty import plateaupy as plapy
 from .util.cvsupportjp import Cv2Japanese
 from .util.parammanager import ParamManager
 
 
 class CityGmlManager:
-    """CityGML処理クラス"""
+    """OBJ/MTL処理クラス (旧CityGML処理クラス)"""
 
     def __init__(self, param_manager: ParamManager) -> None:
-        """コンストラクタ
-
-        Args:
-          param_manager (ParamManager): パラメータファイル管理クラス
-        """
+        """コンストラクタ"""
         self._pm = param_manager
         self.citygml_infos: list[CityGmlInfo] = []
-        self.citygml_names: list[str] = []
+        self.obj_data = {}  # 各OBJファイルの元データを保持
 
     def input_citygml(self):
-        """CityGMLファイル情報入力"""
-        for file in os.listdir(self._pm.input_gml_folder_path):
-            base, ext = os.path.splitext(file)
-            if ext == ".gml":
-                self.citygml_names.append(base)
+        """OBJファイル情報入力"""
+        # input_obj_folder_path 内の全OBJファイルを対象とする
+        obj_files = sorted(
+            [
+                f
+                for f in os.listdir(self._pm.input_obj_folder_path)
+                if f.endswith(".obj")
+            ]
+        )
 
-        # CityGMLファイル毎に処理
-        for index, gml_file in enumerate(self.citygml_names):
-            # print(self._pm.input_gml_folder_path + "\\" + gml_file + ".gml")
+        for index, obj_file_name in enumerate(obj_files):
+            obj_path = os.path.join(self._pm.input_obj_folder_path, obj_file_name)
+            base_name = os.path.splitext(obj_file_name)[0]
 
-            plbld = plapy.plbldg(
-                os.path.join(self._pm.input_gml_folder_path, gml_file + ".gml")
+            # OBJの読み込みと分類
+            data = self._read_obj(obj_path)
+            self.obj_data[base_name] = data
+
+            # CityGmlInfoを互換性のために使用 (1つのOBJファイルを1つのGML単位とみなす)
+            output_obj_path = os.path.join(
+                self._pm.output_obj_folder_path, obj_file_name
             )
-            mesh_list: list[SetyMesh] = list()
-
-            for bldg in plbld.buildings:
-
-                if any(bldg.lod2_ground) or any(bldg.lod2roof) or any(bldg.lod2wall):
-                    mesh = SetyMesh()
-                    for lod2ground in bldg.lod2_ground:
-                        mesh.ids.append(lod2ground)
-                    for lod2roof in bldg.lod2roof:
-                        mesh.ids.append(lod2roof)
-                    for lod2wall in bldg.lod2wall:
-                        mesh.ids.append(lod2wall)
-
-                    if bldg.lod0_roof_edge:
-                        lat = bldg.lod0_roof_edge[0][0][0]
-                        lon = bldg.lod0_roof_edge[0][0][1]
-                        mesh.code = self.get_mesh(lat, lon)
-
-                    elif bldg.lod0_foot_print:
-                        lat = bldg.lod0_foot_print[0][0][0]
-                        lon = bldg.lod0_foot_print[0][0][1]
-                        mesh.code = self.get_mesh(lat, lon)
-                    mesh_list.append(mesh)
-
             city_gml_info = CityGmlInfo(
-                input_city_gml_path=(
-                    os.path.join(self._pm.input_gml_folder_path, gml_file + ".gml")
-                ),
-                output_city_gml_path=(
-                    os.path.join(self._pm.output_gml_folder_path, gml_file + ".gml")
-                ),
+                input_city_gml_path=obj_path, output_city_gml_path=output_obj_path
             )
             self.citygml_infos.append(city_gml_info)
 
-            parser = etree.XMLParser(remove_blank_text=True)
-            tree = etree.parse(
-                os.path.join(self._pm.input_gml_folder_path, gml_file + ".gml"), parser
-            )
-            root = tree.getroot()
-            self._nsmap = self.removeNoneKeyFromDic(root.nsmap)
+            # マテリアルごとにBuildingInfoを作成
+            textures = {}
 
-            apps = tree.xpath(
-                "/core:CityModel/app:appearanceMember/app:Appearance/ \
-                app:surfaceDataMember/app:ParameterizedTexture",
-                namespaces=self._nsmap,
-            )
-
-            isatty = sys.stdout.isatty()
-            desc = f"{gml_file} {index + 1}/{len(self.citygml_names)}"
-            pbar = tqdm(
-                total=len(apps),
-                desc=desc,
-                unit="gml",
-                dynamic_ncols=isatty,
-                disable=not isatty,
-            )
-            if not isatty:
-                print(f"Processing {desc}")
-
-            for elem1 in apps:
-                # 建物毎に処理
-                mime_type = elem1.xpath("app:mimeType", namespaces=self._nsmap)[0].text
-                input_image_path = elem1.xpath("app:imageURI", namespaces=self._nsmap)[
-                    0
-                ].text
-                image = Cv2Japanese.imread(
-                    os.path.join(self._pm.input_gml_folder_path, input_image_path)
-                )
-
-                building = BuildingInfo(
-                    mime_type=mime_type,
-                    input_image_path=input_image_path,
-                    input_image_height=image.shape[0],
-                    input_image_width=image.shape[1],
-                )
-
-                # 解像度取得
-
-                # ポリゴン毎に処理
-                target = elem1.xpath("app:target", namespaces=self._nsmap)
-                for elem2 in target:
-                    uri = elem2.get("uri")
-
-                    # 4・5次メッシュの検索
-                    if building.mesh_code == 0:
-                        for mesh_elem in mesh_list:
-                            if uri in mesh_elem.ids:
-                                building.mesh_code = mesh_elem.code
-
-                    texCoord = elem2.xpath(
-                        "app:TexCoordList/app:textureCoordinates",
-                        namespaces=self._nsmap,
+            for mtl_name, mtl_info in data["materials"].items():
+                if "map_Kd" in mtl_info:
+                    tex_path = mtl_info["map_Kd"]
+                    # 相対パスを解決
+                    full_tex_path = os.path.normpath(
+                        os.path.join(os.path.dirname(obj_path), tex_path)
                     )
-                    ring = texCoord[0].get("ring")
-                    clist = texCoord[0].text.split(" ")
 
-                    # ポリゴンの座標をコピーする
-                    if (
-                        (self._pm.output_width == building.input_image_width)
-                        and (self._pm.output_height == building.input_image_height)
-                    ) or (
-                        (self._pm.output_width < building.input_image_width)
-                        or (self._pm.output_height < building.input_image_height)
-                    ):
-                        #  一定サイズ以上の場合はそのままの座標値を入力
-                        coord_f = []
-                        clistiter = iter(clist)
-                        for u, v in zip(clistiter, clistiter):
-                            coord_f.append(float(u))
-                            coord_f.append(float(v))
-                        arrays_r = np.reshape(np.array(coord_f), (-1, 2))
-                    else:
-                        coord_f = []
-                        clistiter = iter(clist)
-                        for u, v in zip(clistiter, clistiter):
-                            coord_f.append(float(u) * building.input_image_width - 0.5)
-                            coord_f.append(
-                                (1.0 - float(v)) * building.input_image_height - 0.5
+                    if os.path.exists(full_tex_path):
+                        if tex_path not in textures:
+                            image = Cv2Japanese.imread(full_tex_path)
+                            if image is None:
+                                continue
+                            building = BuildingInfo(
+                                mime_type=os.path.splitext(tex_path)[1][1:],
+                                input_image_path=tex_path,
+                                input_image_height=image.shape[0],
+                                input_image_width=image.shape[1],
                             )
-                        arrays_r = np.reshape(np.array(coord_f), (-1, 2))
+                            textures[tex_path] = building
+                            city_gml_info.add_building_info(building)
 
-                    building.add_polygon_info(
-                        uri,
-                        ring,
-                        arrays_r,
-                        [building.input_image_width, building.input_image_height],
-                        self._pm.extent_pixel,
-                    )
+                        building = textures[tex_path]
 
-                    # # ポリゴンを高さ順にソートする
-                    # if (building.input_image_width < self._pm.output_width) and (building.input_image_height < self._pm.output_height):
-                    #     building.polygon_infos = sorted(
-                    #         building.polygon_infos,
-                    #         key=lambda PolygonInfo: PolygonInfo.useH,
-                    #         reverse=True)
+                        # このテクスチャを使用する面を追加
+                        for face_idx in data["mtl_faces"].get(mtl_name, []):
+                            # 屋根か壁のみをアトラス化対象とする
+                            if (
+                                face_idx in data["roof_faces"]
+                                or face_idx in data["wall_faces"]
+                            ):
+                                face = data["faces"][face_idx]
+                                # UV座標を取得
+                                uv_indices = [idx[1] for idx in face]
+                                if None in uv_indices:
+                                    continue  # UVがない面はスキップ
 
-                city_gml_info.add_building_info(building)
+                                uvs = np.array([data["uvs"][i - 1] for i in uv_indices])
+                                # アトラス化用座標変換 (normalized -> pixel, flip Y)
+                                coords = np.zeros_like(uvs)
+                                coords[:, 0] = (
+                                    uvs[:, 0] * building.input_image_width - 0.5
+                                )
+                                coords[:, 1] = (
+                                    1.0 - uvs[:, 1]
+                                ) * building.input_image_height - 0.5
 
-                pbar.update(1)
-
-            pbar.close()
-
-            city_gml_info.buildings = sorted(
-                city_gml_info.buildings, key=lambda buildings: buildings.mesh_code
-            )
+                                building.add_polygon_info(
+                                    uri=f"{base_name}#f{face_idx}",
+                                    ring=f"face_{face_idx}",
+                                    coords=coords,
+                                    imgSize=[
+                                        building.input_image_width,
+                                        building.input_image_height,
+                                    ],
+                                    extentPixel=self._pm.extent_pixel,
+                                )
 
         return self.citygml_infos
 
     def output_citygml(self):
-        """CityGMLファイル情報出力"""
+        """OBJ/MTLファイル情報出力"""
+        os.makedirs(self._pm.output_obj_folder_path, exist_ok=True)
+        os.makedirs(self._pm.output_appearance_folder_path, exist_ok=True)
 
-        # CityGMLファイル毎に処理
         for citygml_info in self.citygml_infos:
+            obj_file_name = os.path.basename(citygml_info.input_city_gml_path)
+            base_name = os.path.splitext(obj_file_name)[0]
+            data = self.obj_data[base_name]
 
-            shutil.copy(
-                citygml_info.input_city_gml_path, citygml_info.output_city_gml_path
-            )
+            # 新しいUVリストを準備
+            new_uvs = list(data["uvs"])
+            uv_map = {}  # (face_idx, vertex_in_face_idx) -> new_uv_idx
 
-            parser = etree.XMLParser(remove_blank_text=True)
-            tree = etree.parse(citygml_info.output_city_gml_path, parser)
-            root = tree.getroot()
-
-            print(self._nsmap["app"])
-
-            # 既存のテクスチャ記述部分削除
-            for app in root.findall(
-                "{" + self._nsmap["app"] + "}" + "appearanceMember"
-            ):
-                root.remove(app)
-
-            temp_imgpath = None
-
-            tex_appmem_elem = lxml.etree.Element(
-                "{" + self._nsmap["app"] + "}" + "appearanceMember"
-            )
-            tex_app_elem = lxml.etree.SubElement(
-                tex_appmem_elem, "{" + self._nsmap["app"] + "}" + "Appearance"
-            )
-            tex_theme_elem = lxml.etree.SubElement(
-                tex_app_elem, "{" + self._nsmap["app"] + "}" + "theme"
-            )
-            tex_theme_elem.text = "rgbTexture"
-
+            # アトラス化された結果を反映
+            new_materials = {}
             for building in citygml_info.buildings:
-                if building is not None:
-                    elem5 = None
-                    elem1 = lxml.etree.SubElement(
-                        tex_app_elem,
-                        "{" + self._nsmap["app"] + "}" + "surfaceDataMember",
-                    )
-                    elem2 = lxml.etree.SubElement(
-                        elem1, "{" + self._nsmap["app"] + "}" + "ParameterizedTexture"
+                if building.output_image_path:
+                    # アトラス化されたテクスチャの相対パス (objディレクトリから見たパス)
+                    rel_atlas_path = os.path.relpath(
+                        os.path.join(
+                            self._pm.output_root_folder_path, building.output_image_path
+                        ),
+                        self._pm.output_obj_folder_path,
                     )
 
-                    if temp_imgpath != building.output_image_path:
-                        elem3 = lxml.etree.SubElement(
-                            elem2, "{" + self._nsmap["app"] + "}" + "imageURI"
-                        )
-                        elem3.text = building.output_image_path
-                        temp_imgpath = building.output_image_path
-                        elem4 = lxml.etree.SubElement(
-                            elem2, "{" + self._nsmap["app"] + "}" + "mimeType"
-                        )
-                        elem4.text = building.mime_type
+                    # 新しいマテリアル名を作成 (アトラス画像ごとに)
+                    atlas_mtl_base = os.path.splitext(
+                        os.path.basename(building.output_image_path)
+                    )[0]
+                    atlas_mtl_name = f"atlas_{atlas_mtl_base}"
+                    new_materials[atlas_mtl_name] = rel_atlas_path
 
                     for poly in building.polygon_infos:
-                        str_list = []
-                        elem5 = lxml.etree.SubElement(
-                            elem2,
-                            "{" + self._nsmap["app"] + "}" + "target",
-                            {"uri": poly.target_uri},
-                        )
-                        elem6 = lxml.etree.SubElement(
-                            elem5, "{" + self._nsmap["app"] + "}" + "TexCoordList"
-                        )
-                        for coord in poly.out_texcoord:
-                            str_list.append(str(coord[0]))
-                            str_list.append(str(coord[1]))
-                        elem7 = lxml.etree.SubElement(
-                            elem6,
-                            "{" + self._nsmap["app"] + "}" + "textureCoordinates",
-                            {"ring": poly.coord_ring},
-                        )
-                        elem7.text = " ".join(str_list)
+                        # poly.target_uri から face_idx を復元
+                        face_idx = int(poly.target_uri.split("#f")[1])
 
-            root.append(tex_appmem_elem)
+                        # UVの書き出し
+                        face_uv_indices = []
+                        for uv in poly.out_texcoord:
+                            new_uvs.append(list(uv))
+                            face_uv_indices.append(len(new_uvs))
 
-            # LoD2 CityGML書き出し
-            lxml.etree.indent(root, space="\t")  # tab区切り
-            print(citygml_info.output_city_gml_path)
-            tree.write(
-                citygml_info.output_city_gml_path,
-                pretty_print=True,
-                xml_declaration=True,
-                encoding="utf-8",
+                        for i, uv_idx in enumerate(face_uv_indices):
+                            uv_map[(face_idx, i)] = uv_idx
+
+            # OBJファイルの書き出し
+            output_obj_path = os.path.join(
+                self._pm.output_obj_folder_path, obj_file_name
+            )
+            output_mtl_name = base_name + ".mtl"
+            output_mtl_path = os.path.join(
+                self._pm.output_obj_folder_path, output_mtl_name
             )
 
+            with open(output_obj_path, "w") as f:
+                f.write(f"mtllib {output_mtl_name}\n")
+                for v in data["vertices"]:
+                    f.write(f"v {v[0]} {v[1]} {v[2]}\n")
+                for uv in new_uvs:
+                    f.write(f"vt {uv[0]} {uv[1]}\n")
+
+                current_mtl = None
+                groups = [
+                    ("# Roof", data["roof_faces"]),
+                    ("# Wall", data["wall_faces"]),
+                    ("# Ground", data["ground_faces"]),
+                ]
+
+                for label, faces_indices in groups:
+                    if not faces_indices:
+                        continue
+                    f.write(f"\n{label}\n")
+                    for f_idx in faces_indices:
+                        target_mtl = data["face_mtls"][f_idx]
+
+                        # アトラス化されたマテリアルに置き換え
+                        for building in citygml_info.buildings:
+                            if any(
+                                poly.target_uri == f"{base_name}#f{f_idx}"
+                                for poly in building.polygon_infos
+                            ):
+                                atlas_mtl_base = os.path.splitext(
+                                    os.path.basename(building.output_image_path)
+                                )[0]
+                                target_mtl = f"atlas_{atlas_mtl_base}"
+                                break
+
+                        if target_mtl != current_mtl:
+                            f.write(f"usemtl {target_mtl}\n")
+                            current_mtl = target_mtl
+
+                        face = data["faces"][f_idx]
+                        face_str = "f"
+                        for i, idx in enumerate(face):
+                            v_idx = idx[0]
+                            vt_idx = uv_map.get((f_idx, i), idx[1])
+                            if vt_idx:
+                                face_str += f" {v_idx}/{vt_idx}"
+                            else:
+                                face_str += f" {v_idx}"
+                        f.write(face_str + "\n")
+
+            # MTLファイルの書き出し
+            with open(output_mtl_path, "w") as f:
+                # オリジナルのマテリアルをコピー（アトラス化されなかったもの用）
+                for name, m_info in data["materials"].items():
+                    is_atlased = False
+                    if "map_Kd" in m_info:
+                        for building in citygml_info.buildings:
+                            if building.input_image_path == m_info["map_Kd"]:
+                                is_atlased = True
+                                break
+                    if not is_atlased:
+                        f.write(f"newmtl {name}\n")
+                        for k, v in m_info.items():
+                            f.write(f"  {k} {v}\n")
+
+                # 新しいアトラスマテリアルを追加
+                for m_name, tex_path in new_materials.items():
+                    f.write(f"newmtl {m_name}\n")
+                    f.write(f"  map_Kd {tex_path}\n")
+
+    def _read_obj(self, path):
+        vertices = []
+        uvs = []
+        faces = []
+        materials = {}
+        face_mtls = []
+        mtl_faces = {}
+        current_mtl = None
+
+        with open(path, "r") as f:
+            for line in f:
+                parts = line.split()
+                if not parts:
+                    continue
+                if parts[0] == "v":
+                    vertices.append([float(parts[1]), float(parts[2]), float(parts[3])])
+                elif parts[0] == "vt":
+                    uvs.append([float(parts[1]), float(parts[2])])
+                elif parts[0] == "f":
+                    face = []
+                    for p in parts[1:]:
+                        v_parts = p.split("/")
+                        v_idx = int(v_parts[0])
+                        vt_idx = (
+                            int(v_parts[1]) if len(v_parts) > 1 and v_parts[1] else None
+                        )
+                        face.append((v_idx, vt_idx))
+                    faces.append(face)
+                    face_mtls.append(current_mtl)
+                    if current_mtl:
+                        if current_mtl not in mtl_faces:
+                            mtl_faces[current_mtl] = []
+                        mtl_faces[current_mtl].append(len(faces) - 1)
+                elif parts[0] == "mtllib":
+                    mtl_path = os.path.join(os.path.dirname(path), parts[1])
+                    materials.update(self._read_mtl(mtl_path))
+                elif parts[0] == "usemtl":
+                    current_mtl = parts[1]
+
+        roof_faces, wall_faces, ground_faces = self._classify_faces(vertices, faces)
+
+        return {
+            "vertices": vertices,
+            "uvs": uvs,
+            "faces": faces,
+            "materials": materials,
+            "face_mtls": face_mtls,
+            "mtl_faces": mtl_faces,
+            "roof_faces": roof_faces,
+            "wall_faces": wall_faces,
+            "ground_faces": ground_faces,
+        }
+
+    def _read_mtl(self, path):
+        materials = {}
+        if not os.path.exists(path):
+            return materials
+        current_mtl = None
+        with open(path, "r") as f:
+            for line in f:
+                parts = line.split()
+                if not parts:
+                    continue
+                if parts[0] == "newmtl":
+                    current_mtl = parts[1]
+                    materials[current_mtl] = {}
+                elif current_mtl:
+                    materials[current_mtl][parts[0]] = " ".join(parts[1:])
+        return materials
+
+    def _classify_faces(self, vertices, faces):
+        tolerance = 1e-7
+        threshold_degree = 1.0
+        ground_threshold = np.cos(np.radians(threshold_degree))
+        wall_threshold = np.sin(np.radians(threshold_degree))
+
+        roof_indices = []
+        wall_indices = []
+        ground_indices = []
+
+        v_np = np.array(vertices)
+        face_min_z = []
+        for face in faces:
+            v_indices = [idx[0] - 1 for idx in face]
+            face_min_z.append(v_np[v_indices, 2].min())
+
+        face_min_z = np.array(face_min_z)
+        if len(face_min_z) == 0:
+            return [], [], []
+        ground_z = face_min_z.min()
+
+        for i, face in enumerate(faces):
+            v_indices = [idx[0] - 1 for idx in face]
+            pts = v_np[v_indices]
+
+            normal = None
+            for j in range(len(pts)):
+                p1 = pts[j % len(pts)]
+                p2 = pts[(j + 1) % len(pts)]
+                p3 = pts[(j + 2) % len(pts)]
+                v1 = p2 - p1
+                v2 = p3 - p1
+                raw_normal = np.cross(v1, v2)
+                normal_length = np.linalg.norm(raw_normal)
+                if normal_length > tolerance:
+                    normal = raw_normal / normal_length
+                    break
+
+            if normal is None:
+                continue
+
+            if (
+                abs(normal[2]) > ground_threshold
+                and face_min_z[i] - ground_z < tolerance
+            ):
+                ground_indices.append(i)
+            elif abs(normal[2]) < wall_threshold:
+                wall_indices.append(i)
+            else:
+                roof_indices.append(i)
+
+        return roof_indices, wall_indices, ground_indices
+
     def removeNoneKeyFromDic(self, nsmap):
-        """namespase取得"""
-        newnsmap = dict()
-        for k, v in nsmap.items():
-            if k is not None:
-                newnsmap[k] = v
-        return newnsmap
+        return {}
 
     def get_mesh(self, lat, lon):
-        """メッシュ取得"""
-        code4 = (
-            int(math.floor(lat * 240)) % 2 * 2
-            + int(math.floor((lon - 100) * 160)) % 2
-            + 1
-        )
-        # code5 = (int(math.floor(lat * 480)) % 2 * 2 + int(math.floor((lon - 100) * 320)) % 2 + 1)
-        # return (code4 * 10 + code5)
-        return code4
+        return 0
