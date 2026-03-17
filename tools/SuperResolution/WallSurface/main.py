@@ -239,6 +239,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_dir", type=str, help="Input directory")
     parser.add_argument("--output_dir", type=str, help="Output directory")
     parser.add_argument("--device", type=str, help="Device (cuda/cpu)")
+    parser.add_argument("--checkpoint", type=str, help="Path to the model checkpoint")
     parser.add_argument("--output_log_dir", type=str, help="Output log directory")
     parser.add_argument(
         "--debug_log_output", type=str, help="Debug log output (true/false)"
@@ -268,6 +269,9 @@ if __name__ == "__main__":
         param["MeterPerPixel"] = str(args.meter_per_pixel)
     if args.output_format:
         param["OutputFormat"] = args.output_format
+
+    if args.checkpoint:
+        args.checkpoint = fix_relative_path(args.checkpoint)
 
     cfg_path = Path("src", args.cfg_file)
     with cfg_path.open("rt") as cf:
@@ -311,6 +315,8 @@ if __name__ == "__main__":
     )
 
     cfg_cyclegan = cfg["cyclegan"]
+    if args.checkpoint:
+        cfg_cyclegan["checkpoint_path"] = args.checkpoint
     processB_dir = Path(os.path.join(param["OutputDir"], "processB"))
     dataset = DatasetDataLoader(cfg_cyclegan)
     model = CycleGANModel(cfg_cyclegan, param["Device"])

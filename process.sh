@@ -56,6 +56,9 @@ echo "output_texture_enabled ${output_texture_enabled}"
 echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
 project_dir="$(realpath "$(dirname "$0")")"
+wall_surface_model="${WALL_SURFACE_MODEL:-"${project_dir}/tools/SuperResolution/WallSurface/checkpoint/latest_net_G_A.pth"}"
+real_esrgan_model="${REAL_ESRGAN_MODEL:-"${project_dir}/tools/Real-ESRGAN/weights/RealESRGAN_x4plus.pth"}"
+deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/tools/DeblurGANv2/checkpoints/fpn_inception.h5"}"
 
 
 
@@ -193,6 +196,7 @@ python main.py \
   --input_dir "${output_rectify_path}" \
   --output_dir "${output_wall_path}" \
   --device cuda \
+  --checkpoint "${wall_surface_model}" \
   --output_log_dir "${output_dir}/log_output_wall" \
   --debug_log_output false \
   --meter_per_pixel "${meter_per_texture_pixel}" \
@@ -212,6 +216,7 @@ rm -rf "${output_esrgan_path}"
 
 python inference_realesrgan.py \
   -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
+  --model_path "${real_esrgan_model}" \
   -i "${output_wall_path}" -o "${output_esrgan_path}" \
   --input-ext png --ext png
 
@@ -289,6 +294,7 @@ python main.py \
   --input_dir "${output_esrgan_path}" \
   --output_dir "${output_wall_path2}" \
   --device cuda \
+  --checkpoint "${wall_surface_model}" \
   --output_log_dir "${output_dir}/log_output_wall2" \
   --debug_log_output false \
   --meter_per_pixel "${meter_per_texture_pixel2}" \
@@ -307,7 +313,7 @@ output_deblurgan_path="${output_dir}/output_deblurgan"
 rm -rf "${output_deblurgan_path}"
 
 python predict.py \
-  -c checkpoints/fpn_inception.h5 \
+  -c "${deblur_gan_model}" \
   -i "${output_wall_path2}" -o "${output_deblurgan_path}" \
   --input-format png --output-format jpg
 

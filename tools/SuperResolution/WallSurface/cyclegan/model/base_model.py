@@ -42,6 +42,7 @@ class BaseModel(ABC):
         self.save_dir = os.path.join(
             self.cfg_model["checkpoints_dir"]
         )  # save all the checkpoints to save_dir
+        self.checkpoint_path = cfg.get("checkpoint_path")
         if (
             self.cfg_dataset["preprocess"] != "scale_width"
         ):  # with [scale_width], input images might have different sizes, which hurts the performance of cudnn.benchmark.
@@ -204,8 +205,12 @@ class BaseModel(ABC):
         """
         for name in self.model_names:
             if isinstance(name, str):
-                load_filename = "%s_net_%s.pth" % (epoch, name)
-                load_path = os.path.join(self.save_dir, load_filename)
+                if self.checkpoint_path and os.path.isfile(self.checkpoint_path):
+                    load_path = self.checkpoint_path
+                else:
+                    load_filename = "%s_net_%s.pth" % (epoch, name)
+                    load_path = os.path.join(self.save_dir, load_filename)
+
                 net = getattr(self, "net" + name)
                 if isinstance(net, torch.nn.DataParallel):
                     net = net.module
