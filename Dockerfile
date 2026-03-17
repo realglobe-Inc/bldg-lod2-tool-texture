@@ -30,11 +30,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -U pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
-# basicsr のパッチ適用 (Python 3.12 / PyTorch 2.x 用)
-RUN BASICKSR_DIR=$(python3 -c "import basicsr; import os; print(os.path.dirname(basicsr.__file__))") && \
-    sed -i 's/collections.Mapping/collections.abc.Mapping/g' ${BASICKSR_DIR}/data/degradations.py && \
-    sed -i 's/collections.Mapping/collections.abc.Mapping/g' ${BASICKSR_DIR}/utils/img_util.py
-
 # 学習済みモデルのダウンロード（LOD2建築物自動作成ツール）
 RUN mkdir -p src/create_model/data && \
     wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl' \

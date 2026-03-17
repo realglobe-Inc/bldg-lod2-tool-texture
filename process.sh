@@ -112,8 +112,6 @@ if ! "${skip_bldg_lod2_tool}"; then
   echo '########## LOD2建築物自動作成ツール ##########'
 
   output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
-  city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
-  output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
 
   output_bldg_lod2_tool_base_path="${output_dir}/output_bldg_lod2_tool"
   rm -rf "${output_bldg_lod2_tool_base_path}"
@@ -152,7 +150,7 @@ if ! "${skip_bldg_lod2_tool}"; then
   if ! "${output_texture_enabled}"; then
     # テクスチャつくらないなら終わり
     output_result_path="${output_dir}/output_result"
-    rm -rf "${output_result_path}/"
+    rm -rf "${output_result_path}"
     cp -rL "${output_bldg_lod2_tool_path}" "${output_result_path}"
 
     echo "最終結果 : ${output_result_path}"
@@ -174,7 +172,7 @@ echo '########## 正対化ツール ##########'
 cd "${project_dir}/tools/misc"
 
 output_rectify_path="${output_dir}/output_rectify"
-rm -rf "${output_rectify_path}/"*
+rm -rf "${output_rectify_path}"
 
 python rectify_texture_image.py -i "${output_bldg_lod2_tool_path}" -o "${output_rectify_path}" \
  --format png --meter-per-pixel "${meter_per_texture_pixel}"
@@ -189,7 +187,7 @@ echo '########## 壁面視認性向上ツール ##########'
 cd "${project_dir}/tools/SuperResolution/WallSurface"
 
 output_wall_path="${output_dir}/output_wall"
-rm -rf "${output_wall_path}/"*
+rm -rf "${output_wall_path}"
 
 python main.py \
   --input_dir "${output_rectify_path}" \
@@ -210,7 +208,7 @@ echo '########## テクスチャ解像度向上ツール ##########'
 cd "${project_dir}/tools/Real-ESRGAN"
 
 output_esrgan_path="${output_dir}/output_esrgan"
-rm -rf "${output_esrgan_path}/*"
+rm -rf "${output_esrgan_path}"
 
 python inference_realesrgan.py \
   -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
@@ -261,14 +259,15 @@ copy_misc() {
       bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
       printf '%s\n\n' "newmtl ${bldg_id}" >> "${mtl_file_path}"
       printf '%s\n\n' "map_Kd $(realpath --relative-to "${obj_dir_path}" "${texture_file}")" >> "${mtl_file_path}"
+      done
     done
-  done
 
-  # gmlファイルの中で変更
-  cd "${project_dir}/tools/misc"
-  for gml_file in $(find "${output_result_path}" -name '*.gml'); do
-    python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
-  done
+    # gmlファイルの中で変更
+    cd "${project_dir}/tools/misc"
+    for gml_file in $(find "${output_result_path}" -name '*.gml'); do
+      python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
+    done
+  fi
 }
 
 copy_misc "${output_esrgan_path}" "${output_wall_path}" "${output_esrgan_path}" png
@@ -283,7 +282,7 @@ echo '########## 壁面視認性向上ツール（2度掛け） ##########'
 cd "${project_dir}/tools/SuperResolution/WallSurface"
 
 output_wall_path2="${output_dir}/output_wall2"
-rm -rf "${output_wall_path2}/"*
+rm -rf "${output_wall_path2}"
 
 meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
 python main.py \
@@ -305,20 +304,12 @@ echo '########## テクスチャ鮮明化ツール ##########'
 cd "${project_dir}/tools/DeblurGANv2"
 
 output_deblurgan_path="${output_dir}/output_deblurgan"
-rm -rf "${output_deblurgan_path}/"*
+rm -rf "${output_deblurgan_path}"
 
 python predict.py \
   -c checkpoints/fpn_inception.h5 \
   -i "${output_wall_path2}" -o "${output_deblurgan_path}" \
   --input-format png --output-format jpg
-
-
-
-########## テクスチャシャープ化ツール ##########
-# テクスチャシャープ化ツールはきれいにならないため使わない
-
-########## テクスチャアトラス化ツール ##########
-# テクスチャアトラス化ツールはうまく動かないため使わない
 
 
 
