@@ -66,7 +66,7 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
   if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
     echo '########## テクスチャマッピング ##########'
 
-    split_ortho_dir="${output_dir}/intermediate/ortho"
+    split_ortho_dir="${output_dir}/intermediate/split_ortho"
     mkdir -p "${split_ortho_dir}"
     for ortho_path in "${input_ortho_dir}/"*.tif; do
       ortho_basename=$(basename "${ortho_path}")
@@ -76,10 +76,11 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
         echo "${ortho_path}の分割をスキップします"
         continue
       fi
+      echo "${ortho_path}を分割します"
       gdal_retile.py -ps "${grid_pixel}" "${grid_pixel}" -targetDir "${split_ortho_dir}" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" "${ortho_path}"
     done
 
-    split_image_dir="${output_dir}/intermediate/image"
+    split_image_dir="${output_dir}/intermediate/split_image"
     mkdir -p "${split_image_dir}"
     for image_path in "${input_image_dir}/"*.tif; do
       image_basename=$(basename "${image_path}")
@@ -89,6 +90,7 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
         echo "${image_path}の分割をスキップします"
         continue
       fi
+      echo "${image_path}を分割します"
       magick "${image_path}[0]" -crop "${grid_pixel}x${grid_pixel}" -set filename:tile "${image_name}_%[fx:page.x/${grid_pixel}]_%[fx:page.y/${grid_pixel}]" +repage "${split_image_dir}/%[filename:tile].${image_ext}"
     done
 

@@ -110,7 +110,7 @@ def calc_offsets(
     best_w: Optional[int] = None
     best_h: Optional[int] = None
     best_hs: Optional[list[int]] = None
-    for n_row in range(1, len(image_sizes)):
+    for n_row in range(1, len(image_sizes) + 1):
         (w, h), hs = calc_width_and_height(image_sizes, n_row)
         if (
             (best_w is None or best_h is None)
@@ -366,21 +366,6 @@ def rectify_images(
         for line in new_lines:
             obj_file.write(f"{line}\n")
 
-    # MTLファイルをコピーして修正
-    if mtllib_value:
-        mtl_src = os.path.join(os.path.dirname(obj_path), mtllib_value)
-        mtl_dst = os.path.join(output_dir, "obj", mtllib_value)
-        if os.path.exists(mtl_src):
-            with open(mtl_src, "r") as f:
-                mtl_lines = f.readlines()
-            with open(mtl_dst, "w") as f:
-                for line in mtl_lines:
-                    if line.strip().lower().startswith("map_kd "):
-                        # パスを ../appearance/bldg_id.ext に書き換える
-                        f.write(f"map_Kd ../appearance/{bldg_id}.{output_format}\n")
-                    else:
-                        f.write(line)
-
     return face_vertices_list
 
 
@@ -417,8 +402,36 @@ def process(
         pbar.update(1)
     pbar.close()
 
-    # MTLファイルの作成 (各OBJに対して作成されるように rectify_images 内でも扱われるが、一括MTLの場合)
-    # ここでは個別のMTLファイルを期待する構成にするため、必要に応じて調整
+    # MTLファイルの作成
+    mtl_files = glob(os.path.join(input_dir, "*.mtl"))
+    for mtl_path in mtl_files:
+        mtl_name = os.path.basename(mtl_path)
+        mtl_dst = os.path.join(output_dir, "obj", mtl_name)
+        os.makedirs(os.path.dirname(mtl_dst), exist_ok=True)
+
+        with open(mtl_path, "r") as f:
+            mtl_lines = f.readlines()
+
+        new_mtl_lines = []
+        current_mtl_name = None
+        for line in mtl_lines:
+            stripped = line.strip()
+            if stripped.lower().startswith("newmtl "):
+                current_mtl_name = stripped.split()[1]
+                new_mtl_lines.append(line)
+            elif stripped.lower().startswith("map_kd "):
+                if current_mtl_name:
+                    # パスを ../appearance/current_mtl_name.ext に書き換える
+                    new_mtl_lines.append(
+                        f"map_Kd ../appearance/{current_mtl_name}.{output_format}\n"
+                    )
+                else:
+                    new_mtl_lines.append(line)
+            else:
+                new_mtl_lines.append(line)
+
+        with open(mtl_dst, "w") as f:
+            f.writelines(new_mtl_lines)
 
 
 def main():
