@@ -6,7 +6,7 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 # 必要なパッケージのインストール
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    nano curl wget zip unzip libopencv-dev jq build-essential \
+    nano curl wget zip unzip libopencv-dev libgdal-dev jq build-essential \
     libssl-dev zlib1g-dev libbz2-dev libreadline-dev \
     libsqlite3-dev libffi-dev liblzma-dev git locales bc \
     python3 python3-pip python3-venv python3-dev && \

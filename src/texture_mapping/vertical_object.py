@@ -26,6 +26,7 @@ class VerticalObject:
         photo_list: list[PhotoImage],
         texture_output_width_max: int,
         texture_output_height_max: int,
+        ortho_list: list = None,
     ) -> None:
         """コンストラクタ
 
@@ -35,9 +36,11 @@ class VerticalObject:
           photo_list (list[PhotoImage]): 写真のリスト
           texture_output_width_max (int): テクスチャー横幅最大値(4096まで設定可)
           texture_output_height_max (int): テクスチャー縦幅最大値(4096まで設定可)
+          ortho_list (list[OrthoImage]): オルソ画像のリスト
         """
         self._photo_num = photo_num  # 写真数
         self._photo_list = photo_list  # 写真リスト
+        self._ortho_list = ortho_list if ortho_list else list()
 
         # テクスチャ画像出力オブジェクト作成
         self._tex_collection = DstTextureFile(
@@ -86,8 +89,32 @@ class VerticalObject:
             roof_coord = np.zeros((len(ver_roof), 2))
             max_area, area = 0.0, 0.0
             roof_valid = [0] * len(ver_roof)
-            set_idx = 0  # 写真のインデックス
+            set_idx = -1  # 写真のインデックス
+            is_ortho = False
 
+            # 1. オルソ画像から優先的に検索
+            for i, ortho in enumerate(self._ortho_list):
+                # 屋根面一枚分の座標の、画像範囲内の頂点位置数を求める
+                in_count = 0
+                for j, ver in enumerate(ver_roof):
+                    roof_valid[j] = ortho.get_image_pos(ver, tex_coord[j])
+                    if roof_valid[j]:
+                        in_count += 1
+
+                if in_count < len(ver_roof):
+                    continue
+
+                # 全点が画像上の点であれば面積最大の画像を選択する
+                point = [Point(tex) for tex in tex_coord]
+                area = Polygon(point).area
+                if area < max_area:
+                    continue
+                max_area = area
+                set_idx = i
+                roof_coord = tex_coord.copy()
+                is_ortho = True
+
+            # 2. 通常画像から検索
             for i in range(self._photo_num):
                 # 屋根面一枚分の座標の、画像範囲内の頂点位置数を求める
                 in_count = 0
@@ -100,40 +127,46 @@ class VerticalObject:
                     continue
 
                 # 全点が画像上の点であれば面積最大の画像を選択する
-                point = [0] * len(tex_coord)
-                for num, tex in enumerate(tex_coord):
-                    point[num] = Point(tex)
+                point = [Point(tex) for tex in tex_coord]
                 area = Polygon(point).area
                 if area < max_area:
                     continue
                 max_area = area
                 set_idx = i
                 roof_coord = tex_coord.copy()
+                is_ortho = False
 
-            if np.all(roof_coord == 0):
+            if set_idx == -1:
                 # テクスチャ画像が見つかったか
                 continue
 
             # テクスチャ画像が未登録の場合は追加
-            if set_idx not in (
-                srcTex.ref_image_index for srcTex in tex_collection.src_texture
+            if (set_idx, is_ortho) not in (
+                (srcTex.ref_image_index, srcTex.is_ortho)
+                for srcTex in tex_collection.src_texture
             ):
 
                 # 参照テクスチャ画像オブジェクトを作成
                 new_src_tex = tex_collection.get_new_src_texture()
                 new_src_tex.ref_image_index = set_idx
-                new_src_tex.ref_image = self._photo_list[set_idx]
+                new_src_tex.is_ortho = is_ortho
+                if is_ortho:
+                    new_src_tex.ref_image = self._ortho_list[set_idx]
+                else:
+                    new_src_tex.ref_image = self._photo_list[set_idx]
 
             # 屋根面の座標配列を追加
             for tex in tex_collection.src_texture:
-                if tex.ref_image_index == set_idx:
+                if tex.ref_image_index == set_idx and tex.is_ortho == is_ortho:
                     self._roof_texture[r_idx].tex_ver = tex.append_texture_coord(
                         roof_coord
                     )
                     self._roof_texture[r_idx].tex_info = tex
                     self._roof_texture[r_idx].pol_area = max_area
 
-                    ref_img = self._photo_list[set_idx].filename
+                    ref_img = tex.ref_image.filename
+                    if tex.is_ortho:
+                        ref_img += " (ortho)"
                     Log.output_log_write(
                         LogLevel.DEBUG,
                         ModuleType.PASTE_TEXTURE,
@@ -149,13 +182,25 @@ class VerticalObject:
         self._wall_texture = [TextureInfo() for i in range(len(self._vertex_wall))]
 
         for w_idx, wall in enumerate(self._vertex_wall):
-            set_idx = 0  # 写真のインデックス
+            set_idx = -1  # 写真のインデックス
+            is_ortho = False
             r_common = list()
             r_tmp = list()
             max_area, area = 0.0, 0.0
             roof_idx = 0
             img_pos_chk = True
             set_wall_img_pos = np.zeros((len(wall), 2))
+
+            # 水平面の判定
+            v1 = wall[1] - wall[0]
+            v2 = wall[2] - wall[0]
+            normal = np.cross(v1, v2)
+            norm = np.linalg.norm(normal)
+            is_horizontal = False
+            if norm > 1e-6:
+                normal /= norm
+                if abs(normal[2]) > 0.9:  # 概ね水平
+                    is_horizontal = True
 
             # 接地する屋根面の検索/屋根面と一致する頂点の検索
             for i in range(len(self._vertex_roof)):
@@ -170,6 +215,23 @@ class VerticalObject:
                     r_common = r_tmp.copy()
                     roof_idx = i
 
+            # 1. オルソ画像から検索（水平面の場合）
+            if is_horizontal and self._ortho_list:
+                for i, ortho in enumerate(self._ortho_list):
+                    wall_img_pos = np.zeros((len(wall), 2))
+                    in_count = 0
+                    for j, ver in enumerate(wall):
+                        if ortho.get_image_pos(ver, wall_img_pos[j]):
+                            in_count += 1
+                    if in_count == len(wall):
+                        area = Polygon([Point(p) for p in wall_img_pos]).area
+                        if area > max_area:
+                            max_area = area
+                            set_idx = i
+                            set_wall_img_pos = wall_img_pos.copy()
+                            is_ortho = True
+
+            # 2. 通常画像から検索
             # 全写真から壁面に最適なテクスチャを検索
             for i in range(self._photo_num):
                 roof_img_pos = np.zeros((len(self._vertex_roof[roof_idx]), 2))
@@ -205,39 +267,45 @@ class VerticalObject:
                 # 壁面用テクスチャ情報保持
                 # より最適なテクスチャが見つかった場合は上書き
                 # 全点が画像上の点であれば面積最大の画像を選択する
-                point = [0] * len(wall_img_pos)
-                for num, tex in enumerate(wall_img_pos):
-                    point[num] = Point(tex)
+                point = [Point(tex) for tex in wall_img_pos]
                 area = Polygon(point).area
                 if area < max_area:
                     continue
                 max_area = area
                 set_idx = i
                 set_wall_img_pos = wall_img_pos.copy()
+                is_ortho = False
 
-            if np.all(set_wall_img_pos == 0):
+            if set_idx == -1:
                 # テクスチャ画像が見つかったか
                 continue
 
             # テクスチャ画像が未登録の場合は追加
-            if set_idx not in (
-                srcTex.ref_image_index for srcTex in tex_collection.src_texture
+            if (set_idx, is_ortho) not in (
+                (srcTex.ref_image_index, srcTex.is_ortho)
+                for srcTex in tex_collection.src_texture
             ):
                 # 参照テクスチャ画像オブジェクトを作成
                 new_src_tex = tex_collection.get_new_src_texture()
                 new_src_tex.ref_image_index = set_idx
-                new_src_tex.ref_image = self._photo_list[set_idx]
+                new_src_tex.is_ortho = is_ortho
+                if is_ortho:
+                    new_src_tex.ref_image = self._ortho_list[set_idx]
+                else:
+                    new_src_tex.ref_image = self._photo_list[set_idx]
 
             # 壁面毎のテクスチャ情報を追加
             for tex in tex_collection.src_texture:
-                if tex.ref_image_index == set_idx:
+                if tex.ref_image_index == set_idx and tex.is_ortho == is_ortho:
                     self._wall_texture[w_idx].tex_ver = tex.append_texture_coord(
                         set_wall_img_pos
                     )
                     self._wall_texture[w_idx].tex_info = tex
                     self._wall_texture[w_idx].pol_area = max_area
 
-                    ref_img = self._photo_list[set_idx].filename
+                    ref_img = tex.ref_image.filename
+                    if tex.is_ortho:
+                        ref_img += " (ortho)"
                     Log.output_log_write(
                         LogLevel.DEBUG,
                         ModuleType.PASTE_TEXTURE,
@@ -477,6 +545,8 @@ class SrcTexture:
         self.ref_image = None
         # 参照する写真のphotoListインデックス
         self.ref_image_index = 0
+        # オルソ画像フラグ
+        self.is_ortho = False
         # オリジナルのテクスチャ座標配列
         self.tex_coord = list()
         # 貼り付け先のテクスチャ座標配列
@@ -641,8 +711,12 @@ class DstTextureFile:
                     tex_ver, img.shape[1], img.shape[0]
                 )
 
+                filename = srcTex.ref_image.filename
+                if srcTex.is_ortho:
+                    filename += " (ortho)"
+
                 print(
-                    f"[{obj_name}] Crop from {srcTex.ref_image.filename}: x={min_x}, y={min_y}, w={polygon_w}, h={polygon_h}"
+                    f"[{obj_name}] Crop from {filename}: x={min_x}, y={min_y}, w={polygon_w}, h={polygon_h}"
                 )
 
                 # 背景画像（白画像）

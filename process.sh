@@ -19,6 +19,9 @@ set -e
 # INPUT_CAMERA_INFO:
 #     内部評定要素のファイルパス
 #     - FULL/ONLY_TEXTURE_MAPPING の場合に必要
+# INPUT_ORTHO_DIR:
+#     オルソ画像が格納されているディレクトリパス。
+#     - FULL/ONLY_TEXTURE_MAPPING の場合のオプション
 # OUTPUT_DIR:
 #     出力ファイルや中間ファイルを保存するディレクトリパス。
 # METER_PER_PIXEL:
@@ -37,6 +40,7 @@ input_obj_dir="$(realpath -s "${INPUT_OBJ_DIR:-"${project_dir}/data/input/obj"}"
 input_image_dir="$(realpath -s "${INPUT_IMAGE_DIR:-"${project_dir}/data/input/image"}")"
 input_ex_calib="$(realpath -s "${INPUT_EX_CALIB:-"${project_dir}/data/input/ex_calib.txt"}")"
 input_camera_info="$(realpath -s "${INPUT_CAMERA_INFO:-"${project_dir}/data/input/camera_info.txt"}")"
+input_ortho_dir="$(realpath -s "${INPUT_ORTHO_DIR:-""}")"
 
 meter_per_pixel="${METER_PER_PIXEL:-0.16}"
 meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-${meter_per_pixel}}"
@@ -51,6 +55,7 @@ if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
   echo "input_ex_calib: ${input_ex_calib}"
   echo "input_camera_info: ${input_camera_info}"
   echo "input_image_dir: ${input_image_dir}"
+  echo "input_ortho_dir: ${input_ortho_dir}"
 fi
 echo "output_dir: ${output_dir}"
 echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
@@ -68,6 +73,7 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
       --texture_dir "${input_image_dir}" \
       --ex_calib "${input_ex_calib}" \
       --camera_info "${input_camera_info}" \
+      --ortho_dir "${input_ortho_dir}" \
       --output_dir "${output_texture_mapping_dir}" \
       --image_format png
 

@@ -30,6 +30,7 @@ class ParamManager:
     def __init__(self) -> None:
         """コンストラクタ"""
         self.texture_folder_path: str = ""  # テクスチャフォルダパス
+        self.ortho_folder_path: str = ""  # オルソ画像フォルダパス
         self.ex_calib_element_path: str = ""  # 外部標定要素ファイルパス
         self.camera_info_path: str = ""  # 内部標定要素ファイルパス
         self.output_folder_path: str = ""  # CityGML出力フォルダパス

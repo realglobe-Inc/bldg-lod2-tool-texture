@@ -32,6 +32,10 @@ def main():
 
     # オプションパラメータ
     parser.add_argument(
+        "--ortho_dir",
+        help="オルソ画像フォルダパス",
+    )
+    parser.add_argument(
         "--input_obj_dir",
         help="入力OBJフォルダパス",
     )
@@ -51,6 +55,7 @@ def main():
     # 1. パラメータ管理クラスの準備
     params = ParamManager()
     params.texture_folder_path = args.texture_dir
+    params.ortho_folder_path = args.ortho_dir if args.ortho_dir else ""
     params.ex_calib_element_path = args.ex_calib
     params.camera_info_path = args.camera_info
     params.output_folder_path = args.output_dir

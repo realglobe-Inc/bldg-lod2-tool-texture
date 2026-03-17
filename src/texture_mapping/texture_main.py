@@ -10,6 +10,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from .photo_image import PhotoImage
+from .ortho_image import OrthoImage
 from .vertical_object import VerticalObject
 from ..util.log import Log, ModuleType, LogLevel
 from ..util.param_manager import ParamManager
@@ -156,7 +157,30 @@ class TextureMain:
                             f"PhotoFile Not Found {data[0]}",
                         )
 
-            if photo_num < 1:
+            # オルソ画像情報読み込み
+            ortho_list = list()
+            if self.param_manager.ortho_folder_path and os.path.isdir(
+                self.param_manager.ortho_folder_path
+            ):
+                ortho_files = [
+                    f
+                    for f in os.listdir(self.param_manager.ortho_folder_path)
+                    if f.lower().endswith((".tif", ".tiff", ".jpg", ".jpeg", ".png"))
+                ]
+                for f in ortho_files:
+                    ortho = OrthoImage()
+                    if ortho.set_ortho_param(self.param_manager.ortho_folder_path, f):
+                        ortho_list.append(ortho)
+
+            ortho_num = len(ortho_list)
+            if ortho_num > 0:
+                Log.output_log_write(
+                    LogLevel.DEBUG,
+                    ModuleType.PASTE_TEXTURE,
+                    f"ortho images found: {ortho_num}",
+                )
+
+            if photo_num < 1 and ortho_num < 1:
                 raise Exception("Photo not found")
 
             # テクスチャ画像出力フォルダ作成
@@ -213,6 +237,7 @@ class TextureMain:
                             photo_list,
                             self.param_manager.texture_output_width_max,
                             self.param_manager.texture_output_height_max,
+                            ortho_list,
                         )
                         ver.select_roof_texture()
                         ver.select_wall_texture()
