@@ -82,7 +82,7 @@ WORKDIR /app/tools/misc
 
 WORKDIR /app
 COPY src src
-COPY AutoCreateLod2.py .
+COPY run_texture_mapping.py .
 
 WORKDIR /app/tools/SuperResolution/WallSurface
 COPY tools/SuperResolution/WallSurface/src src

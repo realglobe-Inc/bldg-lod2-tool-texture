@@ -278,8 +278,10 @@ class VerticalObject:
             if prev_flag == FaceInfo.NOT_ROOF and next_flag == FaceInfo.ROOF:
                 # 屋根面→屋根面以外
                 tuple_equal = np.where(
-                    np.array_equal(ary, wall_img_pos[w_num])
-                    for ary in np.array(roof_img_pos)
+                    [
+                        np.array_equal(ary, wall_img_pos[w_num])
+                        for ary in np.array(roof_img_pos)
+                    ]
                 )
                 img_pos_chk = self._is_occluded_by_self(
                     tuple_equal[0][0], prev_ver, roof_img_pos
@@ -288,7 +290,7 @@ class VerticalObject:
             elif prev_flag == FaceInfo.ROOF and next_flag == FaceInfo.NOT_ROOF:
                 # 屋根面以外→屋根面
                 tuple_equal = np.where(
-                    np.array_equal(ary, prev_ver) for ary in np.array(roof_img_pos)
+                    [np.array_equal(ary, prev_ver) for ary in np.array(roof_img_pos)]
                 )
                 img_pos_chk = self._is_occluded_by_self(
                     tuple_equal[0][0], wall_img_pos[w_num], roof_img_pos

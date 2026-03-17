@@ -123,6 +123,7 @@ def check_error(param):
     """
     try:
         log_root = None
+        logger = None
         if not param.get("OutputLogDir"):
             log_root = Path("main_log.txt")
             bug_root = Path("debug.log")
@@ -153,10 +154,16 @@ def check_error(param):
             param["Device"] = "cuda"
 
     except ValueError as ve:
-        handle_error(logger, ve, (param["DebugLogOutput"] == "true"))
+        if logger:
+            handle_error(logger, ve, (param["DebugLogOutput"] == "true"))
+        else:
+            print(f"ValueError: {ve}")
 
     except Exception as e:
-        handle_error(logger, e, (param["DebugLogOutput"] == "true"))
+        if logger:
+            handle_error(logger, e, (param["DebugLogOutput"] == "true"))
+        else:
+            print(f"An unexpected error occurred: {e}")
 
     return log_root, logger
 
@@ -227,13 +234,40 @@ def get_texture_check_list(city_gml_path: Union[str, Path]):
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("param_file", type=Path)
+    parser.add_argument("param_file", type=Path, nargs="?", default=None)
     parser.add_argument("--cfg_file", type=Path, default="config.yml")
+    parser.add_argument("--input_dir", type=str, help="Input directory")
+    parser.add_argument("--output_dir", type=str, help="Output directory")
+    parser.add_argument("--device", type=str, help="Device (cuda/cpu)")
+    parser.add_argument("--output_log_dir", type=str, help="Output log directory")
+    parser.add_argument(
+        "--debug_log_output", type=str, help="Debug log output (true/false)"
+    )
+    parser.add_argument("--meter_per_pixel", type=float, help="Meter per pixel")
+    parser.add_argument("--output_format", type=str, help="Output format (png/jpg)")
     args = parser.parse_args()
 
     # Load parameter information from JSON file
-    with args.param_file.open("rt") as pf:
-        param = json.load(pf)
+    param = {}
+    if args.param_file:
+        with args.param_file.open("rt") as pf:
+            param = json.load(pf)
+
+    # Override or set from command line arguments
+    if args.input_dir:
+        param["InputDir"] = args.input_dir
+    if args.output_dir:
+        param["OutputDir"] = args.output_dir
+    if args.device:
+        param["Device"] = args.device
+    if args.output_log_dir:
+        param["OutputLogDir"] = args.output_log_dir
+    if args.debug_log_output:
+        param["DebugLogOutput"] = args.debug_log_output
+    if args.meter_per_pixel:
+        param["MeterPerPixel"] = str(args.meter_per_pixel)
+    if args.output_format:
+        param["OutputFormat"] = args.output_format
 
     cfg_path = Path("src", args.cfg_file)
     with cfg_path.open("rt") as cf:

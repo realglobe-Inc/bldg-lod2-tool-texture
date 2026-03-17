@@ -160,7 +160,7 @@ class Log(Singleton):
         self._start_time = datetime.datetime.now()  # 実行開始時間
 
         # 実行ログファイルへのヘッダ出力
-        logger.info("AutoCreateLod2")
+        logger.info("run_texture_mapping")
         logger.info(f"Version : {ParamManager.SYSTEM_VERSION}")
         logger.info(f"Start Time : {self._start_time}\n")
         logger.info("Module Information List")

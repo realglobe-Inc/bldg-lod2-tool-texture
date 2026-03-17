@@ -115,19 +115,37 @@ if ! "${skip_bldg_lod2_tool}"; then
   city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
   output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
 
-  python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
+  output_bldg_lod2_tool_base_path="${output_dir}/output_bldg_lod2_tool"
+  rm -rf "${output_bldg_lod2_tool_base_path}"
+  mkdir -p "${output_bldg_lod2_tool_base_path}"
 
-  # 最新のフォルダを取得
-  output_bldg_lod2_tool_path="${output_dir}/output_bldg_lod2_tool"
-  latest_folder="$(ls -t "${output_bldg_lod2_tool_dir_path}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)"
-  if [ -n "${latest_folder}" ]; then
-    cd "${output_dir}"
-    rm -f ./output_bldg_lod2_tool
-    ln -s "${output_bldg_lod2_tool_dir_path}/${latest_folder}" ./output_bldg_lod2_tool
+  if [ -f run_texture_mapping.py ]; then
+    texture_dir=$(jq -r '.TextureFolderPath' "${bldg_lod2_tool_param_file}")
+    ex_calib=$(jq -r '.ExternalCalibElementPath' "${bldg_lod2_tool_param_file}")
+    camera_info=$(jq -r '.CameraInfoPath' "${bldg_lod2_tool_param_file}")
+    input_obj_dir=$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")
+    image_format=$(jq -r '.TextureImageFormat' "${bldg_lod2_tool_param_file}")
+    building_ids=$(jq -r '.TargetBuildingIds | if . == null or . == [] then "" else join(" ") end' "${bldg_lod2_tool_param_file}")
+
+    cmd="python run_texture_mapping.py \
+      --texture_dir \"${texture_dir}\" \
+      --ex_calib \"${ex_calib}\" \
+      --camera_info \"${camera_info}\" \
+      --output_dir \"${output_bldg_lod2_tool_base_path}\" \
+      --input_obj_dir \"${input_obj_dir}\" \
+      --image_format \"${image_format}\""
+    
+    if [ -n "${building_ids}" ]; then
+      cmd="${cmd} --building_ids ${building_ids}"
+    fi
+
+    echo "Executing: ${cmd}"
+    eval "${cmd}"
   else
-    echo '最新のフォルダが見つかりませんでした。' 1>&2
-    exit 1
+    echo '警告: run_texture_mapping.py が見つかりません。このステップをスキップします。' 1>&2
   fi
+
+  output_bldg_lod2_tool_path="${output_bldg_lod2_tool_base_path}/obj"
 
 
 
@@ -173,20 +191,14 @@ cd "${project_dir}/tools/SuperResolution/WallSurface"
 output_wall_path="${output_dir}/output_wall"
 rm -rf "${output_wall_path}/"*
 
-wall_param_file="$(mktemp --suffix .json)"
-cat <<EOF > "${wall_param_file}"
-{
-  "InputDir": "${output_rectify_path}",
-  "OutputDir": "${output_wall_path}",
-  "Device": "cuda",
-  "OutputLogDir": "${output_dir}/log_output_wall",
-  "DebugLogOutput": "false",
-  "MeterPerPixel": "${meter_per_texture_pixel}",
-  "OutputFormat": "png"
-}
-EOF
-
-python main.py "${wall_param_file}"
+python main.py \
+  --input_dir "${output_rectify_path}" \
+  --output_dir "${output_wall_path}" \
+  --device cuda \
+  --output_log_dir "${output_dir}/log_output_wall" \
+  --debug_log_output false \
+  --meter_per_pixel "${meter_per_texture_pixel}" \
+  --output_format png
 
 
 
@@ -217,8 +229,10 @@ copy_misc() {
   fi
 
   # テクスチャ画像以外のファイルをコピー
-  for appearance_dir in "${output_result_path}/"*_appearance; do
-    area="$(basename -s '_appearance' "${appearance_dir}")"
+  if [ -d "${output_result_path}" ]; then
+    for appearance_dir in "${output_result_path}/"*_appearance; do
+      [ -e "${appearance_dir}" ] || continue
+      area="$(basename -s '_appearance' "${appearance_dir}")"
 
     if [ -f "${input_misc_path}/${area}.gml" ]; then
       area_label="${area}"
@@ -271,21 +285,15 @@ cd "${project_dir}/tools/SuperResolution/WallSurface"
 output_wall_path2="${output_dir}/output_wall2"
 rm -rf "${output_wall_path2}/"*
 
-wall_param_file2="$(mktemp --suffix .json)"
 meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
-cat <<EOF > "${wall_param_file2}"
-{
-  "InputDir": "${output_esrgan_path}",
-  "OutputDir": "${output_wall_path2}",
-  "Device": "cuda",
-  "OutputLogDir": "${output_dir}/log_output_wall2",
-  "DebugLogOutput": "false",
-  "MeterPerPixel": "${meter_per_texture_pixel2}",
-  "OutputFormat": "png"
-}
-EOF
-
-python main.py "${wall_param_file2}"
+python main.py \
+  --input_dir "${output_esrgan_path}" \
+  --output_dir "${output_wall_path2}" \
+  --device cuda \
+  --output_log_dir "${output_dir}/log_output_wall2" \
+  --debug_log_output false \
+  --meter_per_pixel "${meter_per_texture_pixel2}" \
+  --output_format png
 
 
 
