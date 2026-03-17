@@ -325,7 +325,7 @@ def rectify_images(
     face_vertices_list: list[list[tuple[float, float]]] = []
     for i in range(len(f_values)):
         image = rectified_images[i]
-        (offset_x, offset_y) = offsets[i]
+        offset_x, offset_y = offsets[i]
         rel_texture_points = rectified_texture_points[i]
         f_value = f_values[i]
 
