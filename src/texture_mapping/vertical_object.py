@@ -659,13 +659,9 @@ class DstTextureFile:
         line_max_h = 0
         line_max_w = 0
         for srcTex in self.src_texture:
-            img = Cv2Japanese.imread(
-                os.path.join(srcTex.ref_image.photo_dir, srcTex.ref_image.filename)
-            )
+            img_w, img_h = srcTex.ref_image._image_size
             for tex_ver in srcTex.tex_coord:
-                _, _, polygon_w, polygon_h, _ = get_tex_poly_bbox(
-                    tex_ver, img.shape[1], img.shape[0]
-                )
+                _, _, polygon_w, polygon_h, _ = get_tex_poly_bbox(tex_ver, img_w, img_h)
 
                 if self.texture_output_width_max < origin_w + polygon_w:
                     # 出力幅を超えたら次の行へ移動
@@ -702,13 +698,10 @@ class DstTextureFile:
         origin_w = 0
         line_max_h = 0
         for srcTex in self.src_texture:
-            # オリジナル画像のオープン
-            img = Cv2Japanese.imread(
-                os.path.join(srcTex.ref_image.photo_dir, srcTex.ref_image.filename)
-            )
             for tex_ver in srcTex.tex_coord:
+                img_w, img_h = srcTex.ref_image._image_size
                 min_x, min_y, polygon_w, polygon_h, output_margin = get_tex_poly_bbox(
-                    tex_ver, img.shape[1], img.shape[0]
+                    tex_ver, img_w, img_h
                 )
 
                 filename = srcTex.ref_image.filename
@@ -726,7 +719,7 @@ class DstTextureFile:
                 mask = np.full((polygon_h, polygon_w), 0, dtype="uint8")
 
                 # 前景画像（テクスチャ）
-                dst = img[min_y : min_y + polygon_h, min_x : min_x + polygon_w]
+                dst = srcTex.ref_image.get_patch(min_x, min_y, polygon_w, polygon_h)
 
                 # テクスチャポリコン座標の原点を(min_x, min_y)にする
                 poly_ver = tex_ver - [min_x, min_y]

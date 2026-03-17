@@ -49,6 +49,8 @@ wall_super_resolution_model="${WALL_SURFACE_MODEL:-"${project_dir}/model/latest_
 real_esrgan_model="${REAL_ESRGAN_MODEL:-"${project_dir}/model/RealESRGAN_x4plus.pth"}"
 deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/model/fpn_inception.h5"}"
 
+grid_pixel=${GRID_PIXEL:-1000}
+
 echo "mode: ${mode}"
 echo "input_obj_dir: ${input_obj_dir}"
 if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
@@ -60,20 +62,45 @@ fi
 echo "output_dir: ${output_dir}"
 echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
-
 (cd "${project_dir}"
   if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
     echo '########## テクスチャマッピング ##########'
+
+    split_ortho_dir="${output_dir}/intermediate/ortho"
+    mkdir -p "${split_ortho_dir}"
+    for ortho_path in "${input_ortho_dir}/"*.tif; do
+      ortho_basename=$(basename "${ortho_path}")
+      ortho_name="${ortho_basename%.*}"
+      ortho_ext="${ortho_basename##*.}"
+      if find "${split_ortho_dir}" -name "${ortho_name}*.${ortho_ext}" 2> /dev/null | grep -q .; then
+        echo "${ortho_path}の分割をスキップします"
+        continue
+      fi
+      gdal_retile.py -ps "${grid_pixel}" "${grid_pixel}" -targetDir "${split_ortho_dir}" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" "${ortho_path}"
+    done
+
+    split_image_dir="${output_dir}/intermediate/image"
+    mkdir -p "${split_image_dir}"
+    for image_path in "${input_image_dir}/"*.tif; do
+      image_basename=$(basename "${image_path}")
+      image_name="${image_basename%.*}"
+      image_ext="${image_basename##*.}"
+      if find "${split_image_dir}" -name "${image_name}*.${image_ext}" 2> /dev/null | grep -q .; then
+        echo "${image_path}の分割をスキップします"
+        continue
+      fi
+      magick "${image_path}[0]" -crop "${grid_pixel}x${grid_pixel}" -set filename:tile "${image_name}_%[fx:page.x/${grid_pixel}]_%[fx:page.y/${grid_pixel}]" +repage "${split_image_dir}/%[filename:tile].${image_ext}"
+    done
 
     output_texture_mapping_dir="${output_dir}/intermediate/texture_mapping"
     rm -rf "${output_texture_mapping_dir}"
 
     python -m src.texture_mapping.main \
       --input_obj_dir "${input_obj_dir}" \
-      --texture_dir "${input_image_dir}" \
+      --texture_dir "${split_image_dir}" \
       --ex_calib "${input_ex_calib}" \
       --camera_info "${input_camera_info}" \
-      --ortho_dir "${input_ortho_dir}" \
+      --ortho_dir "${split_ortho_dir}" \
       --output_dir "${output_texture_mapping_dir}" \
       --image_format png
 

@@ -162,15 +162,11 @@ class TextureMain:
             if self.param_manager.ortho_folder_path and os.path.isdir(
                 self.param_manager.ortho_folder_path
             ):
-                ortho_files = [
-                    f
-                    for f in os.listdir(self.param_manager.ortho_folder_path)
-                    if f.lower().endswith((".tif", ".tiff", ".jpg", ".jpeg", ".png"))
-                ]
-                for f in ortho_files:
-                    ortho = OrthoImage()
-                    if ortho.set_ortho_param(self.param_manager.ortho_folder_path, f):
-                        ortho_list.append(ortho)
+                from .ortho_image import OrthoImageCollection
+
+                ortho_coll = OrthoImageCollection(self.param_manager.ortho_folder_path)
+                if ortho_coll.orthos:
+                    ortho_list.append(ortho_coll)
 
             ortho_num = len(ortho_list)
             if ortho_num > 0:
