@@ -146,15 +146,13 @@ if ! "${skip_bldg_lod2_tool}"; then
     echo '警告: src/texture_mapping/main.py が見つかりません。このステップをスキップします。' 1>&2
   fi
 
-  output_bldg_lod2_tool_path="${output_bldg_lod2_tool_base_path}/obj"
-
-
+  output_bldg_lod2_tool_path="${output_bldg_lod2_tool_base_path}"
 
   if ! "${output_texture_enabled}"; then
     # テクスチャつくらないなら終わり
     output_result_path="${output_dir}/output_result"
     rm -rf "${output_result_path}"
-    cp -rL "${output_bldg_lod2_tool_path}" "${output_result_path}"
+    cp -rL "${output_bldg_lod2_tool_path}/obj" "${output_result_path}"
 
     echo "最終結果 : ${output_result_path}"
     exit 0
@@ -221,63 +219,6 @@ python inference_realesrgan.py \
   --input-ext png --ext png
 
 
-copy_misc() {
-  input_image_path="${1}"
-  input_misc_path="${2}"
-  output_result_path="${3}"
-  output_format="${4}"
-  if [ "${input_image_path}" != "${output_result_path}" ]; then
-    rm -rf "${output_result_path}"
-    cp -r "${input_image_path}" "${output_result_path}"
-  fi
-
-  # テクスチャ画像以外のファイルをコピー
-  if [ -d "${output_result_path}" ]; then
-    for appearance_dir in "${output_result_path}/"*_appearance; do
-      [ -e "${appearance_dir}" ] || continue
-      area="$(basename -s '_appearance' "${appearance_dir}")"
-
-    if [ -f "${input_misc_path}/${area}.gml" ]; then
-      area_label="${area}"
-    else
-      for gml_file in "${input_misc_path}/${area}_"*".gml"; do
-        area_label=$(basename -s .gml "${gml_file}")
-        break
-      done
-    fi
-
-    # gmlファイルをコピー
-    cp -n "${input_misc_path}/${area_label}.gml" "${output_result_path}/"
-
-    # objファイルをコピー
-    obj_dir_path="${output_result_path}/obj/${area_label}"
-    mkdir -p "${obj_dir_path}"
-    for texture_file in "${appearance_dir}/"*."${output_format}"; do
-      bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
-      cp -n "${input_misc_path}/obj/${area_label}/${bldg_id}.obj" "${obj_dir_path}/"
-    done
-
-    # mtlファイル作成
-    mtl_file_path="${obj_dir_path}/${area_label}.mtl"
-    rm -f "${mtl_file_path}"
-    for texture_file in "${appearance_dir}/"*."${output_format}"; do
-      bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
-      printf '%s\n\n' "newmtl ${bldg_id}" >> "${mtl_file_path}"
-      printf '%s\n\n' "map_Kd $(realpath --relative-to "${obj_dir_path}" "${texture_file}")" >> "${mtl_file_path}"
-      done
-    done
-
-    # gmlファイルの中で変更
-    cd "${project_dir}/src/misc"
-    for gml_file in $(find "${output_result_path}" -name '*.gml'); do
-      python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
-    done
-  fi
-}
-
-copy_misc "${output_esrgan_path}" "${output_wall_path}" "${output_esrgan_path}" png
-
-
 
 ########## 壁面視認性向上ツール（2度掛け） ##########
 
@@ -322,6 +263,7 @@ python predict.py \
 ########## 最終結果フォルダー ##########
 
 output_path="${output_dir}/output_result"
-copy_misc "${output_deblurgan_path}" "${output_wall_path2}" "${output_path}" jpg
+rm -rf "${output_path}"
+cp -r "${output_deblurgan_path}" "${output_path}"
 
 echo "最終結果 : ${output_path}"

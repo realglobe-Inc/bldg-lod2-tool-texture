@@ -377,6 +377,21 @@ def rectify_images(
         for line in new_lines:
             obj_file.write(f"{line}\n")
 
+    # MTLファイルをコピーして修正
+    if mtllib_value:
+        mtl_src = os.path.join(os.path.dirname(obj_path), mtllib_value)
+        mtl_dst = os.path.join(output_dir, "obj", mtllib_value)
+        if os.path.exists(mtl_src):
+            with open(mtl_src, "r") as f:
+                mtl_lines = f.readlines()
+            with open(mtl_dst, "w") as f:
+                for line in mtl_lines:
+                    if line.strip().lower().startswith("map_kd "):
+                        # パスを ../appearance/bldg_id.ext に書き換える
+                        f.write(f"map_Kd ../appearance/{bldg_id}.{output_format}\n")
+                    else:
+                        f.write(line)
+
     return face_vertices_list
 
 
