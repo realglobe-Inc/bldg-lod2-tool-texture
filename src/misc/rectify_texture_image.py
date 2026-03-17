@@ -11,16 +11,6 @@ from lxml import etree
 from tqdm import tqdm
 
 
-def copy_gml(
-    input_dir: str,
-    area_id: str,
-    output_dir: str,
-    output_format: str,
-    face_vertices_list_map: dict[str, list[list[tuple[float, float]]]],
-):
-    pass
-
-
 def rotate_to_xz(vs):
     if len(vs) < 3:
         raise Exception("Invalid array size")
@@ -91,7 +81,7 @@ def read_mtl(mtl_path: str):
 
 
 def calc_width_and_height(
-    image_sizes: [tuple[int, int]], n_row: int
+    image_sizes: list[tuple[int, int]], n_row: int
 ) -> tuple[tuple[int, int], list[int]]:
     """
     :return: 返り値の最後は行ごとの高さ
@@ -109,7 +99,7 @@ def calc_width_and_height(
 
 
 def calc_offsets(
-    image_sizes: [tuple[int, int]],
+    image_sizes: list[tuple[int, int]],
 ) -> tuple[tuple[int, int], list[tuple[int, int]]]:
     # # 横に長い順
     # indices = sorted(range(len(image_sizes)), key=lambda i: image_sizes[i][0], reverse=True)
@@ -198,13 +188,13 @@ def rectify_images(
                 f_values.append(value)
 
     mtl_path: Optional[str] = None
-    mtl: {str, str} = {}
+    mtl: dict[str, str] = {}
     texture_path: Optional[str] = None
     if mtllib_value is not None:
         mtl_path = os.path.abspath(
             os.path.join(os.path.dirname(output_obj_path), mtllib_value)
         )
-        mtl: {str, str} = read_mtl(mtl_path)
+        mtl: dict[str, str] = read_mtl(mtl_path)
     if usemtl_value is not None and usemtl_value in mtl:
         texture_rel_path = mtl[usemtl_value]
         texture_path = os.path.abspath(
