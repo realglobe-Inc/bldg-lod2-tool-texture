@@ -13,7 +13,7 @@ output_format="${OUTPUT_FORMAT:-"png"}"
 meter_per_pixel="${METER_PER_PIXEL:-0.16}"
 
 (
-cd "$(dirname "$0")/tools/SuperResolution/WallSurface"
+cd "$(dirname "$0")/src/wall_super_resolution"
 
 param_file=$(mktemp --suffix .json)
 echo "{

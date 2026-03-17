@@ -25,11 +25,11 @@
 | 順番 | 相対パス | 説明 | 内部処理の詳細 | 備考 |
 |-|-|-|-|-|
 | 1 | `./` | LOD2建築物自動作成ツール | [実行フロー](./docs/tutorials/tools/bldg-lod2-tool/README.md) | |
-| - | ~~`./tools/SuperResolution/RoofSurface/`~~ | ~~屋根面視認性向上ツール~~ | | |
-| 2 | `./tools/SuperResolution/WallSurface/` | 壁面視認性向上ツール | （要ドキュメント作成） | |
-| 3 | `./tools/DeblurGANv2` | テクスチャ鮮明化ツール | [実行フロー](./docs/tutorials/tools/DeblurGANv2/README.md) | |
+| - | ~~`./src/wall_super_resolution/RoofSurface/`~~ | ~~屋根面視認性向上ツール~~ | | |
+| 2 | `./src/wall_super_resolution/` | 壁面視認性向上ツール | （要ドキュメント作成） | |
+| 3 | `./src/deblur_gan_v2` | テクスチャ鮮明化ツール | [実行フロー](./docs/tutorials/tools/DeblurGANv2/README.md) | |
 | 4 | `./tools/UnsharpMask/` | テクスチャシャープ化ツール | [実行フロー](./docs/tutorials/tools/UnsharpMask/README.md) | |
-| 5 | `./tools/Real-ESRGAN/` | テクスチャ解像度向上ツール | [実行フロー](./docs/tutorials/tools/Real-ESRGAN/README.md) | |
+| 5 | `./src/real_esrgan/` | テクスチャ解像度向上ツール | [実行フロー](./docs/tutorials/tools/Real-ESRGAN/README.md) | |
 | - | ~~`./tools/Atlas_Prot/`~~ | ~~テクスチャアトラス化ツール~~ | （要ドキュメント作成） | バグが多すぎて、使用中止 |
 
 

@@ -1,6 +1,6 @@
 [submodule "tools/DeblurGANv2"]
-	path = tools/DeblurGANv2
+	path = src/deblur_gan_v2
 	url = https://github.com/realglobe-Inc/DeblurGANv2
 [submodule "tools/Real-ESRGAN"]
-	path = tools/Real-ESRGAN
+	path = src/real_esrgan
 	url = https://github.com/realglobe-Inc/Real-ESRGAN

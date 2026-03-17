@@ -11,7 +11,7 @@ input_format="${INPUT_FORMAT:-"png"}"
 output_format="${OUTPUT_FORMAT:-"png"}"
 
 (
-cd "$(dirname "$0")/tools/Real-ESRGAN"
+cd "$(dirname "$0")/src/real_esrgan"
 
 rm -rf "${output_dir}/"*
 python inference_realesrgan.py -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 -i "${input_dir}" -o "${output_dir}" --input-ext "${input_format}" --ext "${output_format}"

@@ -56,9 +56,9 @@ echo "output_texture_enabled ${output_texture_enabled}"
 echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
 project_dir="$(realpath "$(dirname "$0")")"
-wall_surface_model="${WALL_SURFACE_MODEL:-"${project_dir}/tools/SuperResolution/WallSurface/checkpoint/latest_net_G_A.pth"}"
-real_esrgan_model="${REAL_ESRGAN_MODEL:-"${project_dir}/tools/Real-ESRGAN/weights/RealESRGAN_x4plus.pth"}"
-deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/tools/DeblurGANv2/checkpoints/fpn_inception.h5"}"
+wall_surface_model="${WALL_SURFACE_MODEL:-"${project_dir}/model/latest_net_G_A.pth"}"
+real_esrgan_model="${REAL_ESRGAN_MODEL:-"${project_dir}/model/RealESRGAN_x4plus.pth"}"
+deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/model/fpn_inception.h5"}"
 
 
 
@@ -120,7 +120,7 @@ if ! "${skip_bldg_lod2_tool}"; then
   rm -rf "${output_bldg_lod2_tool_base_path}"
   mkdir -p "${output_bldg_lod2_tool_base_path}"
 
-  if [ -f run_texture_mapping.py ]; then
+  if [ -f src/texture_mapping/main.py ]; then
     texture_dir=$(jq -r '.TextureFolderPath' "${bldg_lod2_tool_param_file}")
     ex_calib=$(jq -r '.ExternalCalibElementPath' "${bldg_lod2_tool_param_file}")
     camera_info=$(jq -r '.CameraInfoPath' "${bldg_lod2_tool_param_file}")
@@ -128,7 +128,7 @@ if ! "${skip_bldg_lod2_tool}"; then
     image_format=$(jq -r '.TextureImageFormat' "${bldg_lod2_tool_param_file}")
     building_ids=$(jq -r '.TargetBuildingIds | if . == null or . == [] then "" else join(" ") end' "${bldg_lod2_tool_param_file}")
 
-    cmd="python run_texture_mapping.py \
+    cmd="python src/texture_mapping/main.py \
       --texture_dir \"${texture_dir}\" \
       --ex_calib \"${ex_calib}\" \
       --camera_info \"${camera_info}\" \
@@ -143,7 +143,7 @@ if ! "${skip_bldg_lod2_tool}"; then
     echo "Executing: ${cmd}"
     eval "${cmd}"
   else
-    echo '警告: run_texture_mapping.py が見つかりません。このステップをスキップします。' 1>&2
+    echo '警告: src/texture_mapping/main.py が見つかりません。このステップをスキップします。' 1>&2
   fi
 
   output_bldg_lod2_tool_path="${output_bldg_lod2_tool_base_path}/obj"
@@ -172,7 +172,7 @@ fi
 echo '########## 正対化ツール ##########'
 
 # 正対化ツールのフォルダーに移動
-cd "${project_dir}/tools/misc"
+cd "${project_dir}/src/misc"
 
 output_rectify_path="${output_dir}/output_rectify"
 rm -rf "${output_rectify_path}"
@@ -187,7 +187,7 @@ python rectify_texture_image.py -i "${output_bldg_lod2_tool_path}" -o "${output_
 echo '########## 壁面視認性向上ツール ##########'
 
 # 壁面視認性向上ツールのフォルダーに移動
-cd "${project_dir}/tools/SuperResolution/WallSurface"
+cd "${project_dir}/src/wall_super_resolution"
 
 output_wall_path="${output_dir}/output_wall"
 rm -rf "${output_wall_path}"
@@ -209,7 +209,7 @@ python main.py \
 echo '########## テクスチャ解像度向上ツール ##########'
 
 # テクスチャ解像度向上ツールのフォルダーに移動
-cd "${project_dir}/tools/Real-ESRGAN"
+cd "${project_dir}/src/real_esrgan"
 
 output_esrgan_path="${output_dir}/output_esrgan"
 rm -rf "${output_esrgan_path}"
@@ -268,7 +268,7 @@ copy_misc() {
     done
 
     # gmlファイルの中で変更
-    cd "${project_dir}/tools/misc"
+    cd "${project_dir}/src/misc"
     for gml_file in $(find "${output_result_path}" -name '*.gml'); do
       python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
     done
@@ -284,7 +284,7 @@ copy_misc "${output_esrgan_path}" "${output_wall_path}" "${output_esrgan_path}" 
 echo '########## 壁面視認性向上ツール（2度掛け） ##########'
 
 # 壁面視認性向上ツールのフォルダーに移動
-cd "${project_dir}/tools/SuperResolution/WallSurface"
+cd "${project_dir}/src/wall_super_resolution"
 
 output_wall_path2="${output_dir}/output_wall2"
 rm -rf "${output_wall_path2}"
@@ -307,7 +307,7 @@ python main.py \
 echo '########## テクスチャ鮮明化ツール ##########'
 
 # テクスチャ鮮明化ツールのフォルダーに移動
-cd "${project_dir}/tools/DeblurGANv2"
+cd "${project_dir}/src/deblur_gan_v2"
 
 output_deblurgan_path="${output_dir}/output_deblurgan"
 rm -rf "${output_deblurgan_path}"
