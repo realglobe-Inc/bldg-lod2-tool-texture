@@ -51,3 +51,35 @@ def copy_obj_and_mtl(input_dir: str, output_dir: str, new_ext: str = None):
                         if new_ext:
                             update_mtl_texture_extension(mtl_dst, new_ext)
                     break
+
+
+def get_textures_from_obj(obj_path: Path) -> list[Path]:
+    textures = []
+    if not obj_path.exists():
+        return textures
+
+    with open(obj_path, "r") as f:
+        for line in f:
+            if line.strip().lower().startswith("mtllib "):
+                mtl_name = line.strip().split(None, 1)[1]
+                mtl_path = obj_path.parent / mtl_name
+                if mtl_path.exists():
+                    textures.extend(get_textures_from_mtl(mtl_path))
+                break
+    return textures
+
+
+def get_textures_from_mtl(mtl_path: Path) -> list[Path]:
+    textures = []
+    if not mtl_path.exists():
+        return textures
+
+    with open(mtl_path, "r") as f:
+        for line in f:
+            if line.strip().lower().startswith("map_kd "):
+                parts = line.strip().split(None, 1)
+                if len(parts) > 1:
+                    texture_rel_path = parts[1]
+                    texture_path = mtl_path.parent / texture_rel_path
+                    textures.append(texture_path.resolve())
+    return list(set(textures))  # 重複を排除

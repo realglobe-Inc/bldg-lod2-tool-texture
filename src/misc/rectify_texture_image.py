@@ -7,7 +7,6 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from lxml import etree
 from tqdm import tqdm
 
 

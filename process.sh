@@ -6,19 +6,19 @@ set -e
 # MODE:
 #     実行モードを指定します。
 #     - FULL: テクスチャマッピングから高精度化まで全行程を実行します。
-#     - SKIP_MAPPING: テクスチャマッピングをスキップし、既存の OBJ を入力として高精度化のみ実行します。
-#     - ONLY_MAPPING: テクスチャマッピングのみを実行します。
+#     - SKIP_TEXTURE_MAPPING: テクスチャマッピングをスキップし、既存の OBJ を入力として高精度化のみ実行します。
+#     - ONLY_TEXTURE_MAPPING: テクスチャマッピングのみを実行します。
 # INPUT_OBJ_DIR:
 #     OBJファイルが格納されているディレクトリパス。
 # INPUT_IMAGE_DIR:
 #     画像ファイルが格納されているディレクトリパス。
-#     - FULL/ONLY_MAPPING の場合に必要
+#     - FULL/ONLY_TEXTURE_MAPPING の場合に必要
 # INPUT_EX_CALIB:
 #     外部評定要素のファイルパス
-#     - FULL/ONLY_MAPPING の場合に必要
+#     - FULL/ONLY_TEXTURE_MAPPING の場合に必要
 # INPUT_CAMERA_INFO:
 #     内部評定要素のファイルパス
-#     - FULL/ONLY_MAPPING の場合に必要
+#     - FULL/ONLY_TEXTURE_MAPPING の場合に必要
 # OUTPUT_DIR:
 #     出力ファイルや中間ファイルを保存するディレクトリパス。
 # METER_PER_PIXEL:
@@ -47,7 +47,7 @@ deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/model/fpn_inception.h5"}"
 
 echo "mode: ${mode}"
 echo "input_obj_dir: ${input_obj_dir}"
-if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_MAPPING" ]; then
+if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
   echo "input_ex_calib: ${input_ex_calib}"
   echo "input_camera_info: ${input_camera_info}"
   echo "input_image_dir: ${input_image_dir}"
@@ -55,64 +55,59 @@ fi
 echo "output_dir: ${output_dir}"
 echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
-mkdir -p "${output_dir}"
+
+(cd "${project_dir}"
+  if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
+    echo '########## テクスチャマッピング ##########'
+
+    output_texture_mapping_dir="${output_dir}/intermediate/texture_mapping"
+    rm -rf "${output_texture_mapping_dir}"
+
+    python -m src.texture_mapping.main \
+      --input_obj_dir "${input_obj_dir}" \
+      --texture_dir "${input_image_dir}" \
+      --ex_calib "${input_ex_calib}" \
+      --camera_info "${input_camera_info}" \
+      --output_dir "${output_texture_mapping_dir}" \
+      --image_format png
+
+    current_output_dir="${output_texture_mapping_dir}"
+  else
+    echo '########## テクスチャマッピングをスキップします ##########'
+    current_output_dir="${input_obj_dir}"
+  fi
 
 
-if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_MAPPING" ]; then
-  echo '########## テクスチャマッピング ##########'
-  
-  output_mapping_dir="${output_dir}/intermediate/texture_mapping"
-  rm -rf "${output_mapping_dir}"
-
-  python src/texture_mapping/main.py \
-    --input_obj_dir "${input_obj_dir}" \
-    --texture_dir "${input_image_dir}" \
-    --ex_calib "${input_ex_calib}" \
-    --camera_info "${input_camera_info}" \
-    --output_dir "${output_mapping_dir}" \
-    --image_format png
-
-  current_obj_dir="${output_mapping_dir}"
-else
-  echo '########## テクスチャマッピングをスキップします ##########'
-  current_obj_dir="${input_obj_dir}"
-fi
-
-
-if [ "${mode}" = "ONLY_MAPPING" ]; then
-  echo "テクスチャマッピングが完了しました。"
-  rm -rf "${output_dir}/obj" "${output_dir}/appearance"
-  cp -r "${current_obj_dir}/obj" "${current_obj_dir}/appearance" "${output_dir}/"
-  echo "最終結果 : ${output_dir}/obj ${output_dir}/appearance"
-  exit 0
-fi
-
-
-
-echo '########## 正対化ツール ##########'
-
-output_rectify_dir="${output_dir}/intermediate/rectify"
-rm -rf "${output_rectify_dir}"
-
-# PYTHONPATH を調整して実行
-export PYTHONPATH="${project_dir}:${PYTHONPATH}"
-python src/misc/rectify_texture_image.py \
-  -i "${current_obj_dir}" \
-  -o "${output_rectify_dir}" \
-  --format png \
-  --meter-per-pixel "${meter_per_texture_pixel}"
+  if [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
+    echo "テクスチャマッピングが完了しました。"
+    rm -rf "${output_dir}/obj" "${output_dir}/appearance"
+    cp -r "${current_output_dir}/obj" "${current_output_dir}/appearance" "${output_dir}/"
+    echo "最終結果 : ${output_dir}/obj ${output_dir}/appearance"
+    exit 0
+  fi
 
 
 
-echo '########## 壁面視認性向上ツール ##########'
+  echo '########## 正対化ツール ##########'
 
-output_wall_super_resolution_dir="${output_dir}/intermediate/wall_super_resolution"
-rm -rf "${output_wall_super_resolution_dir}"
+  output_rectify_dir="${output_dir}/intermediate/rectify"
+  rm -rf "${output_rectify_dir}"
 
-(
-  cd "${project_dir}/src/wall_super_resolution"
-  python main.py \
-    --input_dir "${output_rectify_dir}" \
+  python -m src.misc.rectify_texture_image \
+    -i "${current_output_dir}/obj" \
+    -o "${output_rectify_dir}" \
+    --format png \
+    --meter-per-pixel "${meter_per_texture_pixel}"
+
+
+
+  echo '########## 壁面視認性向上ツール ##########'
+
+  output_wall_super_resolution_dir="${output_dir}/intermediate/wall_super_resolution"
+  rm -rf "${output_wall_super_resolution_dir}"
+
+  python -m src.wall_super_resolution.main \
+    --input_dir "${output_rectify_dir}/obj" \
     --output_dir "${output_wall_super_resolution_dir}" \
     --device cuda \
     --checkpoint "${wall_super_resolution_model}" \
@@ -120,38 +115,32 @@ rm -rf "${output_wall_super_resolution_dir}"
     --debug_log_output false \
     --meter_per_pixel "${meter_per_texture_pixel}" \
     --output_format png
-)
 
 
 
-echo '########## テクスチャ解像度向上ツール ##########'
+  echo '########## テクスチャ解像度向上ツール ##########'
 
-output_real_esrgan_dir="${output_dir}/intermediate/real_esrgan"
-rm -rf "${output_real_esrgan_dir}"
+  output_real_esrgan_dir="${output_dir}/intermediate/real_esrgan"
+  rm -rf "${output_real_esrgan_dir}"
 
-(
-  cd "${project_dir}/src/real_esrgan"
-  python inference_realesrgan.py \
+  python -m src.real_esrgan.inference_realesrgan \
     -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
-    --model_dir "${real_esrgan_model}" \
-    -i "${output_wall_super_resolution_dir}" \
+    --model_path "${real_esrgan_model}" \
+    -i "${output_wall_super_resolution_dir}/obj" \
     -o "${output_real_esrgan_dir}" \
     --input-ext png --ext png
-)
 
 
 
-echo '########## 壁面視認性向上ツール（2度掛け） ##########'
+  echo '########## 壁面視認性向上ツール（2度掛け） ##########'
 
-output_wall_super_resolution2_dir="${output_dir}/intermediate/wall_super_resolution2"
-rm -rf "${output_wall_super_resolution2_dir}"
+  output_wall_super_resolution2_dir="${output_dir}/intermediate/wall_super_resolution2"
+  rm -rf "${output_wall_super_resolution2_dir}"
 
-meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
+  meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
 
-(
-  cd "${project_dir}/src/wall_super_resolution"
-  python main.py \
-    --input_dir "${output_real_esrgan_dir}" \
+  python -m src.wall_super_resolution.main \
+    --input_dir "${output_real_esrgan_dir}/obj" \
     --output_dir "${output_wall_super_resolution2_dir}" \
     --device cuda \
     --checkpoint "${wall_super_resolution_model}" \
@@ -159,27 +148,24 @@ meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc |
     --debug_log_output false \
     --meter_per_pixel "${meter_per_texture_pixel2}" \
     --output_format png
-)
 
 
 
-echo '########## テクスチャ鮮明化ツール ##########'
+  echo '########## テクスチャ鮮明化ツール ##########'
 
-output_deblurgan_dir="${output_dir}/intermediate/deblurgan"
-rm -rf "${output_deblurgan_dir}"
+  output_deblur_gan_dir="${output_dir}/intermediate/deblur_gan"
+  rm -rf "${output_deblur_gan_dir}"
 
-(
-  cd "${project_dir}/src/deblur_gan_v2"
-  python predict.py \
+  python -m src.deblur_gan_v2.predict \
     -c "${deblur_gan_model}" \
-    -i "${output_wall_super_resolution2_dir}" \
-    -o "${output_deblurgan_dir}" \
+    -i "${output_wall_super_resolution2_dir}/obj" \
+    -o "${output_deblur_gan_dir}" \
     --input-format png \
     --output-format png
+
+
+
+  rm -rf "${output_dir}/obj" "${output_dir}/appearance"
+  cp -r "${output_deblur_gan_dir}/obj" "${output_deblur_gan_dir}/appearance" "${output_dir}/"
+  echo "最終結果 : ${output_dir}/obj ${output_dir}/appearance"
 )
-
-
-
-rm -rf "${output_dir}/obj" "${output_dir}/appearance"
-cp -r "${output_deblurgan_dir}/obj" "${output_deblurgan_dir}/appearance" "${output_dir}/"
-echo "最終結果 : ${output_dir}/obj ${output_dir}/appearance"

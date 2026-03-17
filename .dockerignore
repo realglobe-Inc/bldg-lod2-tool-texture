@@ -3,4 +3,4 @@ __pycache__
 *egg-info
 
 # ローカルの事前学習ファイル
-create_model/data
+data

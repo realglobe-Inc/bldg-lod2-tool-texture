@@ -7,8 +7,8 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-# srcをPYTHONPATHに追加
-sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+# # srcをPYTHONPATHに追加
+# sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from src.texture_mapping.texture_main import TextureMain
 from src.util.param_manager import ParamManager

@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import shutil
-import sys
 import time
 import traceback
 import xml.etree.ElementTree as ET
@@ -12,14 +11,12 @@ from typing import Union
 
 import cv2
 import yaml
-from lxml import etree
-from tqdm import tqdm
 
-from cyclegan.dataset import DatasetDataLoader
-from cyclegan.model.cyclegan_model import CycleGANModel
-from cyclegan.util import util
-from src.postprocessing import PostProcessing
-from src.preprocessing import PreProcessing
+from .cyclegan.dataset import DatasetDataLoader
+from .cyclegan.model.cyclegan_model import CycleGANModel
+from .cyclegan.util import util
+from .src.postprocessing import PostProcessing
+from .src.preprocessing import PreProcessing
 
 
 def fix_relative_path(path):
@@ -235,7 +232,11 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("param_file", type=Path, nargs="?", default=None)
-    parser.add_argument("--cfg_file", type=Path, default="config.yml")
+    parser.add_argument(
+        "--cfg_file",
+        type=Path,
+        default=str(Path(__file__).resolve().parent / "src" / "config.yml"),
+    )
     parser.add_argument("--input_dir", type=str, help="Input directory")
     parser.add_argument("--output_dir", type=str, help="Output directory")
     parser.add_argument("--device", type=str, help="Device (cuda/cpu)")
@@ -273,7 +274,7 @@ if __name__ == "__main__":
     if args.checkpoint:
         args.checkpoint = fix_relative_path(args.checkpoint)
 
-    cfg_path = Path("src", args.cfg_file)
+    cfg_path = Path(args.cfg_file)
     with cfg_path.open("rt") as cf:
         cfg = yaml.safe_load(cf)
 
