@@ -372,8 +372,18 @@ def rectify_images(
     output_obj_path = os.path.join(output_dir, "obj", f"{bldg_id}.obj")
     os.makedirs(os.path.dirname(output_obj_path), exist_ok=True)
     with open(output_obj_path, "w") as obj_file:
+        obj_file.write(f"mtllib {bldg_id}.mtl\n")
+        obj_file.write(f"usemtl {bldg_id}\n")
         for line in new_lines:
+            if line.startswith("mtllib ") or line.startswith("usemtl "):
+                continue
             obj_file.write(f"{line}\n")
+
+    # MTLファイルの作成
+    mtl_dst = os.path.join(output_dir, "obj", f"{bldg_id}.mtl")
+    with open(mtl_dst, "w") as f:
+        f.write(f"newmtl {bldg_id}\n")
+        f.write(f"map_Kd ../appearance/{bldg_id}.{output_format}\n")
 
     return face_vertices_list
 
@@ -410,37 +420,6 @@ def process(
         )
         pbar.update(1)
     pbar.close()
-
-    # MTLファイルの作成
-    mtl_files = glob(os.path.join(input_dir, "*.mtl"))
-    for mtl_path in mtl_files:
-        mtl_name = os.path.basename(mtl_path)
-        mtl_dst = os.path.join(output_dir, "obj", mtl_name)
-        os.makedirs(os.path.dirname(mtl_dst), exist_ok=True)
-
-        with open(mtl_path, "r") as f:
-            mtl_lines = f.readlines()
-
-        new_mtl_lines = []
-        current_mtl_name = None
-        for line in mtl_lines:
-            stripped = line.strip()
-            if stripped.lower().startswith("newmtl "):
-                current_mtl_name = stripped.split()[1]
-                new_mtl_lines.append(line)
-            elif stripped.lower().startswith("map_kd "):
-                if current_mtl_name:
-                    # パスを ../appearance/current_mtl_name.ext に書き換える
-                    new_mtl_lines.append(
-                        f"map_Kd ../appearance/{current_mtl_name}.{output_format}\n"
-                    )
-                else:
-                    new_mtl_lines.append(line)
-            else:
-                new_mtl_lines.append(line)
-
-        with open(mtl_dst, "w") as f:
-            f.writelines(new_mtl_lines)
 
 
 def main():

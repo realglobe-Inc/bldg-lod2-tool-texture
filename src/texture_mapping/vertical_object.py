@@ -466,9 +466,7 @@ class VerticalObject:
 
             # マテリアル情報設定
             mtl_info = MaterialInfo(self._obj_filename)
-            img_path = os.path.join(
-                pathlib.Path(output_dir).name, self._obj_filename + "." + image_format
-            )
+            img_path = f"../appearance/{self._obj_filename}.{image_format}"
             # テクスチャ画像パスの区切り文字は/固定とする
             mtl_info.map_kd = img_path.replace(os.path.sep, "/")
 
@@ -517,9 +515,9 @@ class VerticalObject:
 
         # マテリアル情報設定
         mtl_info = MaterialInfo(self._obj_filename)
-        image_path = os.path.join(relpath, self._obj_filename + "." + image_format)
+        img_path = f"../appearance/{self._obj_filename}.{image_format}"
         # テクスチャ画像パスの区切り文字は/固定とする
-        mtl_info.map_kd = image_path.replace(os.path.sep, "/")
+        mtl_info.map_kd = img_path.replace(os.path.sep, "/")
 
         self._obj_info.mtl_file_name = mtl_file_name
         self._obj_info.set_mtl_info(mtl_info)

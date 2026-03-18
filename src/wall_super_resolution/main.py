@@ -12,6 +12,7 @@ from typing import Union
 import cv2
 import yaml
 
+from ..util.wrapper_base import copy_obj_and_mtl, get_texture_path_from_obj
 from .cyclegan.dataset import DatasetDataLoader
 from .cyclegan.model.cyclegan_model import CycleGANModel
 from .cyclegan.util import util
@@ -165,57 +166,6 @@ def check_error(param):
     return log_root, logger
 
 
-def get_original_texture_path(obj_file_path: Union[str, Path]):
-    """
-    Parse an OBJ file and its associated MTL file to extract textures
-    matching the materials used in the OBJ file.
-
-    Parameters:
-    - obj_file_path (str or Path): Path to the OBJ file.
-
-    Returns:
-    - List of texture paths used in the OBJ file.
-    """
-    obj_file_path = Path(obj_file_path)
-    if not obj_file_path.is_file():
-        raise FileNotFoundError(f"OBJ file not found: {obj_file_path}")
-
-    mtl_file_path = None
-    used_materials = set()
-    original_texture_path = None
-
-    # Step 1: Parse the OBJ file to find the mtllib and used materials (usemtl)
-    with obj_file_path.open("r") as obj_file:
-        for line in obj_file:
-            line = line.strip()
-            if line.lower().startswith("mtllib "):  # Find the MTL file
-                mtl_file_name = line.split(" ", 1)[1]
-                mtl_file_path = obj_file_path.parent / mtl_file_name
-            elif line.lower().startswith("usemtl "):  # Track used materials
-                material_name = line.split(" ", 1)[1]
-                used_materials.add(material_name)
-
-    if not mtl_file_path or not mtl_file_path.is_file():
-        raise FileNotFoundError(f"MTL file not found: {mtl_file_path}")
-
-    # Step 2: Parse the MTL file to find matching materials and their textures
-    current_material = None
-    with mtl_file_path.open("r") as mtl_file:
-        for line in mtl_file:
-            line = line.strip()
-            if line.lower().startswith("newmtl "):  # Start of a new material
-                current_material = line.split(" ", 1)[1]
-            elif (
-                line.lower().startswith("map_kd ")
-                and current_material in used_materials
-            ):
-                texture_relative_path = line.split(" ", 1)[1]
-                texture_full_path = mtl_file_path.parent / texture_relative_path
-                original_texture_path = texture_full_path.resolve()
-
-    return original_texture_path
-
-
 def get_texture_check_list(city_gml_path: Union[str, Path]):
     tree = ET.parse(city_gml_path)
     root = tree.getroot()
@@ -354,25 +304,14 @@ if __name__ == "__main__":
             # Check if the file is present
             check_path(obj_file, param, logger)
 
-            original_texture_path = get_original_texture_path(obj_file)
+            original_texture_path = get_texture_path_from_obj(obj_file)
             if original_texture_path is None:
                 continue
 
             # Copy OBJ and MTL to output directory
             output_obj_dir = Path(param["OutputDir"]).joinpath("obj")
             output_obj_dir.mkdir(exist_ok=True, parents=True)
-            output_obj_path = output_obj_dir.joinpath(obj_file.name)
-            shutil.copy(obj_file, output_obj_path)
-
-            # Find and copy MTL
-            with obj_file.open("r") as f:
-                for line in f:
-                    if line.lower().startswith("mtllib "):
-                        mtl_name = line.strip().split(" ", 1)[1]
-                        shutil.copy(
-                            obj_file.parent / mtl_name, output_obj_dir / mtl_name
-                        )
-                        break
+            copy_obj_and_mtl(obj_file.parent, param["OutputDir"])
 
             # pre-processing
             write_log(log_root, "変換対象壁面の抽出および正対化開始", obj_file)

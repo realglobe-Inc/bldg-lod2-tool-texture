@@ -240,14 +240,14 @@ class TextureMain:
                         ret = ver.output_texture(
                             self.output_obj_dir,
                             texture_dir,
-                            mtl_file_name,
+                            f"{id}.mtl",
                             image_format,
                         )
-                        # マテリアルファイル名は appearance.mtl とする
+                        # マテリアルファイル名は {id}.mtl とする
                         ver.output_optional_obj(
                             obj_dir=self.optional_output_obj_dir,
                             texture_dir=texture_dir,
-                            mtl_file_name="appearance.mtl",
+                            mtl_file_name=f"{id}.mtl",
                             image_format=image_format,
                         )
 
