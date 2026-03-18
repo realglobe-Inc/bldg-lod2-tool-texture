@@ -53,17 +53,22 @@ deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/model/fpn_inception.h5"}"
 
 grid_pixel=${GRID_PIXEL:-1000}
 
-echo "パラメータ"
-echo "  mode: ${mode}"
-echo "  input_obj_dir: ${input_obj_dir}"
-if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
-  echo "  input_ex_calib: ${input_ex_calib}"
-  echo "  input_camera_info: ${input_camera_info}"
-  echo "  input_image_dir: ${input_image_dir}"
-  echo "  input_ortho_dir: ${input_ortho_dir}"
+if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ] || [ "${mode}" = "ONLY_WALL_SUPER_RESOLUTION" ]; then
+  echo "パラメータ"
+  echo "  mode: ${mode}"
+  echo "  input_obj_dir: ${input_obj_dir}"
+  if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
+    echo "  input_ex_calib: ${input_ex_calib}"
+    echo "  input_camera_info: ${input_camera_info}"
+    echo "  input_image_dir: ${input_image_dir}"
+    echo "  input_ortho_dir: ${input_ortho_dir}"
+  fi
+  echo "  output_dir: ${output_dir}"
+  echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
+else
+  echo "invalid mode: ${mode}" >&2
+  exit 1
 fi
-echo "  output_dir: ${output_dir}"
-echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
 (cd "${project_dir}"
   if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
@@ -195,7 +200,7 @@ echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
     -s 4 \
     --tile 1024 \
     --model_path "${real_esrgan_model}" \
-    -i "${tool_input_dir}/obj" \
+    -i "${tool_input_dir}" \
     -o "${tool_output_dir}" \
     --input-ext png \
     --ext png \
