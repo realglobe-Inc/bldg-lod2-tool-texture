@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu24.04
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
 
 # タイムゾーンの設定
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
@@ -9,6 +9,7 @@ RUN apt-get update && \
     nano curl wget zip unzip libopencv-dev libgdal-dev jq build-essential \
     libssl-dev zlib1g-dev libbz2-dev libreadline-dev \
     libsqlite3-dev libffi-dev liblzma-dev git locales bc \
+    gdal-bin imagemagick \
     python3 python3-pip python3-venv python3-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -30,46 +31,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -U pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
-# 学習済みモデルのダウンロード（LOD2建築物自動作成ツール）
-RUN mkdir -p src/create_model/data && \
-    wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/classifier_parameter.pkl' \
-      -O src/create_model/data/classifier_parameter.pkl && \
-    wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/roof_edge_detection_parameter.pth' \
-      -O src/create_model/data/roof_edge_detection_parameter.pth && \
-    wget 'https://github.com/realglobe-Inc/bldg-lod2-tool/releases/download/PretrainedModels-1.0/balcony_segmentation_parameter.pkl' \
-      -O src/create_model/data/balcony_segmentation_parameter.pkl
-
-# 壁面視認性向上ツール
-WORKDIR /app/src/wall_super_resolution
-COPY src/wall_super_resolution/checkpoint checkpoint
-RUN test -f checkpoint/latest_net_G_A.pth || \
+# 学習済みモデルのダウンロード
+RUN mkdir -p model && \
     wget 'https://github.com/realglobe-Inc/pytorch-CycleGAN-and-pix2pix/releases/download/bldg-lod2-tool-v2.0.0/latest_net_G_A.pth' \
-      -O checkpoint/latest_net_G_A.pth
-
-# テクスチャ鮮明化ツール
-WORKDIR /app/src/deblur_gan_v2
-COPY src/deblur_gan_v2/checkpoints checkpoints
-RUN mkdir -p "${HOME}/.cache/torch/hub/checkpoints" && \
-    wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/inceptionresnetv2-520b38e4.pth' \
-      -O "${HOME}/.cache/torch/hub/checkpoints/inceptionresnetv2-520b38e4.pth" && \
+      -O model/latest_net_G_A.pth && \
     wget 'https://github.com/realglobe-Inc/DeblurGANv2/releases/download/v1.0.0/fpn_inception.h5' \
-      -O checkpoints/fpn_inception.h5
-
-# テクスチャ解像度向上ツール
-WORKDIR /app/src/real_esrgan
-COPY src/real_esrgan/weights weights
-COPY src/real_esrgan/realesrgan realesrgan
-COPY src/real_esrgan/setup.py .
-COPY src/real_esrgan/VERSION .
-COPY src/real_esrgan/README.md .
-COPY src/real_esrgan/requirements.txt .
-RUN python setup.py develop --no-deps && \
-    (test -f weights/RealESRGAN_x4plus.pth || \
-    wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth \
-      -O weights/RealESRGAN_x4plus.pth)
-
-# その他のツール (misc)
-WORKDIR /app/src/misc
+      -O model/fpn_inception.h5 && \
+    wget 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth' \
+      -O model/RealESRGAN_x4plus.pth
 
 ########################################################################
 ########## ビルド速度向上のため、この下は頻繁に変更されるファイルの処理 ##########
@@ -77,24 +46,6 @@ WORKDIR /app/src/misc
 
 WORKDIR /app
 COPY src src
-
-WORKDIR /app/src/wall_super_resolution
-COPY src/wall_super_resolution/src src
-COPY src/wall_super_resolution/cyclegan cyclegan
-COPY src/wall_super_resolution/main.py .
-
-WORKDIR /app/src/deblur_gan_v2
-COPY src/deblur_gan_v2/models models
-COPY src/deblur_gan_v2/config config
-COPY src/deblur_gan_v2/predict.py .
-COPY src/deblur_gan_v2/aug.py .
-
-WORKDIR /app/src/real_esrgan
-COPY src/real_esrgan/inference_realesrgan.py .
-
-WORKDIR /app/src/misc
-COPY src/rectify/change_texture_image_ext_in_gml.py .
-COPY src/rectify/main.py .
 
 WORKDIR /app
 COPY process.sh .
