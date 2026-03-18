@@ -150,20 +150,35 @@ echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
 
 
-  echo '########## 壁面視認性向上ツール ##########'
+#  echo '########## 壁面視認性向上ツール ##########'
+#
+#  output_wall_super_resolution_dir="${output_dir}/intermediate/wall_super_resolution"
+#  rm -rf "${output_wall_super_resolution_dir}"
+#
+#  python -m src.wall_super_resolution.main \
+#    --input_dir "${output_rectify_dir}/obj" \
+#    --output_dir "${output_wall_super_resolution_dir}" \
+#    --device cuda \
+#    --checkpoint "${wall_super_resolution_model}" \
+#    --debug_log_output false \
+#    --meter_per_pixel "${meter_per_texture_pixel}" \
+#    --output_format png \
+#    --log-path "${output_wall_super_resolution_dir}/output.log"
 
-  output_wall_super_resolution_dir="${output_dir}/intermediate/wall_super_resolution"
-  rm -rf "${output_wall_super_resolution_dir}"
 
-  python -m src.wall_super_resolution.main \
-    --input_dir "${output_rectify_dir}/obj" \
-    --output_dir "${output_wall_super_resolution_dir}" \
-    --device cuda \
-    --checkpoint "${wall_super_resolution_model}" \
-    --debug_log_output false \
-    --meter_per_pixel "${meter_per_texture_pixel}" \
-    --output_format png \
-    --log-path "${output_wall_super_resolution_dir}/output.log"
+
+  echo '########## テクスチャ鮮明化ツール ##########'
+
+  output_deblur_gan_dir="${output_dir}/intermediate/deblur_gan"
+  rm -rf "${output_deblur_gan_dir}"
+
+  python -m src.deblur_gan_v2.predict \
+    -c "${deblur_gan_model}" \
+    -i "${output_rectify_dir}/obj" \
+    -o "${output_deblur_gan_dir}" \
+    --input-format png \
+    --output-format png \
+    --log-path "${output_deblur_gan_dir}/output.log"
 
 
 
@@ -178,48 +193,34 @@ echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
     -s 4 \
     --tile 1024 \
     --model_path "${real_esrgan_model}" \
-    -i "${output_wall_super_resolution_dir}/obj" \
+    -i "${output_deblur_gan_dir}/obj" \
     -o "${output_real_esrgan_dir}" \
-    --input-ext png --ext png \
+    --input-ext png \
+    --ext png \
     --log-path "${output_real_esrgan_dir}/output.log"
 
 
 
-  echo '########## 壁面視認性向上ツール（2度掛け） ##########'
-
-  output_wall_super_resolution2_dir="${output_dir}/intermediate/wall_super_resolution2"
-  rm -rf "${output_wall_super_resolution2_dir}"
-
-  meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
-
-  python -m src.wall_super_resolution.main \
-    --input_dir "${output_real_esrgan_dir}/obj" \
-    --output_dir "${output_wall_super_resolution2_dir}" \
-    --device cuda \
-    --checkpoint "${wall_super_resolution_model}" \
-    --debug_log_output false \
-    --meter_per_pixel "${meter_per_texture_pixel2}" \
-    --output_format png \
-    --log-path "${output_wall_super_resolution2_dir}/output.log"
-
-
-
-  echo '########## テクスチャ鮮明化ツール ##########'
-
-  output_deblur_gan_dir="${output_dir}/intermediate/deblur_gan"
-  rm -rf "${output_deblur_gan_dir}"
-
-  python -m src.deblur_gan_v2.predict \
-    -c "${deblur_gan_model}" \
-    -i "${output_wall_super_resolution2_dir}/obj" \
-    -o "${output_deblur_gan_dir}" \
-    --input-format png \
-    --output-format png \
-    --log-path "${output_deblur_gan_dir}/output.log"
+#  echo '########## 壁面視認性向上ツール（2度掛け） ##########'
+#
+#  output_wall_super_resolution2_dir="${output_dir}/intermediate/wall_super_resolution2"
+#  rm -rf "${output_wall_super_resolution2_dir}"
+#
+#  meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
+#
+#  python -m src.wall_super_resolution.main \
+#    --input_dir "${output_real_esrgan_dir}/obj" \
+#    --output_dir "${output_wall_super_resolution2_dir}" \
+#    --device cuda \
+#    --checkpoint "${wall_super_resolution_model}" \
+#    --debug_log_output false \
+#    --meter_per_pixel "${meter_per_texture_pixel2}" \
+#    --output_format png \
+#    --log-path "${output_wall_super_resolution2_dir}/output.log"
 
 
 
   rm -rf "${output_dir}/obj" "${output_dir}/appearance"
-  cp -r "${output_deblur_gan_dir}/obj" "${output_deblur_gan_dir}/appearance" "${output_dir}/"
+  cp -r "${output_real_esrgan_dir}/obj" "${output_real_esrgan_dir}/appearance" "${output_dir}/"
   echo "最終結果 : ${output_dir}/obj ${output_dir}/appearance"
 )
