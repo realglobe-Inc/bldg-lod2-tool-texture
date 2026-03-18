@@ -2,13 +2,11 @@ import glob
 import os
 import sys
 from enum import Enum
-from logging import getLogger
 
+from loguru import logger
 from shapely import Point
 
-from .face_info import FaceInfos, FaceInfo, IndexInfo, MaterialInfo
-
-logger = getLogger(__name__)
+from .face_info import FaceInfo, FaceInfos, IndexInfo, MaterialInfo
 
 
 class BldElementType(Enum):
@@ -316,8 +314,7 @@ class ObjInfo:
                             for index in index_list:
                                 if index > len(self._tmp_v_list):
                                     raise ValueError(
-                                        f"{index} :index value exceeds"
-                                        " coordinates num."
+                                        f"{index} :index value exceeds coordinates num."
                                     )
                             for tex in tex_list:
                                 if tex > len(self._tmp_vt_list):
@@ -335,12 +332,7 @@ class ObjInfo:
 
                 except (SyntaxError, ValueError) as e:
                     message = "Line " + str(line_ct) + ", " + e.msg
-                    if err_message is None:
-                        print(message)
-                        e.msg = ""
-                    else:
-                        # err_message = message
-                        e.msg = message
+                    logger.debug(message)
                     raise e
 
         if (
@@ -396,10 +388,7 @@ class ObjInfo:
                                 cur_mtl = None
                     except (SyntaxError, ValueError) as e:
                         message = "Line " + str(line_ct) + ", " + e.msg
-                        if err_message is None:
-                            print(message)
-                        else:
-                            err_message += message
+                        logger.debug(message)
                         raise e
 
     def write_file(self, file_path="", swap_xy=False):

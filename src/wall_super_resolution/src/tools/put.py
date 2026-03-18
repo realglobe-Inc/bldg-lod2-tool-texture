@@ -96,11 +96,9 @@ class Put:
 
     def __init__(
         self,
-        logger,
         seitaika_logs: list[dict[str, Any]],
         roof_infos: list[dict[str, Any]],
     ):
-        self._logger = logger
         self._seitaika_logs = seitaika_logs  # 正対化ログ
 
         self._new_w = None  # アトラス化画像の横方向のサイズ

@@ -51,34 +51,42 @@ deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/model/fpn_inception.h5"}"
 
 grid_pixel=${GRID_PIXEL:-1000}
 
-echo "mode: ${mode}"
-echo "input_obj_dir: ${input_obj_dir}"
+echo "パラメータ"
+echo "  mode: ${mode}"
+echo "  input_obj_dir: ${input_obj_dir}"
 if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
-  echo "input_ex_calib: ${input_ex_calib}"
-  echo "input_camera_info: ${input_camera_info}"
-  echo "input_image_dir: ${input_image_dir}"
-  echo "input_ortho_dir: ${input_ortho_dir}"
+  echo "  input_ex_calib: ${input_ex_calib}"
+  echo "  input_camera_info: ${input_camera_info}"
+  echo "  input_image_dir: ${input_image_dir}"
+  echo "  input_ortho_dir: ${input_ortho_dir}"
 fi
-echo "output_dir: ${output_dir}"
-echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
+echo "  output_dir: ${output_dir}"
+echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
 
 (cd "${project_dir}"
   if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
-    echo '########## テクスチャマッピング ##########'
+    if [ -d "${input_ortho_dir}" ]; then
+      echo '########## オルソ分割 ##########'
 
-    split_ortho_dir="${output_dir}/intermediate/split_ortho"
-    mkdir -p "${split_ortho_dir}"
-    for ortho_path in "${input_ortho_dir}/"*.tif; do
-      ortho_basename=$(basename "${ortho_path}")
-      ortho_name="${ortho_basename%.*}"
-      ortho_ext="${ortho_basename##*.}"
-      if find "${split_ortho_dir}" -name "${ortho_name}*.${ortho_ext}" 2> /dev/null | grep -q .; then
-        echo "${ortho_path}の分割をスキップします"
-        continue
-      fi
-      echo "${ortho_path}を分割します"
-      gdal_retile.py -ps "${grid_pixel}" "${grid_pixel}" -targetDir "${split_ortho_dir}" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" "${ortho_path}"
-    done
+      split_ortho_dir="${output_dir}/intermediate/split_ortho"
+      mkdir -p "${split_ortho_dir}"
+      for ortho_path in "${input_ortho_dir}/"*.tif; do
+        ortho_basename=$(basename "${ortho_path}")
+        ortho_name="${ortho_basename%.*}"
+        ortho_ext="${ortho_basename##*.}"
+        if find "${split_ortho_dir}" -name "${ortho_name}*.${ortho_ext}" 2> /dev/null | grep -q .; then
+          echo "${ortho_path}の分割をスキップします"
+          continue
+        fi
+        echo "${ortho_path}を分割します"
+        gdal_retile.py -ps "${grid_pixel}" "${grid_pixel}" -targetDir "${split_ortho_dir}" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" "${ortho_path}"
+      done
+
+      ortho_option="--ortho_dir \"${split_ortho_dir}\""
+    fi
+
+
+    echo '########## 画像分割 ##########'
 
     split_image_dir="${output_dir}/intermediate/split_image"
     mkdir -p "${split_image_dir}"
@@ -94,6 +102,9 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
       magick "${image_path}[0]" -crop "${grid_pixel}x${grid_pixel}" -set filename:tile "${image_name}_%[fx:page.x/${grid_pixel}]_%[fx:page.y/${grid_pixel}]" +repage "${split_image_dir}/%[filename:tile].${image_ext}"
     done
 
+
+    echo '########## テクスチャマッピング ##########'
+
     output_texture_mapping_dir="${output_dir}/intermediate/texture_mapping"
     rm -rf "${output_texture_mapping_dir}"
 
@@ -102,9 +113,9 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
       --texture_dir "${split_image_dir}" \
       --ex_calib "${input_ex_calib}" \
       --camera_info "${input_camera_info}" \
-      --ortho_dir "${split_ortho_dir}" \
       --output_dir "${output_texture_mapping_dir}" \
-      --image_format png
+      --image_format png \
+      --log-path "${output_texture_mapping_dir}/output.log" ${ortho_option}
 
     current_output_dir="${output_texture_mapping_dir}"
   else
@@ -132,7 +143,8 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
     -i "${current_output_dir}/obj" \
     -o "${output_rectify_dir}" \
     --format png \
-    --meter-per-pixel "${meter_per_texture_pixel}"
+    --meter-per-pixel "${meter_per_texture_pixel}" \
+    --log-path "${output_rectify_dir}/output.log"
 
 
 
@@ -146,10 +158,10 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
     --output_dir "${output_wall_super_resolution_dir}" \
     --device cuda \
     --checkpoint "${wall_super_resolution_model}" \
-    --output_log_dir "${output_wall_super_resolution_dir}/log" \
     --debug_log_output false \
     --meter_per_pixel "${meter_per_texture_pixel}" \
-    --output_format png
+    --output_format png \
+    --log-path "${output_wall_super_resolution_dir}/output.log"
 
 
 
@@ -159,11 +171,15 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
   rm -rf "${output_real_esrgan_dir}"
 
   python -m src.real_esrgan.inference_realesrgan \
-    -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
+    -n RealESRGAN_x4plus \
+    -g 0 \
+    -s 4 \
+    --tile 1024 \
     --model_path "${real_esrgan_model}" \
     -i "${output_wall_super_resolution_dir}/obj" \
     -o "${output_real_esrgan_dir}" \
-    --input-ext png --ext png
+    --input-ext png --ext png \
+    --log-path "${output_real_esrgan_dir}/output.log"
 
 
 
@@ -179,10 +195,10 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
     --output_dir "${output_wall_super_resolution2_dir}" \
     --device cuda \
     --checkpoint "${wall_super_resolution_model}" \
-    --output_log_dir "${output_wall_super_resolution2_dir}/log" \
     --debug_log_output false \
     --meter_per_pixel "${meter_per_texture_pixel2}" \
-    --output_format png
+    --output_format png \
+    --log-path "${output_wall_super_resolution2_dir}/output.log"
 
 
 
@@ -196,7 +212,8 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
     -i "${output_wall_super_resolution2_dir}/obj" \
     -o "${output_deblur_gan_dir}" \
     --input-format png \
-    --output-format png
+    --output-format png \
+    --log-path "${output_deblur_gan_dir}/output.log"
 
 
 

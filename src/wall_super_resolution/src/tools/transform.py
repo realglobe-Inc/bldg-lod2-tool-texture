@@ -1,5 +1,4 @@
 import codecs
-import json
 import math
 import os
 import pathlib
@@ -7,6 +6,7 @@ from typing import Optional
 
 import cv2
 import numpy as np
+from loguru import logger
 
 from ..mtl.classes import Material
 from ..mtl.parser import parse_mtl_from_file
@@ -18,17 +18,14 @@ def read_mtl(mtl_path: pathlib.Path):
 
 
 def seitaika_main(
-    logger,
     obj_path: pathlib.Path,
-    output_dir: pathlib.Path,
     pixel_per_meter: float,
     z_threshold=0.02,
 ):
-    if logger is not None:
-        logger.info(f"input_obj_path = {obj_path}")
+    logger.debug(f"input_obj_path = {obj_path}")
 
     seitaika_info, seitaika_figs, roof_info = process_obj_file(
-        logger, obj_path, output_dir, z_threshold, pixel_per_meter
+        obj_path, z_threshold, pixel_per_meter
     )
 
     return seitaika_info, seitaika_figs, roof_info
@@ -89,14 +86,11 @@ def rotateToXZ(vs):
 
 
 def process_obj_file(
-    logger,
     obj_path: pathlib.Path,
-    output_dir: pathlib.Path,
     z_threshold: float,
     pixel_per_meter: float,
 ):
-    if logger is not None:
-        logger.info(f"filepath: {obj_path}")
+    logger.debug(f"filepath: {obj_path}")
 
     geo_vs = []
     tex_vs = []
@@ -156,12 +150,7 @@ def process_obj_file(
                     }
 
                     roof_logs.append(roof_log)
-                    if logger is not None:
-                        roof_name = f"roof_{roof_index}.json"
-                        roof_path = output_dir.joinpath(roof_name)
-                        with open(roof_path, "w") as f:
-                            json.dump(roof_log, f, indent=4)
-                            roof_log_paths.append(roof_path.name)
+                    roof_log_paths.append("")
 
                     roof_index += 1
                     continue
@@ -235,10 +224,8 @@ def process_obj_file(
                 dst_image = cv2.bitwise_and(dst_image, mask)
                 h_dst, w_dst, _ = dst_image.shape
 
-                output_face_path = output_dir.joinpath(output_face_name)
+                output_face_path = pathlib.Path(output_face_name)
                 seitaika_figs.append({"img": dst_image, "path": output_face_path})
-                if logger is not None:
-                    cv2.imwrite(str(output_face_path), dst_image)
 
                 d = {
                     "obj_filename": str(obj_path.resolve()),
@@ -257,23 +244,15 @@ def process_obj_file(
                 }
 
                 seitaika_logs.append(d)
-                json_filepath = output_face_path.with_suffix(".log")
-                if logger is not None:
-                    with open(json_filepath, "w") as f:
-                        json.dump(d, f, indent=4)
-                    json_filepath = json_filepath.name
-                seitaika_log_paths.append(json_filepath)
+                seitaika_log_paths.append("")
 
             elif command == "g":
-                if logger is not None:
-                    logger.debug("group_name %s", elems[0])
+                logger.debug("group_name %s", elems[0])
             elif command == "mtllib":
-                if logger is not None:
-                    logger.debug("material_filename %s", elems[0])
+                logger.debug("material_filename %s", elems[0])
                 mtl = read_mtl(obj_path.parent.joinpath(elems[0]))
             elif command == "s":
-                if logger is not None:
-                    logger.debug("smooth_shading %s", elems[0])
+                logger.debug("smooth_shading %s", elems[0])
             elif command == "usemtl":
                 obj_texture = elems[0]
                 assert mtl is not None
@@ -290,8 +269,7 @@ def process_obj_file(
             elif command == "vt":
                 tex_vs.append([float(elems[0]), float(elems[1])])
             else:
-                if logger is not None:
-                    logger.warning("unknown command %s", command)
+                logger.warning("unknown command %s", command)
 
     seitaika_info = {"log": seitaika_logs, "path": seitaika_log_paths}
     roof_info = {"log": roof_logs, "path": roof_log_paths}

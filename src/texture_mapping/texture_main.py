@@ -2,19 +2,16 @@ import csv
 import os
 import re
 import shutil
-import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
 
-from tqdm import tqdm
+from loguru import logger
 
-from .photo_image import PhotoImage
-from .ortho_image import OrthoImage
-from .vertical_object import VerticalObject
-from ..util.log import Log, ModuleType, LogLevel
 from ..util.param_manager import ParamManager
 from ..util.result_type import ResultType
+from .photo_image import PhotoImage
+from .vertical_object import VerticalObject
 
 
 class TextureMain:
@@ -114,9 +111,7 @@ class TextureMain:
             if calib_count == 3:
                 # キャリブレーションデータが五つ揃っている時は有効
                 calib_flag = True
-                Log.output_log_write(
-                    LogLevel.DEBUG, ModuleType.PASTE_TEXTURE, "calib ON"
-                )
+                logger.debug("calib ON")
 
             # 写真情報読み込み
             for data in ex_calib[1:]:
@@ -124,20 +119,12 @@ class TextureMain:
                 # 外部標定要素チェック
                 if len(data) != 7:  # ファイル名,x,y,z,omega,phi,kappa
                     ret = False
-                    Log.output_log_write(
-                        LogLevel.WARN,
-                        ModuleType.PASTE_TEXTURE,
-                        "ex_calib data is insufficient",
-                    )
+                    logger.warning("ex_calib data is insufficient")
 
                 for idx, info in enumerate(data):  # 値が入っていない場合
                     if info == "":
                         ret = False
-                        Log.output_log_write(
-                            LogLevel.WARN,
-                            ModuleType.PASTE_TEXTURE,
-                            "ex_calib data including empty",
-                        )
+                        logger.warning("ex_calib data including empty")
                 if ret:
                     photo = PhotoImage()
                     ret = photo.set_photo_param(
@@ -151,11 +138,7 @@ class TextureMain:
                         photo_list.append(photo)
                         photo_num += 1
                     else:
-                        Log.output_log_write(
-                            LogLevel.WARN,
-                            ModuleType.PASTE_TEXTURE,
-                            f"PhotoFile Not Found {data[0]}",
-                        )
+                        logger.warning(f"PhotoFile Not Found {data[0]}")
 
             # オルソ画像情報読み込み
             ortho_list = list()
@@ -170,11 +153,7 @@ class TextureMain:
 
             ortho_num = len(ortho_list)
             if ortho_num > 0:
-                Log.output_log_write(
-                    LogLevel.DEBUG,
-                    ModuleType.PASTE_TEXTURE,
-                    f"ortho images found: {ortho_num}",
-                )
+                logger.debug(f"ortho images found: {ortho_num}")
 
             if photo_num < 1 and ortho_num < 1:
                 raise Exception("Photo not found")
@@ -198,34 +177,20 @@ class TextureMain:
 
             if self._obj_num == 0:
                 # フォルダ内にファイルが存在しない場合
-                Log.output_log_write(
-                    LogLevel.ERROR,
-                    ModuleType.PASTE_TEXTURE,
-                    f"{self.input_obj_dir}: obj folder do not have obj file.",
+                logger.warning(
+                    f"{self.input_obj_dir}: obj folder do not have obj file."
                 )
                 res_type = ResultType.WARN
             else:
-                isatty = sys.stdout.isatty()
-                pbar = tqdm(
-                    total=len(building_list),
-                    unit="bldg",
-                    leave=False,
-                    dynamic_ncols=isatty,
-                    disable=not isatty,
-                )
                 for build_id in building_list:
                     # 建造物分テクスチャ貼付け処理
                     try:
-                        pbar.set_description(build_id)
-                        if not isatty:
-                            print(f"Processing {build_id}")
+                        logger.info(f"Processing {build_id}")
 
                         id = build_id
                         path = os.path.join(self.input_obj_dir, f"{id}.obj")
 
-                        Log.output_log_write(
-                            LogLevel.DEBUG, ModuleType.PASTE_TEXTURE, f"bldid:{id}"
-                        )
+                        logger.debug(f"bldid:{id}")
 
                         ver = VerticalObject(
                             path,
@@ -258,41 +223,33 @@ class TextureMain:
                                     self.output_obj_dir, os.path.basename(path)
                                 ),
                             )
-                            Log.output_log_write(
-                                LogLevel.WARN,
-                                ModuleType.PASTE_TEXTURE,
-                                f"Texture not found id:{id}",
-                            )
+                            logger.warning(f"Texture not found id:{id}")
                             res_type = ResultType.WARN
                         else:
                             pass
 
                     except Exception as e:
-                        traceback.print_exc()
+                        logger.debug(traceback.format_exc())
                         shutil.copyfile(
                             path,
                             os.path.join(self.output_obj_dir, os.path.basename(path)),
                         )
-                        Log.output_log_write(
-                            LogLevel.WARN, ModuleType.PASTE_TEXTURE, f"{str(e)} {path}"
-                        )
+                        logger.warning(f"{str(e)} {path}")
                         res_type = ResultType.WARN
 
                     finally:
-                        pbar.update(1)
-
-                pbar.close()
+                        pass
 
             return res_type
 
         except FileNotFoundError as e:
             self._copy_folder()
-            Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.PASTE_TEXTURE, e)
+            logger.warning(e)
             return ResultType.WARN
 
         except Exception as e:
             self._copy_folder()
-            Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.PASTE_TEXTURE, e)
+            logger.warning(e)
             return ResultType.WARN
 
     def _copy_folder(self):

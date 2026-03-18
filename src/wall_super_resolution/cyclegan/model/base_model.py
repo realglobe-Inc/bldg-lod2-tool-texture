@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 
 import torch
+from loguru import logger
 
 from . import networks
 
@@ -141,7 +142,7 @@ class BaseModel(ABC):
                 scheduler.step()
 
         lr = self.optimizers[0].param_groups[0]["lr"]
-        print("learning rate = %.7f" % lr)
+        logger.debug("learning rate = %.7f" % lr)
 
     def get_current_visuals(self):
         """Return visualization images. train.py will display these images with visdom, and save the images to a HTML"""
@@ -214,7 +215,7 @@ class BaseModel(ABC):
                 net = getattr(self, "net" + name)
                 if isinstance(net, torch.nn.DataParallel):
                     net = net.module
-                print("loading the model from %s" % load_path)
+                logger.debug("loading the model from %s" % load_path)
                 # if you are using PyTorch newer than 0.4 (e.g., built from
                 # GitHub source), you can remove str() on self.device
                 state_dict = torch.load(load_path, map_location=str(self.device))
@@ -236,7 +237,7 @@ class BaseModel(ABC):
         Parameters:
             verbose (bool) -- if verbose: print the network architecture
         """
-        print("---------- Networks initialized -------------")
+        logger.debug("---------- Networks initialized -------------")
         for name in self.model_names:
             if isinstance(name, str):
                 net = getattr(self, "net" + name)
@@ -244,12 +245,12 @@ class BaseModel(ABC):
                 for param in net.parameters():
                     num_params += param.numel()
                 if verbose:
-                    print(net)
-                print(
+                    logger.debug(net)
+                logger.debug(
                     "[Network %s] Total number of parameters : %.3f M"
                     % (name, num_params / 1e6)
                 )
-        print("-----------------------------------------------")
+        logger.debug("-----------------------------------------------")
 
     def set_requires_grad(self, nets, requires_grad=False):
         """Set requies_grad=Fasle for all the networks to avoid unnecessary computations

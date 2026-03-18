@@ -4,6 +4,7 @@ import pathlib
 
 import cv2
 import numpy as np
+from loguru import logger
 
 
 def read_json(log_path: pathlib.Path):
@@ -45,11 +46,10 @@ class CalcInvProj:
 
     """
 
-    def __init__(self, logger, seitaika_log, syn_fig):
+    def __init__(self, seitaika_log, syn_fig):
 
         self.image_seitaika = syn_fig
 
-        self.logger = logger
         self.json_log = seitaika_log
 
     def inv_proj(self):
@@ -80,10 +80,7 @@ class CalcInvProj:
 
         # Return value as is when image size is 1 x 1
         if image.shape[0] == 1 and image.shape[1] == 1:
-            if self.logger is not None:
-                self.logger.info(
-                    f"Warning: Return value as is when image size is 1 x 1"
-                )
+            logger.debug(f"Warning: Return value as is when image size is 1 x 1")
             return image
 
         if len(src) == 3:

@@ -1,6 +1,4 @@
-import json
 import math
-import pathlib
 
 import cv2
 import numpy as np
@@ -62,15 +60,11 @@ class Cut:
 
     """
 
-    def __init__(
-        self, logger, seitaika_fig, output_dir: pathlib.Path, overlap=0.1, size=256
-    ):
-        self.logger = logger
+    def __init__(self, seitaika_fig, overlap=0.1, size=256):
         self.overlap = overlap  # ラップ率
-        self.size = size  # CycleGANのインプット画像サイズ
+        self.size = size  # CycleGAN의 インプット画像サイズ
         self.residual_h = 0  # 縦方向に黒埋めする余白のサイズ
         self.residual_w = 0  # 横方向に黒埋めする余白のサイズ
-        self.output_dir = output_dir  # 出力フォルダ
         self.output_image_name_format = "output_{i}_{iw}_{ih}.png"  # 整形画像の名称
         self.result_images = []
 
@@ -173,32 +167,26 @@ class Cut:
         Args:
             i (int): 画像インデックス
         Returns:
-            list[list[Path]]: 出力画像パス
+            list[list[dict]]: 出力画像データ
 
         """
         output_figs = []
         for iw in range(self.nw):
             output_fig = []
             for ih in range(self.nh):
-                output_path = self.output_dir.joinpath(
-                    self.output_image_name_format.format(iw=iw, ih=ih, i=i)
-                )
-                if self.logger is not None:
-                    cv2.imwrite(str(output_path), self.result_images[iw][ih])
                 self.result_images[iw][ih] = cv2.cvtColor(
                     self.result_images[iw][ih], cv2.COLOR_BGR2RGB
                 )
-                output_fig.append(
-                    {"img": self.result_images[iw][ih], "path": str(output_path)}
-                )
+                output_fig.append({"img": self.result_images[iw][ih], "path": ""})
             output_figs.append(output_fig)
         return output_figs
 
-    def output_log(self, log_file_name: str):
+    def output_log(self):
         """
         処理情報のログ出力
-        Args:
-            log_file_name (str): ログ出力ファイル名
+        Returns:
+            dict: 処理情報
+            str: ログ出力ファイル名(空文字)
 
         """
 
@@ -221,11 +209,4 @@ class Cut:
             # dic["cutting"] = True
             dic["cutting"] = False
 
-        log_path = None
-        if self.logger is not None:
-            log_path = self.output_dir.joinpath(log_file_name)
-            with open(log_path, "w") as f:
-                json.dump(dic, f, indent=4)
-            log_path = log_path.name
-
-        return dic, log_path
+        return dic, ""

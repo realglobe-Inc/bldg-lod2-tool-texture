@@ -1,19 +1,16 @@
 import os
-import pathlib
 from enum import Enum
 from typing import Union
 
 import cv2
 import numpy as np
-from shapely import LineString
-from shapely import Point
-from shapely import Polygon
+from loguru import logger
+from shapely import LineString, Point, Polygon
 
-from .photo_image import PhotoImage
 from ..util.cv_support_jp import Cv2Japanese
 from ..util.face_info import MaterialInfo
-from ..util.log import Log, ModuleType, LogLevel
 from ..util.obj_info import BldElementType, ObjInfo
+from .photo_image import PhotoImage
 
 
 class VerticalObject:
@@ -145,7 +142,6 @@ class VerticalObject:
                 (srcTex.ref_image_index, srcTex.is_ortho)
                 for srcTex in tex_collection.src_texture
             ):
-
                 # 参照テクスチャ画像オブジェクトを作成
                 new_src_tex = tex_collection.get_new_src_texture()
                 new_src_tex.ref_image_index = set_idx
@@ -167,11 +163,7 @@ class VerticalObject:
                     ref_img = tex.ref_image.filename
                     if tex.is_ortho:
                         ref_img += " (ortho)"
-                    Log.output_log_write(
-                        LogLevel.DEBUG,
-                        ModuleType.PASTE_TEXTURE,
-                        "roof refImage:" + ref_img,
-                    )
+                    logger.debug("roof refImage:" + ref_img)
 
     def select_wall_texture(self):
         """壁面テクスチャ画像を検索してセットする"""
@@ -306,11 +298,7 @@ class VerticalObject:
                     ref_img = tex.ref_image.filename
                     if tex.is_ortho:
                         ref_img += " (ortho)"
-                    Log.output_log_write(
-                        LogLevel.DEBUG,
-                        ModuleType.PASTE_TEXTURE,
-                        f"wall refImage: {ref_img}",
-                    )
+                    logger.debug(f"wall refImage: {ref_img}")
 
     def _judge_hidden_surface(self, wall, wall_img_pos, roof_img_pos, r_common):
         """壁面の陰面判定
@@ -706,7 +694,7 @@ class DstTextureFile:
                 if srcTex.is_ortho:
                     filename += " (ortho)"
 
-                print(
+                logger.debug(
                     f"[{obj_name}] Crop from {filename}: x={min_x}, y={min_y}, w={polygon_w}, h={polygon_h}"
                 )
 

@@ -2,6 +2,7 @@ import functools
 
 import torch
 import torch.nn as nn
+from loguru import logger
 from torch.nn import init
 from torch.optim import lr_scheduler
 
@@ -117,7 +118,7 @@ def init_weights(net, init_type="normal", init_gain=0.02):
             init.normal_(m.weight.data, 1.0, init_gain)
             init.constant_(m.bias.data, 0.0)
 
-    print("initialize network with %s" % init_type)
+    logger.debug("initialize network with %s" % init_type)
     net.apply(init_func)  # apply the initialization function <init_func>
 
 
@@ -450,7 +451,6 @@ class ResnetGenerator(nn.Module):
 
         mult = 2**n_downsampling
         for i in range(n_blocks):  # add ResNet blocks
-
             model += [
                 ResnetBlock(
                     ngf * mult,

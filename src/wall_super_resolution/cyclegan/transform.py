@@ -3,6 +3,7 @@ import random
 import cv2
 import numpy as np
 import torch
+from loguru import logger
 
 
 class ImageTransformer:
@@ -35,7 +36,7 @@ class ImageTransformer:
         if (h == oh) and (w == ow):
             return img
 
-        print_size_warning(ow, oh, w, h)
+        ImageTransformer.print_size_warning(ow, oh, w, h)
         conv = np.zeros(shape=(h, w, ch), dtype=np.uint8)
         for c in range(ch):
             conv[:, :, c] = cv2.resize(img[:, :, c], (h, w), interpolation=method)
@@ -108,11 +109,11 @@ class ImageTransformer:
     @staticmethod
     def print_size_warning(ow, oh, w, h):
         """Print warning information about image size(only print once)"""
-        if not hasattr(print_size_warning, "has_printed"):
-            print(
+        if not hasattr(ImageTransformer.print_size_warning, "has_printed"):
+            logger.warning(
                 "The image size needs to be a multiple of 4. "
                 "The loaded image size was (%d, %d), so it was adjusted to "
                 "(%d, %d). This adjustment will be done to all images "
                 "whose sizes are not multiples of 4" % (ow, oh, w, h)
             )
-            print_size_warning.has_printed = True
+            ImageTransformer.print_size_warning.has_printed = True

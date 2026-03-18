@@ -2,17 +2,19 @@ import argparse
 import os
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 
 import numpy as np
-from numpy.typing import NDArray
 
 # # srcをPYTHONPATHに追加
 # sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+from loguru import logger
+from numpy.typing import NDArray
 
 from src.texture_mapping.texture_main import TextureMain
+from src.util.logging import setup_logger
 from src.util.param_manager import ParamManager
-from src.util.log import Log, ModuleType
 
 
 def main():
@@ -50,7 +52,18 @@ def main():
         nargs="+",
         help="処理対象の建物ID (指定しない場合は入力フォルダ内の全OBJを対象)",
     )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        help="ログレベル (DEBUG, INFO, WARNING, ERROR)",
+    )
+    parser.add_argument(
+        "--log-path", type=Path, default=None, help="ログファイルの出力先パス"
+    )
     args = parser.parse_args()
+
+    setup_logger(args.log_level, args.log_path)
 
     # 1. パラメータ管理クラスの準備
     params = ParamManager()
@@ -61,32 +74,26 @@ def main():
     params.output_folder_path = args.output_dir
     params.texture_image_format = args.image_format
 
-    # ログ出力先の設定 (出力フォルダ内の logs フォルダ)
-    params.output_log_folder_path = os.path.join(args.output_dir, "logs")
-
-    # 2. 中間ディレクトリとログの準備
+    # 2. 中間ディレクトリの準備
     # システムの一時ディレクトリを使用して中間フォルダを作成
     temp_dir_obj = tempfile.TemporaryDirectory()
     base_temp_dir = temp_dir_obj.name
     output_phase_obj_dir = os.path.join(base_temp_dir, "phase_consistency")
     output_tex_obj_dir = os.path.join(base_temp_dir, "texture_mapping")
 
-    # ログクラスの初期化
-    log = Log(params, None)
-    log.process_start_log("texture_mapping")
-    log.module_start_log(ModuleType.PASTE_TEXTURE, "texture_mapping")
+    logger.debug("start processing texture_mapping")
 
     # 3. 入力OBJのディレクトリ設定
     raw_input_dir = args.input_obj_dir if args.input_obj_dir else output_phase_obj_dir
     if not os.path.isdir(raw_input_dir):
-        print(f"エラー: 入力OBJフォルダが見つかりません: {raw_input_dir}")
+        logger.warning(f"エラー: 入力OBJフォルダが見つかりません: {raw_input_dir}")
         sys.exit(1)
 
     # 4. OBJファイルの処理 (部材ラベルの付与)
     processed_obj_dir = os.path.join(base_temp_dir, "processed_obj")
     os.makedirs(processed_obj_dir, exist_ok=True)
 
-    print(f"OBJファイルを処理中: {raw_input_dir} -> {processed_obj_dir}")
+    logger.debug(f"OBJファイルを処理中: {raw_input_dir} -> {processed_obj_dir}")
     obj_files_to_process = list(Path(raw_input_dir).glob("*.obj"))
     for obj_path in obj_files_to_process:
         try:
@@ -95,7 +102,9 @@ def main():
             output_path = Path(processed_obj_dir) / obj_path.name
             obj.save(output_path)
         except Exception as e:
-            print(f"警告: OBJファイル {obj_path.name} の処理に失敗しました: {e}")
+            logger.warning(
+                f"警告: OBJファイル {obj_path.name} の処理に失敗しました: {e}"
+            )
 
     # 以降の処理では処理済みOBJのディレクトリを使用する
     input_dir = processed_obj_dir
@@ -109,13 +118,15 @@ def main():
         # フォルダ内の全OBJを対象とする
         obj_files = list(Path(input_dir).glob("*.obj"))
         if not obj_files:
-            print(f"エラー: 入力フォルダにOBJファイルがありません: {input_dir}")
+            logger.warning(
+                f"エラー: 入力フォルダにOBJファイルがありません: {input_dir}"
+            )
             sys.exit(1)
 
         for obj_path in obj_files:
             buildings.append(obj_path.stem)
 
-    print(f"処理対象建物数: {len(buildings)}")
+    logger.debug(f"処理対象建物数: {len(buildings)}")
 
     # 6. TextureMainの実行
     tm = TextureMain(params)
@@ -129,12 +140,10 @@ def main():
             buildings=buildings,
             image_format=args.image_format,
         )
-        print(f"実行完了。結果ステータス: {res}")
+        logger.debug(f"実行完了。結果ステータス: {res}")
     except Exception as e:
-        print(f"実行中にエラーが発生しました: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.warning(f"実行中にエラーが発生しました: {e}")
+        logger.debug(traceback.format_exc())
         sys.exit(1)
 
 
@@ -179,7 +188,7 @@ class Obj3D:
                 if len(filtered_face) == 0 or vertex_idx != filtered_face[-1]:
                     filtered_face.append(vertex_idx)
                 else:
-                    print(
+                    logger.debug(
                         f"{i}番目のポリゴンの{j}番目の点を重複点として削除: {vertex.round(output_precision).tolist()}"
                     )
 
@@ -187,13 +196,13 @@ class Obj3D:
             if len(filtered_face) > 0 and filtered_face[0] == filtered_face[-1]:
                 last_vertex_idx = filtered_face.pop()
                 last_vertex = filtered_vertices[last_vertex_idx]
-                print(
+                logger.debug(
                     f"{i}番目のポリゴンの最後の点を重複点として削除: {last_vertex.round(output_precision).tolist()}"
                 )
 
             # 2点以下になった面は除外
             if len(filtered_face) < 3:
-                print(f"ポリゴンが3点未満となったため削除: {i}番目のポリゴン")
+                logger.debug(f"ポリゴンが3点未満となったため削除: {i}番目のポリゴン")
                 continue
 
             filtered_faces.append(filtered_face)

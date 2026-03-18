@@ -1,13 +1,15 @@
 import argparse
 import math
 import os
-import sys
 from glob import glob
+from pathlib import Path
 from typing import Optional
 
 import cv2
 import numpy as np
-from tqdm import tqdm
+from loguru import logger
+
+from src.util.logging import setup_logger
 
 
 def rotate_to_xz(vs):
@@ -394,20 +396,9 @@ def process(
     obj_files = glob(os.path.join(input_dir, "*.obj"))
     bldg_ids: list[str] = []
 
-    isatty = sys.stdout.isatty()
-    pbar = tqdm(
-        total=len(obj_files),
-        unit="file",
-        leave=False,
-        dynamic_ncols=isatty,
-        disable=not isatty,
-    )
-
     for obj_path in obj_files:
         obj_name = os.path.basename(obj_path)
-        pbar.set_description(f"Processing {obj_name}")
-        if not isatty:
-            print(f"Processing {obj_name}")
+        logger.info(f"Processing {obj_name}")
 
         bldg_id = os.path.splitext(obj_name)[0]
         bldg_ids.append(bldg_id)
@@ -418,8 +409,6 @@ def process(
             output_format,
             pixel_per_meter,
         )
-        pbar.update(1)
-    pbar.close()
 
 
 def main():
@@ -435,7 +424,18 @@ def main():
         default=0.16,
         help="出力するテクスチャ画像の1ピクセルが何メートルに相当するか",
     )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        help="ログレベル (DEBUG, INFO, WARNING, ERROR)",
+    )
+    parser.add_argument(
+        "--log-path", type=Path, default=None, help="ログファイルの出力先パス"
+    )
     args = parser.parse_args()
+
+    setup_logger(args.log_level, args.log_path)
 
     pixel_per_meter = 1 / args.meter_per_pixel
     process(args.input, args.output, args.format, pixel_per_meter)

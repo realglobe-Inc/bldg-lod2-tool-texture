@@ -1,5 +1,3 @@
-import pathlib
-
 import cv2
 import numpy as np
 
@@ -7,20 +5,19 @@ import numpy as np
 class Synthesis:
     """CycleGANインプット用の画像の編集クラス"""
 
-    def __init__(self, output_figs, seitaika_fig, output_dir: pathlib.Path):
+    def __init__(self, output_figs, seitaika_fig):
         """クラスの初期化メソッド"""
         self.overlap = 0  # ラップ率
         self.size = 256  # CycleGANのインプット画像サイズ
         self.output_figs = output_figs  # CycleGANの出力画像
         self.seitaika_fig = seitaika_fig  # 正対化の出力画像
         self.residual_h = None  # 縦方向に黒埋めする余白のサイズ
-        self.residual_w = None  # 横方向に黒埋めする余白のサイズ
+        self.residual_w = None  # 横方向に黒埋めする余白েরサイズ
         self.nh = None  # 縦方向の枚数
         self.nw = None  # 横方向の枚数
         self.cut_log = (
             None  # CycleGANインプットの作成処理の情報(ログファイルから読み取る)
         )
-        self.output_dir = output_dir  # 出力フォルダ
         self.result_image = None  # 合成結果画像
 
     def load(self, cut_log):
@@ -109,7 +106,4 @@ class Synthesis:
 
     def save(self, i: int):
         """合成した画像を保存"""
-        assert self.result_image is not None
-
-        output_path = self.output_dir.joinpath(f"syn_{i}.png")
-        cv2.imwrite(str(output_path), self.result_image)
+        pass

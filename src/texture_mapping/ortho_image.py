@@ -1,8 +1,8 @@
 import os
+
 import cv2
-import rasterio
 import numpy as np
-from ..util.cv_support_jp import Cv2Japanese
+import rasterio
 
 
 class OrthoImage:
