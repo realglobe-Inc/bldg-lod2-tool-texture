@@ -301,13 +301,13 @@ class Obj3D:
         roof_face_indices, wall_face_indices, ground_face_indices = (
             self._roof_wall_ground()
         )
-        sink.write(f"\n# Roof\n")
+        sink.write("\n# Roof\n")
         for face_index in roof_face_indices:
             write_face(self._raw_faces[face_index])
-        sink.write(f"\n# Wall\n")
+        sink.write("\n# Wall\n")
         for face_index in wall_face_indices:
             write_face(self._raw_faces[face_index])
-        sink.write(f"\n# Ground\n")
+        sink.write("\n# Ground\n")
         for face_index in ground_face_indices:
             write_face(self._raw_faces[face_index])
 
