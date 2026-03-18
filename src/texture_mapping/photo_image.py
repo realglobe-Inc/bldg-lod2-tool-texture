@@ -211,8 +211,8 @@ class PhotoImage:
         if (
             image_pos[0] < 0
             or image_pos[1] < 0
-            or image_pos[0] > self._valid_image_range[0]
-            or image_pos[1] > self._valid_image_range[1]
+            or image_pos[0] >= self._image_size[0]
+            or image_pos[1] >= self._image_size[1]
         ):
             return 0
 

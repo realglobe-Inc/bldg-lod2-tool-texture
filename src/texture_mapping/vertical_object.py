@@ -84,7 +84,7 @@ class VerticalObject:
         for r_idx, ver_roof in enumerate(self._vertex_roof):
             tex_coord = np.zeros((len(ver_roof), 2))  # 画像上の座標
             roof_coord = np.zeros((len(ver_roof), 2))
-            max_area, area = 0.0, 0.0
+            max_area, max_weighted_area, area = 0.0, 0.0, 0.0
             roof_valid = [0] * len(ver_roof)
             set_idx = -1  # 写真のインデックス
             is_ortho = False
@@ -104,8 +104,10 @@ class VerticalObject:
                 # 全点が画像上の点であれば面積最大の画像を選択する
                 point = [Point(tex) for tex in tex_coord]
                 area = Polygon(point).area
-                if area < max_area:
+                weighted_area = area * 2.0
+                if weighted_area < max_weighted_area:
                     continue
+                max_weighted_area = weighted_area
                 max_area = area
                 set_idx = i
                 roof_coord = tex_coord.copy()
@@ -126,8 +128,10 @@ class VerticalObject:
                 # 全点が画像上の点であれば面積最大の画像を選択する
                 point = [Point(tex) for tex in tex_coord]
                 area = Polygon(point).area
-                if area < max_area:
+                weighted_area = area
+                if weighted_area < max_weighted_area:
                     continue
+                max_weighted_area = weighted_area
                 max_area = area
                 set_idx = i
                 roof_coord = tex_coord.copy()
@@ -178,7 +182,7 @@ class VerticalObject:
             is_ortho = False
             r_common = list()
             r_tmp = list()
-            max_area, area = 0.0, 0.0
+            max_area, max_weighted_area, area = 0.0, 0.0, 0.0
             roof_idx = 0
             img_pos_chk = True
             set_wall_img_pos = np.zeros((len(wall), 2))
@@ -217,7 +221,9 @@ class VerticalObject:
                             in_count += 1
                     if in_count == len(wall):
                         area = Polygon([Point(p) for p in wall_img_pos]).area
-                        if area > max_area:
+                        weighted_area = area * 2.0
+                        if weighted_area > max_weighted_area:
+                            max_weighted_area = weighted_area
                             max_area = area
                             set_idx = i
                             set_wall_img_pos = wall_img_pos.copy()
@@ -261,8 +267,10 @@ class VerticalObject:
                 # 全点が画像上の点であれば面積最大の画像を選択する
                 point = [Point(tex) for tex in wall_img_pos]
                 area = Polygon(point).area
-                if area < max_area:
+                weighted_area = area
+                if weighted_area < max_weighted_area:
                     continue
+                max_weighted_area = weighted_area
                 max_area = area
                 set_idx = i
                 set_wall_img_pos = wall_img_pos.copy()
