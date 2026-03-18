@@ -84,7 +84,7 @@ echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
         gdal_retile.py -ps "${grid_pixel}" "${grid_pixel}" -targetDir "${split_ortho_dir}" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" "${ortho_path}"
       done
 
-      ortho_option="--ortho_dir \"${split_ortho_dir}\""
+      ortho_option="--ortho_dir ${split_ortho_dir}"
     fi
 
 
