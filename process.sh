@@ -128,7 +128,7 @@ echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
   output_rectify_dir="${output_dir}/intermediate/rectify"
   rm -rf "${output_rectify_dir}"
 
-  python -m src.misc.rectify_texture_image \
+  python -m src.rectify.main \
     -i "${current_output_dir}/obj" \
     -o "${output_rectify_dir}" \
     --format png \

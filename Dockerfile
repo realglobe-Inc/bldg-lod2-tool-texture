@@ -93,8 +93,8 @@ WORKDIR /app/src/real_esrgan
 COPY src/real_esrgan/inference_realesrgan.py .
 
 WORKDIR /app/src/misc
-COPY src/misc/change_texture_image_ext_in_gml.py .
-COPY src/misc/rectify_texture_image.py .
+COPY src/rectify/change_texture_image_ext_in_gml.py .
+COPY src/rectify/main.py .
 
 WORKDIR /app
 COPY process.sh .

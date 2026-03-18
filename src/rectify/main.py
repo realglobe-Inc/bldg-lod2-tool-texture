@@ -18,7 +18,10 @@ def rotate_to_xz(vs):
     for i in range(len(vs)):
         a, b, c = vs[i], vs[(i + 1) % len(vs)], vs[(i + 2) % len(vs)]
         normal += np.cross(b - a, c - b)
-    normal = normal / np.linalg.norm(normal)
+    norm = np.linalg.norm(normal)
+    if norm < 1e-12:
+        return None, None
+    normal = normal / norm
 
     normal_save = normal.copy()
 
@@ -232,6 +235,12 @@ def rectify_images(
             min_z = vs[:, 2].min()
             vs -= np.array([min_x, min_y, min_z])
             new_vs, normal = rotate_to_xz(vs)
+            if new_vs is None:
+                # 縮退した面の場合、ダミーの小さい白い画像を用意する
+                dummy_image = np.full((1, 1, 3), 255, dtype=np.uint8)
+                rectified_images.append(dummy_image)
+                rectified_texture_points.append(np.zeros((len(vs), 2)))
+                continue
 
             min_x = new_vs[:, 0].min()
             min_y = new_vs[:, 1].min()
