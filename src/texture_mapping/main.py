@@ -126,6 +126,7 @@ def main():
         for obj_path in obj_files:
             buildings.append(obj_path.stem)
 
+    buildings = sorted(buildings)
     logger.debug(f"処理対象建物数: {len(buildings)}")
 
     # 6. TextureMainの実行

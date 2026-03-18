@@ -396,7 +396,7 @@ def process(
     obj_files = glob(os.path.join(input_dir, "*.obj"))
     bldg_ids: list[str] = []
 
-    for obj_path in obj_files:
+    for obj_path in sorted(list(obj_files)):
         obj_name = os.path.basename(obj_path)
         logger.info(f"Processing {obj_name}")
 
