@@ -154,21 +154,21 @@ fi
 
 
 
-#  echo '########## 壁面視認性向上ツール ##########'
-#
-#  tool_input_dir="${tool_output_dir}/obj"
-#  tool_output_dir="${output_dir}/intermediate/wall_super_resolution"
-#  rm -rf "${tool_output_dir}"
-#
-#  python -m src.wall_super_resolution.main \
-#    --input_dir "${tool_input_dir}" \
-#    --output_dir "${tool_output_dir}" \
-#    --device cuda \
-#    --checkpoint "${wall_super_resolution_model}" \
-#    --debug_log_output false \
-#    --meter_per_pixel "${meter_per_texture_pixel}" \
-#    --output_format png \
-#    --log-path "${tool_output_dir}/output.log"
+  echo '########## 壁面視認性向上ツール ##########'
+
+  tool_input_dir="${tool_output_dir}/obj"
+  tool_output_dir="${output_dir}/intermediate/wall_super_resolution"
+  rm -rf "${tool_output_dir}"
+
+  python -m src.wall_super_resolution.main \
+    --input_dir "${tool_input_dir}" \
+    --output_dir "${tool_output_dir}" \
+    --device cuda \
+    --checkpoint "${wall_super_resolution_model}" \
+    --debug_log_output false \
+    --meter_per_pixel "${meter_per_texture_pixel}" \
+    --output_format png \
+    --log-path "${tool_output_dir}/output.log"
 
 
 
@@ -208,23 +208,23 @@ fi
 
 
 
-#  echo '########## 壁面視認性向上ツール（2度掛け） ##########'
-#
-#  tool_input_dir="${tool_output_dir}/obj"
-#  tool_output_dir="${output_dir}/intermediate/wall_super_resolution2"
-#  rm -rf "${tool_output_dir}"
-#
-#  meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
-#
-#  python -m src.wall_super_resolution.main \
-#    --input_dir "${tool_input_dir}" \
-#    --output_dir "${tool_output_dir}" \
-#    --device cuda \
-#    --checkpoint "${wall_super_resolution_model}" \
-#    --debug_log_output false \
-#    --meter_per_pixel "${meter_per_texture_pixel2}" \
-#    --output_format png \
-#    --log-path "${tool_output_dir}/output.log"
+  echo '########## 壁面視認性向上ツール（2度掛け） ##########'
+
+  tool_input_dir="${tool_output_dir}/obj"
+  tool_output_dir="${output_dir}/intermediate/wall_super_resolution2"
+  rm -rf "${tool_output_dir}"
+
+  meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
+
+  python -m src.wall_super_resolution.main \
+    --input_dir "${tool_input_dir}" \
+    --output_dir "${tool_output_dir}" \
+    --device cuda \
+    --checkpoint "${wall_super_resolution_model}" \
+    --debug_log_output false \
+    --meter_per_pixel "${meter_per_texture_pixel2}" \
+    --output_format png \
+    --log-path "${tool_output_dir}/output.log"
 
 
 
