@@ -172,22 +172,6 @@ fi
 
 
 
-  echo '########## テクスチャ鮮明化ツール ##########'
-
-  tool_input_dir="${tool_output_dir}/obj"
-  tool_output_dir="${output_dir}/intermediate/deblur_gan"
-  rm -rf "${tool_output_dir}"
-
-  python -m src.deblur_gan_v2.predict \
-    -c "${deblur_gan_model}" \
-    -i "${tool_input_dir}" \
-    -o "${tool_output_dir}" \
-    --input-format png \
-    --output-format png \
-    --log-path "${tool_output_dir}/output.log"
-
-
-
   echo '########## テクスチャ解像度向上ツール ##########'
 
   tool_input_dir="${tool_output_dir}/obj"
@@ -224,6 +208,22 @@ fi
     --debug_log_output false \
     --meter_per_pixel "${meter_per_texture_pixel2}" \
     --output_format png \
+    --log-path "${tool_output_dir}/output.log"
+
+
+
+  echo '########## テクスチャ鮮明化ツール ##########'
+
+  tool_input_dir="${tool_output_dir}/obj"
+  tool_output_dir="${output_dir}/intermediate/deblur_gan"
+  rm -rf "${tool_output_dir}"
+
+  python -m src.deblur_gan_v2.predict \
+    -c "${deblur_gan_model}" \
+    -i "${tool_input_dir}" \
+    -o "${tool_output_dir}" \
+    --input-format png \
+    --output-format png \
     --log-path "${tool_output_dir}/output.log"
 
 
