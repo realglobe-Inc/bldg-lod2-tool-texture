@@ -1,8 +1,0 @@
-{
-    "InputDir": "./data",
-    "OutputDir": "./output/result",
-    "GSD": "0.25",
-    "Device": "cuda",
-    "OutputLogDir": "./output/log",
-    "DebugLogOutput": "true"
-}

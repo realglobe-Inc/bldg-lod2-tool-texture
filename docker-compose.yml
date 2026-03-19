@@ -1,23 +1,23 @@
-version : '3.8'
+version: '3.8'
 services:
-  3d-model:
-    image: bldg-lod2-tool-3d-model
+  bldg-lod2-tool-texture:
+    image: bldg-lod2-tool-texture
     build:
       context: .
-    command: >
-      env
-      OUTPUT_DIR='${OUTPUT_DIR}'
-      BLDG_LOD2_TOOL_PARAM_FILE='${BLDG_LOD2_TOOL_PARAM_FILE}'
-      BLDG_LOD2_TOOL_PARAM='${BLDG_LOD2_TOOL_PARAM}'
-      INPUT_DIR='${INPUT_DIR}'
-      OUTPUT_TEXTURE_ENABLED='${OUTPUT_TEXTURE_ENABLED}'
-      LAS_COORDINATE_SYSTEM='${LAS_COORDINATE_SYSTEM}'
-      METER_PER_PIXEL='${METER_PER_PIXEL}'
-      METER_PER_TEXTURE_PIXEL='${METER_PER_TEXTURE_PIXEL}'
-      /app/process.sh
+    command: ./process.sh
     volumes:
-      - ${WORKSPACE_DIR:-./workspace}:/workspace
+      - ${DATA_DIR:-./data}:/app/data
     environment:
+      MODE: ${MODE:-FULL}
+      INPUT_OBJ_DIR: ${INPUT_OBJ_DIR:-/app/data/input/obj}
+      INPUT_IMAGE_DIR: ${INPUT_IMAGE_DIR:-/app/data/input/image}
+      INPUT_EX_CALIB: ${INPUT_EX_CALIB:-/app/data/input/ex_calib.txt}
+      INPUT_CAMERA_INFO: ${INPUT_CAMERA_INFO:-/app/data/input/camera_info.txt}
+      INPUT_ORTHO_DIR: ${INPUT_ORTHO_DIR:-}
+      OUTPUT_DIR: ${OUTPUT_DIR:-/app/data/output}
+      METER_PER_PIXEL: ${METER_PER_PIXEL:-0.16}
+      METER_PER_TEXTURE_PIXEL: ${METER_PER_TEXTURE_PIXEL:-0.16}
+      GRID_PIXEL: ${GRID_PIXEL:-1000}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
     deploy:

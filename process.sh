@@ -3,334 +3,232 @@
 set -e
 
 ########### Docker コンテナ内部で実行されるスクリプトです ###########
+# MODE:
+#     実行モードを指定します。
+#     - FULL: テクスチャマッピングから高精度化まで全行程を実行します。
+#     - SKIP_TEXTURE_MAPPING: テクスチャマッピングをスキップし、既存の OBJ を入力として高精度化のみ実行します。
+#     - ONLY_TEXTURE_MAPPING: テクスチャマッピングのみを実行します。
+# INPUT_OBJ_DIR:
+#     OBJファイルが格納されているディレクトリパス。
+# INPUT_IMAGE_DIR:
+#     画像ファイルが格納されているディレクトリパス。
+#     - FULL/ONLY_TEXTURE_MAPPING の場合に必要
+# INPUT_EX_CALIB:
+#     外部評定要素のファイルパス
+#     - FULL/ONLY_TEXTURE_MAPPING の場合に必要
+# INPUT_CAMERA_INFO:
+#     内部評定要素のファイルパス
+#     - FULL/ONLY_TEXTURE_MAPPING の場合に必要
+# INPUT_ORTHO_DIR:
+#     オルソ画像が格納されているディレクトリパス。
+#     - FULL/ONLY_TEXTURE_MAPPING の場合のオプション
 # OUTPUT_DIR:
 #     出力ファイルや中間ファイルを保存するディレクトリパス。
-#     最終出力は ${OUTPUT_DIR}/output_result 。
-# BLDG_LOD2_TOOL_PARAM_FILE:
-#     LOD2自動モデリングの設定ファイルパス。
-#     これか BLDG_LOD2_TOOL_PARAM か INPUT_DIR、LAS_COORDINATE_SYSTEM、
-#     OUTPUT_TEXTURE_ENABLED の組で自動モデリング部分を制御する。
-#     優先度は BLDG_LOD2_TOOL_PARAM_FILE > BLDG_LOD2_TOOL_PARAM >
-#     INPUT_DIR、LAS_COORDINATE_SYSTEM、OUTPUT_TEXTURE_ENABLED の組。
-#     BLDG_LOD2_TOOL_PARAM_FILE も BLDG_LOD2_TOOL_PARAM も
-#     LAS_COORDINATE_SYSTEM も空の場合はLOD2自動モデリングはスキップする。
-# BLDG_LOD2_TOOL_PARAM:
-#     LOD2自動モデリングの設定。
-#     JSONをそのまま入れる。
-# INPUT_DIR:
-#     LAS_COORDINATE_SYSTEM が空でない場合はLOD2自動モデリングの入力ディレクトリ。
-#     LOD2自動モデリングがスキップされた場合はテクスチャ高精度化の入力ディレクトリ。
-# LAS_COORDINATE_SYSTEM:
-#     LOD2自動モデリングの際の座標系。
-# OUTPUT_TEXTURE_ENABLED:
-#     LOD2自動モデリングの際にテクスチャも作成するか。
 # METER_PER_PIXEL:
-#     1ピクセルが何mに相当するか。
-#     デフォルト0.25。
+#     テクスチャマッピング時の解像度（1ピクセルが何mに相当するか）。
+#     デフォルト0.16。
 # METER_PER_TEXTURE_PIXEL:
-#     テクスチャ画像の1ピクセルを何mに相当させるか。
-#     デフォルト0.25。
+#     テクスチャ高精度化時の基準解像度。
+#     デフォルトは METER_PER_PIXEL と同じ。
 
-
-output_dir="$(realpath -sm "${OUTPUT_DIR:?}")"
-
-if [ -n "${BLDG_LOD2_TOOL_PARAM_FILE}" ]; then
-  bldg_lod2_tool_param_file="$(realpath "${BLDG_LOD2_TOOL_PARAM_FILE}")"
-fi
-bldg_lod2_tool_param="${BLDG_LOD2_TOOL_PARAM}"
-if [ -n "${INPUT_DIR}" ]; then
-  input_dir="$(realpath "${INPUT_DIR}")"
-fi
-las_coordinate_system="${LAS_COORDINATE_SYSTEM}"
-output_texture_enabled="${OUTPUT_TEXTURE_ENABLED:-false}"
-
-meter_per_pixel="${METER_PER_PIXEL:-0.25}"
-meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-"${meter_per_pixel:-0.25}"}"
-
-echo "output_dir: ${output_dir}"
-echo "bldg_lod2_tool_param_file: ${bldg_lod2_tool_param_file}"
-printf 'bldg_lod2_tool_param: %s\n' "${bldg_lod2_tool_param}"
-echo "input_dir: ${input_dir}"
-echo "las_coordinate_system: ${las_coordinate_system}"
-echo "output_texture_enabled ${output_texture_enabled}"
-echo "meter_per_texture_pixel: ${meter_per_texture_pixel}"
+mode="${MODE:-FULL}"
 
 project_dir="$(realpath "$(dirname "$0")")"
 
-
-
-########## LOD2建築物自動作成ツール ##########
-
-# LOD2建築物自動作成ツールのフォルダーに移動
-cd "${project_dir}"
-
-skip_bldg_lod2_tool=false
-if [ -z "${bldg_lod2_tool_param_file}" ]; then
-  bldg_lod2_tool_param_file="$(mktemp --suffix .json)"
-  if [ -n "${bldg_lod2_tool_param}" ]; then
-    printf '%s' "${bldg_lod2_tool_param}" > "${bldg_lod2_tool_param_file}"
-  elif [ -z "${las_coordinate_system}" ]; then
-    skip_bldg_lod2_tool=true
-  elif [ -n "${input_dir}" ]; then
-    cat <<EOF > "${bldg_lod2_tool_param_file}"
-{
-  "TextureFolderPath": "${input_dir}/RawImage",
-  "ExternalCalibElementPath": "${input_dir}/ExCalib/ExCalib.txt",
-  "CameraInfoPath": "${input_dir}/CamInfo/CamInfo.txt",
-  "DsmFolderPath": "${input_dir}/DSM",
-  "CityGMLFolderPath": "${input_dir}/CityGML",
-  "LasCoordinateSystem": ${las_coordinate_system},
-  "LasSwapXY": false,
-  "RotateMatrixMode": 0,
-  "OutputFolderPath": "${output_dir}",
-  "OutputOBJ": true,
-  "OutputTexture": ${output_texture_enabled},
-  "OutputCityGML": true,
-  "OutputLogFolderPath": "${output_dir}",
-  "DebugLogOutput": true,
-  "PhaseConsistency": {
-    "DeleteErrorObject": true,
-    "NonPlaneThickness": 0.05,
-    "NonPlaneAngle": 15
-  },
-  "DebugMode": false,
-  "TargetCoordAreas": null,
-  "TargetBuildingIds": null,
-  "TextureOutputWidthMax": 4096,
-  "TextureOutputHeightMax": 4096,
-  "TextureImageFormat": "png",
-  "GridSize": ${meter_per_pixel},
-}
-EOF
-  else
-    echo 'LOD2建築物の自動作成には BLDG_LOD2_TOOL_PARAM_FILE か BLDG_LOD2_TOOL_PARAM か INPUT_DIR が必要です' 1>&2
-    exit 1
-  fi
+output_dir="$(realpath -sm "${OUTPUT_DIR:-"${project_dir}/data/output"}")"
+input_obj_dir="$(realpath -s "${INPUT_OBJ_DIR:-"${project_dir}/data/input/obj"}")"
+input_image_dir="$(realpath -s "${INPUT_IMAGE_DIR:-"${project_dir}/data/input/image"}")"
+input_ex_calib="$(realpath -s "${INPUT_EX_CALIB:-"${project_dir}/data/input/ex_calib.txt"}")"
+input_camera_info="$(realpath -s "${INPUT_CAMERA_INFO:-"${project_dir}/data/input/camera_info.txt"}")"
+if [ -n "${INPUT_ORTHO_DIR}" ]; then
+  input_ortho_dir="$(realpath -sm "${INPUT_ORTHO_DIR}")"
 fi
 
-if ! "${skip_bldg_lod2_tool}"; then
-  echo '########## LOD2建築物自動作成ツール ##########'
+meter_per_pixel="${METER_PER_PIXEL:-0.16}"
+meter_per_texture_pixel="${METER_PER_TEXTURE_PIXEL:-${meter_per_pixel}}"
 
-  output_texture_enabled="$(jq -r '.OutputTexture' "${bldg_lod2_tool_param_file}")"
-  city_gml_dir_name="$(basename "$(jq -r '.CityGMLFolderPath' "${bldg_lod2_tool_param_file}")")"
-  output_bldg_lod2_tool_dir_path="$(realpath -sm "$(jq -r '.OutputFolderPath' "${bldg_lod2_tool_param_file}")")"
+wall_super_resolution_model="${WALL_SURFACE_MODEL:-"${project_dir}/model/latest_net_G_A.pth"}"
+real_esrgan_model="${REAL_ESRGAN_MODEL:-"${project_dir}/model/RealESRGAN_x4plus.pth"}"
+deblur_gan_model="${DEBLUR_GAN_MODEL:-"${project_dir}/model/fpn_inception.h5"}"
 
-  . "./$(basename $PWD)/bin/activate"
-  python AutoCreateLod2.py "${bldg_lod2_tool_param_file}"
-  deactivate
+grid_pixel=${GRID_PIXEL:-1000}
 
-  # 最新のフォルダを取得
-  output_bldg_lod2_tool_path="${output_dir}/output_bldg_lod2_tool"
-  latest_folder="$(ls -t "${output_bldg_lod2_tool_dir_path}" | grep -E "^${city_gml_dir_name}_[0-9]{8}_[0-9]{4}$" | head -n 1)"
-  if [ -n "${latest_folder}" ]; then
-    cd "${output_dir}"
-    rm -f ./output_bldg_lod2_tool
-    ln -s "${output_bldg_lod2_tool_dir_path}/${latest_folder}" ./output_bldg_lod2_tool
-  else
-    echo '最新のフォルダが見つかりませんでした。' 1>&2
-    exit 1
+if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ] || [ "${mode}" = "ONLY_WALL_SUPER_RESOLUTION" ]; then
+  echo "パラメータ"
+  echo "  mode: ${mode}"
+  echo "  input_obj_dir: ${input_obj_dir}"
+  if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
+    echo "  input_ex_calib: ${input_ex_calib}"
+    echo "  input_camera_info: ${input_camera_info}"
+    echo "  input_image_dir: ${input_image_dir}"
+    echo "  input_ortho_dir: ${input_ortho_dir}"
   fi
-
-
-
-  if ! "${output_texture_enabled}"; then
-    # テクスチャつくらないなら終わり
-    output_result_path="${output_dir}/output_result"
-    rm -rf "${output_result_path}/"
-    cp -rL "${output_bldg_lod2_tool_path}" "${output_result_path}"
-
-    echo "最終結果 : ${output_result_path}"
-    exit 0
-  fi
-elif [ -n "${input_dir}" ]; then
-  output_bldg_lod2_tool_path="${input_dir}"
+  echo "  output_dir: ${output_dir}"
+  echo "  meter_per_texture_pixel: ${meter_per_texture_pixel}"
 else
-  echo 'テクスチャ高精度化には INPUT_DIR が必要です' 1>&2
+  echo "invalid mode: ${mode}" >&2
   exit 1
 fi
 
+(cd "${project_dir}"
+  if [ "${mode}" = "FULL" ] || [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
+    if [ -d "${input_ortho_dir}" ]; then
+      echo '########## オルソ分割 ##########'
 
-########## 正対化ツール ##########
-
-echo '########## 正対化ツール ##########'
-
-# 正対化ツールのフォルダーに移動
-cd "${project_dir}/tools/misc"
-
-output_rectify_path="${output_dir}/output_rectify"
-rm -rf "${output_rectify_path}/"*
-
-. "./$(basename $PWD)/bin/activate"
-python rectify_texture_image.py -i "${output_bldg_lod2_tool_path}" -o "${output_rectify_path}" \
- --format png --meter-per-pixel "${meter_per_texture_pixel}"
-deactivate
-
-
-
-########## 壁面視認性向上ツール ##########
-
-echo '########## 壁面視認性向上ツール ##########'
-
-# 壁面視認性向上ツールのフォルダーに移動
-cd "${project_dir}/tools/SuperResolution/WallSurface"
-
-output_wall_path="${output_dir}/output_wall"
-rm -rf "${output_wall_path}/"*
-
-wall_param_file="$(mktemp --suffix .json)"
-cat <<EOF > "${wall_param_file}"
-{
-  "InputDir": "${output_rectify_path}",
-  "OutputDir": "${output_wall_path}",
-  "Device": "cuda",
-  "OutputLogDir": "${output_dir}/log_output_wall",
-  "DebugLogOutput": "false",
-  "MeterPerPixel": "${meter_per_texture_pixel}",
-  "OutputFormat": "png"
-}
-EOF
-
-. "./$(basename $PWD)/bin/activate"
-python main.py "${wall_param_file}"
-deactivate
-
-
-
-########## テクスチャ解像度向上ツール ##########
-
-echo '########## テクスチャ解像度向上ツール ##########'
-
-# テクスチャ解像度向上ツールのフォルダーに移動
-cd "${project_dir}/tools/Real-ESRGAN"
-
-output_esrgan_path="${output_dir}/output_esrgan"
-rm -rf "${output_esrgan_path}/*"
-
-. "./$(basename $PWD)/bin/activate"
-python inference_realesrgan.py \
-  -n RealESRGAN_x4plus -g 0 -s 4 --tile 1024 \
-  -i "${output_wall_path}" -o "${output_esrgan_path}" \
-  --input-ext png --ext png
-deactivate
-
-
-copy_misc() {
-  input_image_path="${1}"
-  input_misc_path="${2}"
-  output_result_path="${3}"
-  output_format="${4}"
-  if [ "${input_image_path}" != "${output_result_path}" ]; then
-    rm -rf "${output_result_path}"
-    cp -r "${input_image_path}" "${output_result_path}"
-  fi
-
-  # テクスチャ画像以外のファイルをコピー
-  for appearance_dir in "${output_result_path}/"*_appearance; do
-    area="$(basename -s '_appearance' "${appearance_dir}")"
-
-    if [ -f "${input_misc_path}/${area}.gml" ]; then
-      area_label="${area}"
-    else
-      for gml_file in "${input_misc_path}/${area}_"*".gml"; do
-        area_label=$(basename -s .gml "${gml_file}")
-        break
+      split_ortho_dir="${output_dir}/intermediate/split_ortho"
+      mkdir -p "${split_ortho_dir}"
+      for ortho_path in "${input_ortho_dir}/"*.tif; do
+        ortho_basename=$(basename "${ortho_path}")
+        ortho_name="${ortho_basename%.*}"
+        ortho_ext="${ortho_basename##*.}"
+        if find "${split_ortho_dir}" -name "${ortho_name}*.${ortho_ext}" 2> /dev/null | grep -q .; then
+          echo "${ortho_path}の分割をスキップします"
+          continue
+        fi
+        echo "${ortho_path}を分割します"
+        gdal_retile.py -ps "${grid_pixel}" "${grid_pixel}" -targetDir "${split_ortho_dir}" -co "COMPRESS=DEFLATE" -co "PREDICTOR=2" "${ortho_path}"
       done
+
+      ortho_option="--ortho_dir ${split_ortho_dir}"
     fi
 
-    # gmlファイルをコピー
-    cp -n "${input_misc_path}/${area_label}.gml" "${output_result_path}/"
 
-    # objファイルをコピー
-    obj_dir_path="${output_result_path}/obj/${area_label}"
-    mkdir -p "${obj_dir_path}"
-    for texture_file in "${appearance_dir}/"*."${output_format}"; do
-      bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
-      cp -n "${input_misc_path}/obj/${area_label}/${bldg_id}.obj" "${obj_dir_path}/"
+    echo '########## 画像分割 ##########'
+
+    split_image_dir="${output_dir}/intermediate/split_image"
+    mkdir -p "${split_image_dir}"
+    for image_path in "${input_image_dir}/"*.tif; do
+      image_basename=$(basename "${image_path}")
+      image_name="${image_basename%.*}"
+      image_ext="${image_basename##*.}"
+      if find "${split_image_dir}" -name "${image_name}*.${image_ext}" 2> /dev/null | grep -q .; then
+        echo "${image_path}の分割をスキップします"
+        continue
+      fi
+      echo "${image_path}を分割します"
+      magick "${image_path}[0]" -crop "${grid_pixel}x${grid_pixel}" -set filename:tile "${image_name}_%[fx:page.x/${grid_pixel}]_%[fx:page.y/${grid_pixel}]" +repage "${split_image_dir}/%[filename:tile].${image_ext}"
     done
 
-    # mtlファイル作成
-    mtl_file_path="${obj_dir_path}/${area_label}.mtl"
-    rm -f "${mtl_file_path}"
-    for texture_file in "${appearance_dir}/"*."${output_format}"; do
-      bldg_id="$(basename -s ."${output_format}" "${texture_file}")"
-      printf '%s\n\n' "newmtl ${bldg_id}" >> "${mtl_file_path}"
-      printf '%s\n\n' "map_Kd $(realpath --relative-to "${obj_dir_path}" "${texture_file}")" >> "${mtl_file_path}"
-    done
-  done
 
-  # gmlファイルの中で変更
-  cd "${project_dir}/tools/misc"
-  . "./$(basename $PWD)/bin/activate"
-  for gml_file in $(find "${output_result_path}" -name '*.gml'); do
-    python change_texture_image_ext_in_gml.py -i "${gml_file}" -o "${gml_file}" --ext "${output_format}"
-  done
-  deactivate
-}
+    echo '########## テクスチャマッピング ##########'
 
-copy_misc "${output_esrgan_path}" "${output_wall_path}" "${output_esrgan_path}" png
+    tool_output_dir="${output_dir}/intermediate/texture_mapping"
+    rm -rf "${tool_output_dir}"
+
+    python -m src.texture_mapping.main \
+      --input_obj_dir "${input_obj_dir}" \
+      --texture_dir "${split_image_dir}" \
+      --ex_calib "${input_ex_calib}" \
+      --camera_info "${input_camera_info}" \
+      --output_dir "${tool_output_dir}" \
+      --image_format png \
+      --log-path "${tool_output_dir}/output.log" ${ortho_option}
+  else
+    echo '########## テクスチャマッピングをスキップします ##########'
+    tool_output_dir="${input_obj_dir}"
+  fi
 
 
-
-########## 壁面視認性向上ツール（2度掛け） ##########
-
-echo '########## 壁面視認性向上ツール（2度掛け） ##########'
-
-# 壁面視認性向上ツールのフォルダーに移動
-cd "${project_dir}/tools/SuperResolution/WallSurface"
-
-output_wall_path2="${output_dir}/output_wall2"
-rm -rf "${output_wall_path2}/"*
-
-wall_param_file2="$(mktemp --suffix .json)"
-meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
-cat <<EOF > "${wall_param_file2}"
-{
-  "InputDir": "${output_esrgan_path}",
-  "OutputDir": "${output_wall_path2}",
-  "Device": "cuda",
-  "OutputLogDir": "${output_dir}/log_output_wall2",
-  "DebugLogOutput": "false",
-  "MeterPerPixel": "${meter_per_texture_pixel2}",
-  "OutputFormat": "png"
-}
-EOF
-
-. "./$(basename $PWD)/bin/activate"
-python main.py "${wall_param_file2}"
-deactivate
+  if [ "${mode}" = "ONLY_TEXTURE_MAPPING" ]; then
+    echo "テクスチャマッピングが完了しました。"
+    rm -rf "${output_dir}/obj" "${output_dir}/appearance"
+    cp -r "${tool_output_dir}/obj" "${tool_output_dir}/appearance" "${output_dir}/"
+    echo "最終結果 : ${output_dir}/obj ${output_dir}/appearance"
+    exit 0
+  fi
 
 
 
-########## テクスチャ鮮明化ツール ##########
+  echo '########## 正対化ツール ##########'
 
-echo '########## テクスチャ鮮明化ツール ##########'
+  tool_input_dir="${tool_output_dir}/obj"
+  tool_output_dir="${output_dir}/intermediate/rectify"
+  rm -rf "${tool_output_dir}"
 
-# テクスチャ鮮明化ツールのフォルダーに移動
-cd "${project_dir}/tools/DeblurGANv2"
-
-output_deblurgan_path="${output_dir}/output_deblurgan"
-rm -rf "${output_deblurgan_path}/"*
-
-. "./$(basename $PWD)/bin/activate"
-python predict.py \
-  -c checkpoints/fpn_inception.h5 \
-  -i "${output_wall_path2}" -o "${output_deblurgan_path}" \
-  --input-format png --output-format jpg
-deactivate
+  python -m src.rectify.main \
+    -i "${tool_input_dir}" \
+    -o "${tool_output_dir}" \
+    --format png \
+    --meter-per-pixel "${meter_per_texture_pixel}" \
+    --log-path "${tool_output_dir}/output.log"
 
 
 
-########## テクスチャシャープ化ツール ##########
-# テクスチャシャープ化ツールはきれいにならないため使わない
+#  echo '########## 壁面視認性向上ツール ##########'
+#
+#  tool_input_dir="${tool_output_dir}/obj"
+#  tool_output_dir="${output_dir}/intermediate/wall_super_resolution"
+#  rm -rf "${tool_output_dir}"
+#
+#  python -m src.wall_super_resolution.main \
+#    --input_dir "${tool_input_dir}" \
+#    --output_dir "${tool_output_dir}" \
+#    --device cuda \
+#    --checkpoint "${wall_super_resolution_model}" \
+#    --debug_log_output false \
+#    --meter_per_pixel "${meter_per_texture_pixel}" \
+#    --output_format png \
+#    --log-path "${tool_output_dir}/output.log"
 
-########## テクスチャアトラス化ツール ##########
-# テクスチャアトラス化ツールはうまく動かないため使わない
+
+
+  echo '########## テクスチャ鮮明化ツール ##########'
+
+  tool_input_dir="${tool_output_dir}/obj"
+  tool_output_dir="${output_dir}/intermediate/deblur_gan"
+  rm -rf "${tool_output_dir}"
+
+  python -m src.deblur_gan_v2.predict \
+    -c "${deblur_gan_model}" \
+    -i "${tool_input_dir}" \
+    -o "${tool_output_dir}" \
+    --input-format png \
+    --output-format png \
+    --log-path "${tool_output_dir}/output.log"
 
 
 
-########## 最終結果フォルダー ##########
+  echo '########## テクスチャ解像度向上ツール ##########'
 
-output_path="${output_dir}/output_result"
-copy_misc "${output_deblurgan_path}" "${output_wall_path2}" "${output_path}" jpg
+  tool_input_dir="${tool_output_dir}/obj"
+  tool_output_dir="${output_dir}/intermediate/real_esrgan"
+  rm -rf "${tool_output_dir}"
 
-echo "最終結果 : ${output_path}"
+  python -m src.real_esrgan.inference_realesrgan \
+    -n RealESRGAN_x4plus \
+    -g 0 \
+    -s 4 \
+    --tile 1024 \
+    --model_path "${real_esrgan_model}" \
+    -i "${tool_input_dir}" \
+    -o "${tool_output_dir}" \
+    --input-ext png \
+    --ext png \
+    --log-path "${tool_output_dir}/output.log"
+
+
+
+#  echo '########## 壁面視認性向上ツール（2度掛け） ##########'
+#
+#  tool_input_dir="${tool_output_dir}/obj"
+#  tool_output_dir="${output_dir}/intermediate/wall_super_resolution2"
+#  rm -rf "${tool_output_dir}"
+#
+#  meter_per_texture_pixel2=$(echo "scale=8; ${meter_per_texture_pixel} / 4" | bc | sed 's/^\./0./; s/\(\.[0-9]*[1-9]\)0*$/\1/; s/\.0*$//')
+#
+#  python -m src.wall_super_resolution.main \
+#    --input_dir "${tool_input_dir}" \
+#    --output_dir "${tool_output_dir}" \
+#    --device cuda \
+#    --checkpoint "${wall_super_resolution_model}" \
+#    --debug_log_output false \
+#    --meter_per_pixel "${meter_per_texture_pixel2}" \
+#    --output_format png \
+#    --log-path "${tool_output_dir}/output.log"
+
+
+
+  rm -rf "${output_dir}/obj" "${output_dir}/appearance"
+  cp -r "${tool_output_dir}/obj" "${tool_output_dir}/appearance" "${output_dir}/"
+  echo "最終結果 : ${output_dir}/obj ${output_dir}/appearance"
+)

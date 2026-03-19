@@ -2,20 +2,16 @@ import csv
 import os
 import re
 import shutil
-import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
 
-from tqdm import tqdm
+from loguru import logger
 
+from ..util.param_manager import ParamManager
+from ..util.result_type import ResultType
 from .photo_image import PhotoImage
 from .vertical_object import VerticalObject
-from ..util.city_gml_info import CityGmlManager
-from ..util.config import Config
-from ..util.log import Log, ModuleType, LogLevel
-from ..util.param_manager import ParamManager
-from ..util.result_type import ResultType, ProcessResult
 
 
 class TextureMain:
@@ -27,23 +23,21 @@ class TextureMain:
         Args:
           param_manager (ParamManager): パラメータ情報
         """
-        self.input_obj_dir = Config.OUTPUT_PHASE_OBJ_DIR  # 入力OBJフォルダパス
-        self.output_obj_dir = Config.OUTPUT_TEX_OBJ_DIR  # 出力OBJフォルダパス
+        self.input_obj_dir = ""  # 入力OBJフォルダパス
+        self.output_obj_dir = ""  # 出力OBJフォルダパス
         self.param_manager = param_manager  # パラメータ情報
         # オプション出力のOBJフォルダパス
         self.optional_output_obj_dir = ""
 
     def texture_main(
         self,
-        buildings: list[CityGmlManager.BuildInfo],
-        file_name: str,
+        buildings: list[str],
         image_format: str,
-    ) -> None:
+    ) -> ResultType:
         """テクスチャ張付け開始
 
         Args:
-          buildings (list[CityGmlManager.BuildInfo]): 建物外形情報リスト
-          file_name (str): 入力CityGMLファイル名(拡張子付き)
+          buildings (list[str]): 建物外形情報リスト
           image_format (str): 出力画像形式
 
         Raises:
@@ -69,15 +63,18 @@ class TextureMain:
             os.mkdir(self.output_obj_dir)
 
             # 最終出力にOBJファイルを出力する場合
-            if self.param_manager.output_obj:
-                # 出力フォルダの作成
-                self.optional_output_obj_dir = os.path.join(
-                    self.param_manager.output_folder_path,
-                    "obj",
-                    os.path.splitext(file_name)[0],
-                )
-                if not os.path.isdir(self.optional_output_obj_dir):
-                    os.makedirs(self.optional_output_obj_dir)
+            # 出力フォルダの作成
+            self.optional_output_obj_dir = os.path.join(
+                self.param_manager.output_folder_path,
+                "obj",
+            )
+            if not os.path.isdir(self.optional_output_obj_dir):
+                os.makedirs(self.optional_output_obj_dir)
+
+            # 古いマテリアルファイルを削除
+            mtl_path = os.path.join(self.optional_output_obj_dir, "appearance.mtl")
+            if os.path.exists(mtl_path):
+                os.remove(mtl_path)
 
             if not os.path.isdir(self.input_obj_dir):
                 # OBJファイル入力先フォルダなし
@@ -114,9 +111,7 @@ class TextureMain:
             if calib_count == 3:
                 # キャリブレーションデータが五つ揃っている時は有効
                 calib_flag = True
-                Log.output_log_write(
-                    LogLevel.DEBUG, ModuleType.PASTE_TEXTURE, "calib ON"
-                )
+                logger.debug("calib ON")
 
             # 写真情報読み込み
             for data in ex_calib[1:]:
@@ -124,20 +119,12 @@ class TextureMain:
                 # 外部標定要素チェック
                 if len(data) != 7:  # ファイル名,x,y,z,omega,phi,kappa
                     ret = False
-                    Log.output_log_write(
-                        LogLevel.WARN,
-                        ModuleType.PASTE_TEXTURE,
-                        "ex_calib data is insufficient",
-                    )
+                    logger.warning("ex_calib data is insufficient")
 
                 for idx, info in enumerate(data):  # 値が入っていない場合
                     if info == "":
                         ret = False
-                        Log.output_log_write(
-                            LogLevel.WARN,
-                            ModuleType.PASTE_TEXTURE,
-                            "ex_calib data including empty",
-                        )
+                        logger.warning("ex_calib data including empty")
                 if ret:
                     photo = PhotoImage()
                     ret = photo.set_photo_param(
@@ -151,21 +138,30 @@ class TextureMain:
                         photo_list.append(photo)
                         photo_num += 1
                     else:
-                        Log.output_log_write(
-                            LogLevel.WARN,
-                            ModuleType.PASTE_TEXTURE,
-                            f"PhotoFile Not Found {data[0]}",
-                        )
+                        logger.warning(f"PhotoFile Not Found {data[0]}")
 
-            if photo_num < 1:
+            # オルソ画像情報読み込み
+            ortho_list = list()
+            if self.param_manager.ortho_folder_path and os.path.isdir(
+                self.param_manager.ortho_folder_path
+            ):
+                from .ortho_image import OrthoImageCollection
+
+                ortho_coll = OrthoImageCollection(self.param_manager.ortho_folder_path)
+                if ortho_coll.orthos:
+                    ortho_list.append(ortho_coll)
+
+            ortho_num = len(ortho_list)
+            if ortho_num > 0:
+                logger.debug(f"ortho images found: {ortho_num}")
+
+            if photo_num < 1 and ortho_num < 1:
                 raise Exception("Photo not found")
 
             # テクスチャ画像出力フォルダ作成
-            # [メッシュコード]_[地物型]_[CRS]_[オプション]_appearance
-            base_name = os.path.splitext(file_name)[0]
             texture_dir = os.path.join(
                 self.param_manager.output_folder_path,
-                f"{base_name.split('_op')[0]}_appearance",
+                "appearance",
             )
             if not os.path.isdir(texture_dir):
                 os.mkdir(texture_dir)
@@ -176,40 +172,25 @@ class TextureMain:
             mtl_file_name = date + ".mtl"
 
             file_list = os.listdir(self.input_obj_dir)
-            building_list = [i for i in buildings if i.build_id + ".obj" in file_list]
+            building_list = [i for i in buildings if i + ".obj" in file_list]
             self._obj_num = len(building_list)
 
             if self._obj_num == 0:
                 # フォルダ内にファイルが存在しない場合
-                Log.output_log_write(
-                    LogLevel.ERROR,
-                    ModuleType.PASTE_TEXTURE,
-                    f"{self.input_obj_dir}: obj folder do not have obj file.",
+                logger.warning(
+                    f"{self.input_obj_dir}: obj folder do not have obj file."
                 )
                 res_type = ResultType.WARN
             else:
-                isatty = sys.stdout.isatty()
-                pbar = tqdm(
-                    total=len(building_list),
-                    unit="bldg",
-                    leave=False,
-                    dynamic_ncols=isatty,
-                    disable=not isatty,
-                )
-                for build in building_list:
+                for build_id in building_list:
                     # 建造物分テクスチャ貼付け処理
                     try:
-                        pbar.set_description(build.build_id)
-                        if not isatty:
-                            print(f"Processing {build.build_id}")
+                        logger.info(f"Processing {build_id}")
 
-                        id = build.build_id
-                        build.paste_texture = ProcessResult.SKIP
+                        id = build_id
                         path = os.path.join(self.input_obj_dir, f"{id}.obj")
 
-                        Log.output_log_write(
-                            LogLevel.DEBUG, ModuleType.PASTE_TEXTURE, f"bldid:{id}"
-                        )
+                        logger.debug(f"bldid:{id}")
 
                         ver = VerticalObject(
                             path,
@@ -217,23 +198,23 @@ class TextureMain:
                             photo_list,
                             self.param_manager.texture_output_width_max,
                             self.param_manager.texture_output_height_max,
+                            ortho_list,
                         )
                         ver.select_roof_texture()
                         ver.select_wall_texture()
                         ret = ver.output_texture(
                             self.output_obj_dir,
                             texture_dir,
-                            mtl_file_name,
+                            f"{id}.mtl",
                             image_format,
                         )
-                        if self.param_manager.output_obj:
-                            # マテリアルファイル名はCityGMLファイル名とする
-                            ver.output_optional_obj(
-                                obj_dir=self.optional_output_obj_dir,
-                                texture_dir=texture_dir,
-                                mtl_file_name=f"{base_name}.mtl",
-                                image_format=image_format,
-                            )
+                        # マテリアルファイル名は {id}.mtl とする
+                        ver.output_optional_obj(
+                            obj_dir=self.optional_output_obj_dir,
+                            texture_dir=texture_dir,
+                            mtl_file_name=f"{id}.mtl",
+                            image_format=image_format,
+                        )
 
                         if not ret:
                             shutil.copyfile(
@@ -242,43 +223,33 @@ class TextureMain:
                                     self.output_obj_dir, os.path.basename(path)
                                 ),
                             )
-                            Log.output_log_write(
-                                LogLevel.WARN,
-                                ModuleType.PASTE_TEXTURE,
-                                f"Texture not found id:{id}",
-                            )
+                            logger.warning(f"Texture not found id:{id}")
                             res_type = ResultType.WARN
-                            build.paste_texture = ProcessResult.ERROR
                         else:
-                            build.paste_texture = ProcessResult.SUCCESS
+                            pass
 
                     except Exception as e:
-                        traceback.print_exc()
+                        logger.debug(traceback.format_exc())
                         shutil.copyfile(
                             path,
                             os.path.join(self.output_obj_dir, os.path.basename(path)),
                         )
-                        Log.output_log_write(
-                            LogLevel.WARN, ModuleType.PASTE_TEXTURE, f"{str(e)} {path}"
-                        )
+                        logger.warning(f"{str(e)} {path}")
                         res_type = ResultType.WARN
-                        build.paste_texture = ProcessResult.ERROR
 
                     finally:
-                        pbar.update(1)
-
-                pbar.close()
+                        pass
 
             return res_type
 
         except FileNotFoundError as e:
             self._copy_folder()
-            Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.PASTE_TEXTURE, e)
+            logger.warning(e)
             return ResultType.WARN
 
         except Exception as e:
             self._copy_folder()
-            Log.output_log_write(LogLevel.MODEL_ERROR, ModuleType.PASTE_TEXTURE, e)
+            logger.warning(e)
             return ResultType.WARN
 
     def _copy_folder(self):
@@ -297,11 +268,8 @@ class TextureMain:
                 shutil.copyfile(
                     path, os.path.join(self.output_obj_dir, os.path.basename(path))
                 )
-                if self.param_manager.output_obj:
-                    # 最終出力にOBJファイルを出力する場合
-                    shutil.copyfile(
-                        path,
-                        os.path.join(
-                            self.optional_output_obj_dir, os.path.basename(path)
-                        ),
-                    )
+                # 最終出力にOBJファイルを出力する場合
+                shutil.copyfile(
+                    path,
+                    os.path.join(self.optional_output_obj_dir, os.path.basename(path)),
+                )

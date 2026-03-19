@@ -2,6 +2,7 @@ import os
 
 import cv2
 import numpy as np
+from loguru import logger
 from numpy.typing import NDArray
 
 
@@ -22,7 +23,7 @@ class Cv2Japanese:
             image = cv2.imdecode(dec, flags)
             return image
         except Exception as e:
-            print(e)
+            logger.warning(e)
             return None
 
     def imwrite(self: str, img: NDArray, params=None):
@@ -47,5 +48,5 @@ class Cv2Japanese:
             else:
                 return False
         except Exception as e:
-            print(e)
+            logger.warning(e)
             return False

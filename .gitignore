@@ -13,36 +13,10 @@ __pycache__
 # docker 実行の副産物
 param.json
 
-# 中間結果
-/temp
-
-# デバッグ
-/debug
-
 # pip 環境設定
-/bldg-lod2-tool
-/tools/Atlas_Prot/Atlas_Prot
-/tools/SuperResolution/SuperResolution
-/tools/SuperResolution/RoofSurface/RoofSurface
-/tools/SuperResolution/WallSurface/WallSurface
+/bldg-lod2-tool-texture
 
 # 入力・出力ファイル
-/src/create_model/data/*
-!/src/create_model/data/.keep
-/tools/Atlas_Prot/input/*
-!/tools/Atlas_Prot/input/.keep
-/tools/Atlas_Prot/output/*
-!/tools/Atlas_Prot/output/.keep
-/tools/SuperResolution/RoofSurface/checkpoint/*
-!/tools/SuperResolution/RoofSurface/checkpoint/.keep
-/tools/SuperResolution/RoofSurface/data/*
-!/tools/SuperResolution/RoofSurface/data/.keep
-/tools/SuperResolution/RoofSurface/output/*
-!/tools/SuperResolution/RoofSurface/output/.keep
-/tools/SuperResolution/WallSurface/checkpoint/*
-!/tools/SuperResolution/WallSurface/checkpoint/.keep
-/tools/SuperResolution/WallSurface/data/*
-!/tools/SuperResolution/WallSurface/data/.keep
-/tools/SuperResolution/WallSurface/output/*
-!/tools/SuperResolution/WallSurface/output/.keep
+/model
+/data
 
