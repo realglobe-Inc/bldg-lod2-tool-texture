@@ -1,0 +1,74 @@
+name: 親リポジトリに通知
+
+on:
+  push:
+    branches:
+      - sbir-beta-dev
+      - sbir-beta-prod
+
+env:
+  # ジョブタイプを指定（各サブモジュールリポジトリで変更）
+  JOB_TYPE: building-lod2-texture-mapping
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GitHub App トークンを生成
+        id: generate-token
+        uses: actions/create-github-app-token@v1.11.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: realglobe-Inc
+          repositories: sbir-beta
+
+      - name: 環境を判定
+        id: env
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" = "refs/heads/sbir-beta-dev" ]; then
+            echo "environment=dev" >> "$GITHUB_OUTPUT"
+            echo "target_branch=dev" >> "$GITHUB_OUTPUT"
+          elif [ "$REF" = "refs/heads/sbir-beta-prod" ]; then
+            echo "environment=prod" >> "$GITHUB_OUTPUT"
+            echo "target_branch=prod" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: sbir-betaリポジトリに通知
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          SUBMODULE: ${{ env.JOB_TYPE }}
+          ENVIRONMENT: ${{ steps.env.outputs.environment }}
+          TARGET_BRANCH: ${{ steps.env.outputs.target_branch }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          payload=$(jq -n \
+            --arg submodule "$SUBMODULE" \
+            --arg environment "$ENVIRONMENT" \
+            --arg target_branch "$TARGET_BRANCH" \
+            --arg source_branch "$SOURCE_BRANCH" \
+            --arg commit_sha "$COMMIT_SHA" \
+            '{event_type: "submodule-updated", client_payload: {submodule: $submodule, environment: $environment, target_branch: $target_branch, source_branch: $source_branch, commit_sha: $commit_sha}}')
+          curl -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/realglobe-Inc/sbir-beta/dispatches \
+            -d "$payload"
+
+      - name: 通知結果を表示
+        env:
+          SUBMODULE: ${{ env.JOB_TYPE }}
+          ENVIRONMENT: ${{ steps.env.outputs.environment }}
+          TARGET_BRANCH: ${{ steps.env.outputs.target_branch }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "✅ sbir-betaリポジトリに通知しました"
+          echo "  - サブモジュール: $SUBMODULE"
+          echo "  - 環境: $ENVIRONMENT"
+          echo "  - ターゲットブランチ: $TARGET_BRANCH"
+          echo "  - ソースブランチ: $SOURCE_BRANCH"
+          echo "  - コミット: $COMMIT_SHA"
