@@ -5,6 +5,9 @@ on:
     branches:
       - sbir-beta-dev
       - sbir-beta-prod
+    paths-ignore:
+      - '.github/**'
+      - '**.md'
 
 env:
   # ジョブタイプを指定（各サブモジュールリポジトリで変更）
