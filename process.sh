@@ -64,15 +64,21 @@ count = 0
 for b in params.get('buildings', []):
     bldg_id = b['id']
     roof_class = b['roof_class']
-    obj_name = f'{roof_class}_roof_building.obj'
+    obj_names = (
+        ['construct_roof2_building.obj', 'others_roof_building.obj']
+        if roof_class == 'others'
+        else [f'{roof_class}_roof_building.obj']
+    )
 
-    matches = glob.glob(f'{source_dir}/**/{bldg_id}/{obj_name}', recursive=True)
-    if matches:
-        shutil.copy2(matches[0], f'{obj_dir}/{bldg_id}.obj')
-        print(f'  {bldg_id}: {obj_name} -> {bldg_id}.obj')
-        count += 1
+    for obj_name in obj_names:
+        matches = glob.glob(f'{source_dir}/**/{bldg_id}/{obj_name}', recursive=True)
+        if matches:
+            shutil.copy2(matches[0], f'{obj_dir}/{bldg_id}.obj')
+            print(f'  {bldg_id}: {obj_name} -> {bldg_id}.obj')
+            count += 1
+            break
     else:
-        print(f'  {bldg_id}: WARNING - {obj_name} not found')
+        print(f'  {bldg_id}: WARNING - {obj_names} not found')
 
 print(f'整形完了: {count} 建物')
 "
